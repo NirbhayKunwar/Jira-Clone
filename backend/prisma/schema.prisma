@@ -1,0 +1,77 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Workspace {
+  id              Int      @id @default(autoincrement())
+  name            String   @db.VarChar(255)
+  key             String   @unique @db.VarChar(50)
+  templateType    String   @map("template_type") @db.VarChar(50)
+  boardName       String   @map("board_name") @db.VarChar(255)
+  description     String?  @db.Text
+  sprintDuration  Int?     @default(2) @map("sprint_duration")
+  wipLimit        Int?     @default(5) @map("wip_limit")
+  createdAt       DateTime @default(now()) @map("created_at")
+  tasks           Task[]
+
+  @@map("workspaces")
+}
+
+model User {
+  id                     Int      @id @default(autoincrement())
+  name                   String   @db.VarChar(255)
+  email                  String   @unique @db.VarChar(255)
+  password               String   @db.VarChar(255)
+  role                   String?  @default("Full Stack Engineer") @db.VarChar(255)
+  dept                   String?  @default("Core Engineering") @db.VarChar(255)
+  location               String?  @default("San Francisco, CA") @db.VarChar(255)
+  hasConfiguredWorkspace Boolean? @default(false) @map("has_configured_workspace")
+  createdAt              DateTime @default(now()) @map("created_at")
+  tasks                  Task[]
+
+  @@map("users")
+}
+
+model Task {
+  id          Int        @id @default(autoincrement())
+  title       String     @db.VarChar(255)
+  descText    String?    @map("desc_text") @db.Text
+  status      String?    @default("todo") @db.VarChar(50)
+  priority    String?    @default("Medium") @db.VarChar(50)
+  epic        String?    @default("General Work") @db.VarChar(100)
+  assigneeId  Int?       @map("assignee_id")
+  assignee    User?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  workspaceId Int?       @map("workspace_id")
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  @@map("tasks")
+}
+
+model Goal {
+  id          Int      @id @default(autoincrement())
+  title       String   @db.VarChar(255)
+  descText    String?  @map("desc_text") @db.Text
+  owner       String   @default("You") @db.VarChar(255)
+  targetDate  String?  @map("target_date") @db.VarChar(50)
+  progress    Int      @default(0)
+  status      String   @default("on_track") @db.VarChar(50)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("goals")
+}
+
+model Team {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(255)
+  descText    String?  @map("desc_text") @db.Text
+  membersText String   @map("members_text") @db.Text
+
+  @@map("teams")
+}
+

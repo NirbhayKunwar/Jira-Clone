@@ -1,0 +1,243 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ==========================================
+   60-30-10 COLOR THEMES SPECIFICATIONS
+   ========================================== */
+
+:root, [data-theme='atlassian-light'] {
+  --bg-dominant: #f5f7fb;
+  --bg-dominant-offset: #e9ecf3;
+  --bg-secondary-card: #ffffff;
+  --border-secondary: #d5dbec;
+  --text-secondary: #0a1931;
+  --text-secondary-muted: #475569;
+  --color-accent: #0052cc;
+  --color-accent-hover: #0043a8;
+  --color-accent-light: rgba(0, 82, 204, 0.1);
+  --shiny-gradient: linear-gradient(120deg, rgba(0, 82, 204, 0.4) 40%, rgba(0, 82, 204, 1) 50%, rgba(0, 82, 204, 0.4) 60%);
+}
+
+[data-theme='atlassian-dark'] {
+  --bg-dominant: #070c19;
+  --bg-dominant-offset: #0f172a;
+  --bg-secondary-card: #1e293b;
+  --border-secondary: #334155;
+  --text-secondary: #f8fafc;
+  --text-secondary-muted: #94a3b8;
+  --color-accent: #2563eb;
+  --color-accent-hover: #3b82f6;
+  --color-accent-light: rgba(37, 99, 235, 0.2);
+  --shiny-gradient: linear-gradient(120deg, rgba(37, 99, 235, 0.4) 40%, rgba(255, 255, 255, 1) 50%, rgba(37, 99, 235, 0.4) 60%);
+}
+
+[data-theme='emerald-light'] {
+  --bg-dominant: #f2f8f5;
+  --bg-dominant-offset: #e2f0e8;
+  --bg-secondary-card: #ffffff;
+  --border-secondary: #cbdcd1;
+  --text-secondary: #061e16;
+  --text-secondary-muted: #335347;
+  --color-accent: #059669;
+  --color-accent-hover: #047857;
+  --color-accent-light: rgba(5, 150, 105, 0.1);
+  --shiny-gradient: linear-gradient(120deg, rgba(5, 150, 105, 0.4) 40%, rgba(5, 150, 105, 1) 50%, rgba(5, 150, 105, 0.4) 60%);
+}
+
+[data-theme='emerald-dark'] {
+  --bg-dominant: #04100c;
+  --bg-dominant-offset: #0c241c;
+  --bg-secondary-card: #14372c;
+  --border-secondary: #1d5040;
+  --text-secondary: #ecfdf5;
+  --text-secondary-muted: #6ee7b7;
+  --color-accent: #10b981;
+  --color-accent-hover: #34d399;
+  --color-accent-light: rgba(16, 185, 129, 0.2);
+  --shiny-gradient: linear-gradient(120deg, rgba(16, 185, 129, 0.4) 40%, rgba(255, 255, 255, 1) 50%, rgba(16, 185, 129, 0.4) 60%);
+}
+
+[data-theme='cyberpunk-light'] {
+  --bg-dominant: #faf4f8;
+  --bg-dominant-offset: #f4e1f0;
+  --bg-secondary-card: #ffffff;
+  --border-secondary: #eccce6;
+  --text-secondary: #2f0622;
+  --text-secondary-muted: #692455;
+  --color-accent: #db2777;
+  --color-accent-hover: #be185d;
+  --color-accent-light: rgba(219, 39, 119, 0.1);
+  --shiny-gradient: linear-gradient(120deg, rgba(219, 39, 119, 0.4) 40%, rgba(219, 39, 119, 1) 50%, rgba(219, 39, 119, 0.4) 60%);
+}
+
+[data-theme='cyberpunk-dark'] {
+  --bg-dominant: #0c0216;
+  --bg-dominant-offset: #1a042e;
+  --bg-secondary-card: #2c0b4d;
+  --border-secondary: #4f148c;
+  --text-secondary: #fae8ff;
+  --text-secondary-muted: #d8b4fe;
+  --color-accent: #f43f5e;
+  --color-accent-hover: #ec4899;
+  --color-accent-light: rgba(244, 63, 94, 0.2);
+  --shiny-gradient: linear-gradient(120deg, rgba(244, 63, 94, 0.4) 40%, rgba(255, 255, 255, 1) 50%, rgba(244, 63, 94, 0.4) 60%);
+}
+
+[data-theme='sunset-light'] {
+  --bg-dominant: #fdfaf2;
+  --bg-dominant-offset: #f6ebd4;
+  --bg-secondary-card: #ffffff;
+  --border-secondary: #eadab2;
+  --text-secondary: #2d1402;
+  --text-secondary-muted: #653609;
+  --color-accent: #ea580c;
+  --color-accent-hover: #c2410c;
+  --color-accent-light: rgba(234, 88, 12, 0.1);
+  --shiny-gradient: linear-gradient(120deg, rgba(234, 88, 12, 0.4) 40%, rgba(234, 88, 12, 1) 50%, rgba(234, 88, 12, 0.4) 60%);
+}
+
+[data-theme='sunset-dark'] {
+  --bg-dominant: #100802;
+  --bg-dominant-offset: #221204;
+  --bg-secondary-card: #381f0b;
+  --border-secondary: #5a3212;
+  --text-secondary: #fffbeb;
+  --text-secondary-muted: #fde047;
+  --color-accent: #f59e0b;
+  --color-accent-hover: #fbbf24;
+  --color-accent-light: rgba(245, 158, 11, 0.2);
+  --shiny-gradient: linear-gradient(120deg, rgba(245, 158, 11, 0.4) 40%, rgba(255, 255, 255, 1) 50%, rgba(245, 158, 11, 0.4) 60%);
+}
+
+/* ==========================================
+   TAILWIND CSS V4 THEME MAP DIRECTIVE
+   ========================================== */
+
+@theme {
+  --color-dominant: var(--bg-dominant);
+  --color-dominant-offset: var(--bg-dominant-offset);
+  --color-card-secondary: var(--bg-secondary-card);
+  --color-border-secondary: var(--border-secondary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-secondary-muted: var(--text-secondary-muted);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-light: var(--color-accent-light);
+  
+  --color-jira-green: #36b37e;
+  --color-jira-yellow: #ffab00;
+  --color-jira-red: #ff5630;
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+}
+
+/* Custom baseline styling for the landing page */
+body {
+  font-family: var(--font-sans);
+  color: var(--text-secondary);
+  background-color: var(--bg-dominant);
+  overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Custom animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Scrollbar customization */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-dominant-offset);
+  transition: background-color 0.3s ease;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary-muted);
+}
+
+/* Shine effect keyframes */
+@keyframes shine {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.animate-shine {
+  animation: shine 5s linear infinite;
+}
+
+/* Marquee infinite scroll keyframes */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+.animate-marquee {
+  animation: marquee var(--duration, 25s) linear infinite;
+}
+
+/* ==========================================
+   PREMIUM DYNAMIC VISUAL DECORATIONS
+   ========================================== */
+
+/* Theme-adaptive Grid Overlay */
+.bg-grid-pattern {
+  background-size: 45px 45px;
+  background-image: 
+    linear-gradient(to right, var(--border-secondary) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-secondary) 1px, transparent 1px);
+  mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
+}
+
+/* Slow floating ambient background animations */
+@keyframes float-slow {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1) rotate(0deg);
+  }
+  33% {
+    transform: translate(40px, -60px) scale(1.15) rotate(120deg);
+  }
+  66% {
+    transform: translate(-30px, 30px) scale(0.9) rotate(240deg);
+  }
+}
+
+.animate-blob-slow {
+  animation: float-slow 20s infinite alternate ease-in-out;
+}
+
+.animate-blob-reverse {
+  animation: float-slow 26s infinite alternate-reverse ease-in-out;
+}
+
+/* Premium thin scrollbar utility */
+.scrollbar-thin::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 2px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
