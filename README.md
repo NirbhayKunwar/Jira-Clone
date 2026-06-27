@@ -72,6 +72,10 @@ Jira-Clone/
 
 ### 1. Environment Configuration
 
+You can find templates for the environment variables in:
+* **Backend**: [backend/.env.example](file:///c:/Users/nirbh/Desktop/Jira-Clone/backend/.env.example) (Copy to `backend/.env` and update values)
+* **Frontend**: [frontend/.env.example](file:///c:/Users/nirbh/Desktop/Jira-Clone/frontend/.env.example) (Copy to `frontend/.env` if customizing backend URL)
+
 Create a `.env` file in the `backend/` directory:
 ```env
 PORT=5000
