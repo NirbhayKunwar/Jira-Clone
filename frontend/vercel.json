@@ -3,19 +3,7 @@
   "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/profile",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/dashboard",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/login",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/auth",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
