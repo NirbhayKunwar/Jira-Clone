@@ -54,7 +54,7 @@ model Task {
   descText    String?    @map("desc_text") @db.Text
   status      String?    @default("todo") @db.VarChar(50)
   priority    String?    @default("Medium") @db.VarChar(50)
-  epic        String?    @default("General Work") @db.VarChar(100)
+  epic        String?    @db.VarChar(100)
   assigneeId  Int?       @map("assignee_id")
   assignee    User?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
   workspaceId Int?       @map("workspace_id")
@@ -112,4 +112,3 @@ model ScheduleEvent {
   @@index([eventDate])
   @@map("schedule_events")
 }
-

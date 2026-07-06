@@ -97,7 +97,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
       descText: desc || '',
       status: status || 'todo',
       priority: priority || 'Medium',
-      epic: epic || 'General Work',
+      epic: epic?.trim() || null,
       assigneeId: assigneeId,
       workspaceId: parsedWorkspaceId,
       completedAt: (status || 'todo') === 'done' ? new Date() : null

@@ -25,7 +25,7 @@ const THEMES = [
   { id: 'cyberpunk', name: 'Cyberpunk Neon', colorBg: 'bg-[#db2777]' },
   { id: 'sunset', name: 'Sunset Amber', colorBg: 'bg-[#d97706]' }
 ];
-const EPICS = ['Design System', 'DevOps & Security', 'Integrations', 'Tech Stack Upgrade', 'General Work'];
+const ROADMAP_COLORS = ['#0052cc', '#ff5630', '#36b37e', '#ffab00', '#6554c0'];
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -54,7 +54,7 @@ export default function Dashboard() {
   const defaultStatus = useMemo(() => (activeWorkspace?.template_type === 'scrum' ? 'backlog' : 'todo'), [activeWorkspace?.template_type]);
   const [newStatus, setNewStatus] = useState(defaultStatus);
   const [newPriority, setNewPriority] = useState('Medium');
-  const [newEpic, setNewEpic] = useState('General Work');
+  const [newEpic, setNewEpic] = useState('');
   const [newAssignee, setNewAssignee] = useState('You');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -83,7 +83,7 @@ export default function Dashboard() {
         setNewDesc('');
         setNewStatus(defaultStatus);
         setNewPriority('Medium');
-        setNewEpic('General Work');
+        setNewEpic('');
         setNewAssignee('You');
         setShowCreateModal(false);
       }
@@ -231,31 +231,7 @@ export default function Dashboard() {
     loadGoalsAndTeams();
   }, [user]);
   
-  const [epicsList, setEpicsList] = useState(() => {
-    const saved = localStorage.getItem('jira_epics_list');
-    return saved ? JSON.parse(saved) : ['Design System', 'DevOps & Security', 'Integrations', 'Tech Stack Upgrade', 'General Work'];
-  });
-  
-  const [epicTimelines, setEpicTimelines] = useState(() => {
-    const saved = localStorage.getItem('jira_epic_timelines');
-    return saved ? JSON.parse(saved) : {
-      'Design System': { start: 0, end: 2, color: 'bg-blue-500' },
-      'DevOps & Security': { start: 1, end: 3, color: 'bg-red-500' },
-      'Integrations': { start: 2, end: 5, color: 'bg-emerald-500' },
-      'Tech Stack Upgrade': { start: 0, end: 4, color: 'bg-amber-500' },
-      'General Work': { start: 3, end: 5, color: 'bg-purple-500' }
-    };
-  });
-
   const [expandedEpic, setExpandedEpic] = useState(null);
-
-  useEffect(() => {
-    localStorage.setItem('jira_epics_list', JSON.stringify(epicsList));
-  }, [epicsList]);
-
-  useEffect(() => {
-    localStorage.setItem('jira_epic_timelines', JSON.stringify(epicTimelines));
-  }, [epicTimelines]);
 
   const months = useMemo(() => {
     const result = [];
@@ -266,6 +242,37 @@ export default function Dashboard() {
     }
     return result;
   }, []);
+
+  const epicsList = useMemo(() => (
+    [...new Set(tasks.map(task => task.epic?.trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b))
+  ), [tasks]);
+
+  const epicTimelines = useMemo(() => {
+    const rangeStart = new Date(dashboardOpenedAt);
+    rangeStart.setDate(1);
+    rangeStart.setHours(0, 0, 0, 0);
+
+    const toMonthIndex = (value) => {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return 0;
+      return (date.getFullYear() - rangeStart.getFullYear()) * 12
+        + date.getMonth() - rangeStart.getMonth();
+    };
+
+    return Object.fromEntries(epicsList.map((epic, index) => {
+      const epicTasks = tasks.filter(task => task.epic?.trim() === epic);
+      const starts = epicTasks.map(task => toMonthIndex(task.createdAt));
+      const ends = epicTasks.map(task => toMonthIndex(task.completedAt || dashboardOpenedAt));
+      const clamp = value => Math.min(5, Math.max(0, value));
+
+      return [epic, {
+        start: clamp(Math.min(...starts)),
+        end: clamp(Math.max(...ends)),
+        color: ROADMAP_COLORS[index % ROADMAP_COLORS.length]
+      }];
+    }));
+  }, [dashboardOpenedAt, epicsList, tasks]);
 
   // Form States cleared (moved to top of functional component)
 
@@ -488,7 +495,7 @@ export default function Dashboard() {
         setNewDesc('');
         setNewStatus(isScrum ? 'backlog' : 'todo');
         setNewPriority('Medium');
-        setNewEpic('General Work');
+        setNewEpic('');
         setNewAssignee('You');
       },
       onError: (err) => {
