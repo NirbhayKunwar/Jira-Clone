@@ -255,12 +255,15 @@ export default function WorkspaceSetup() {
                   <p className="text-xs text-text-secondary-muted mt-1">Select the operational methodology that fits your workflow best.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2" role="radiogroup" aria-label="Project template">
                   
                   {/* SCRUM CARD */}
-                  <div 
+                  <button
+                    type="button"
                     onClick={() => setTemplate('scrum')}
-                    className={`p-5 rounded-2xl border cursor-pointer transition-all duration-300 flex flex-col justify-between h-72 hover:-translate-y-1 ${
+                    role="radio"
+                    aria-checked={template === 'scrum'}
+                    className={`p-5 rounded-2xl border cursor-pointer transition-all duration-300 flex flex-col justify-between h-72 hover:-translate-y-1 text-left focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-card-secondary ${
                       template === 'scrum' 
                         ? 'border-accent bg-accent/5 ring-1 ring-accent' 
                         : 'border-border-secondary hover:border-text-secondary-muted/40 bg-card-secondary'
@@ -310,12 +313,15 @@ export default function WorkspaceSetup() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
 
                   {/* KANBAN CARD */}
-                  <div 
+                  <button
+                    type="button"
                     onClick={() => setTemplate('kanban')}
-                    className={`p-5 rounded-2xl border cursor-pointer transition-all duration-300 flex flex-col justify-between h-72 hover:-translate-y-1 ${
+                    role="radio"
+                    aria-checked={template === 'kanban'}
+                    className={`p-5 rounded-2xl border cursor-pointer transition-all duration-300 flex flex-col justify-between h-72 hover:-translate-y-1 text-left focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2 focus:ring-offset-card-secondary ${
                       template === 'kanban' 
                         ? 'border-accent bg-accent/5 ring-1 ring-accent' 
                         : 'border-border-secondary hover:border-text-secondary-muted/40 bg-card-secondary'
@@ -363,7 +369,7 @@ export default function WorkspaceSetup() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
 
                 </div>
 

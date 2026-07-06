@@ -57,6 +57,7 @@ export default function Dashboard() {
   const [newEpic, setNewEpic] = useState('');
   const [newAssignee, setNewAssignee] = useState('You');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
 
   const activeTab = searchParams.get('tab') || 'board';
   const setActiveTab = (tab) => {
@@ -86,15 +87,16 @@ export default function Dashboard() {
         setNewEpic('');
         setNewAssignee('You');
         setShowCreateModal(false);
+        setShowAddMemberModal(false);
       }
     };
-    if (showCreateModal) {
+    if (showCreateModal || showAddMemberModal) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showCreateModal, defaultStatus]);
+  }, [showCreateModal, showAddMemberModal, defaultStatus]);
 
   const isScrum = activeWorkspace?.template_type === 'scrum';
 
@@ -282,7 +284,6 @@ export default function Dashboard() {
   // Form States cleared (moved to top of functional component)
 
   // Add Member Modal States
-  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [memberName, setMemberName] = useState('');
   const [memberEmail, setMemberEmail] = useState('');
   const [memberRole, setMemberRole] = useState('Full Stack Engineer');
@@ -295,8 +296,42 @@ export default function Dashboard() {
   const pickerRef = useRef(null);
   const recentRef = useRef(null);
   const profileMenuRef = useRef(null);
+  const createModalRef = useRef(null);
+  const addMemberModalRef = useRef(null);
 
   // Local storage save removed - now persisting dynamically to PostgreSQL database
+
+  useEffect(() => {
+    const activeModal = showCreateModal ? createModalRef.current : showAddMemberModal ? addMemberModalRef.current : null;
+    if (!activeModal) return;
+
+    const focusableSelector = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusable = [...activeModal.querySelectorAll(focusableSelector)];
+    const preferredFocus = activeModal.querySelector('[data-autofocus]');
+    (preferredFocus || focusable[0])?.focus();
+
+    const trapFocus = (e) => {
+      if (e.key !== 'Tab') return;
+      const currentFocusable = [...activeModal.querySelectorAll(focusableSelector)];
+      if (currentFocusable.length === 0) {
+        e.preventDefault();
+        return;
+      }
+
+      const first = currentFocusable[0];
+      const last = currentFocusable[currentFocusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    activeModal.addEventListener('keydown', trapFocus);
+    return () => activeModal.removeEventListener('keydown', trapFocus);
+  }, [showCreateModal, showAddMemberModal]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -702,8 +737,8 @@ export default function Dashboard() {
 
       {/* 1. Sidebar Navigation */}
       <aside className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 ${
-        isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full invisible pointer-events-none xl:visible xl:pointer-events-auto'
+      }`} aria-label="Workspace navigation">
         <div>
           {/* Sidebar Header/Logo */}
           <div className="h-16 flex items-center px-6 border-b border-border-secondary/40">
@@ -723,11 +758,12 @@ export default function Dashboard() {
 
           {/* Workspace Switcher dropdown */}
           <div className="px-4 py-3 border-b border-border-secondary/20 bg-dominant-offset/10">
-            <label className="block text-[9px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">
+            <label htmlFor="workspace-switcher" className="block text-[9px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">
               Active Project
             </label>
             <div className="relative group/ws">
               <select
+                id="workspace-switcher"
                 value={activeWorkspace?.id || ''}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -1304,6 +1340,7 @@ export default function Dashboard() {
             <div className="relative flex-grow">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary-muted" />
               <input
+                aria-label="Search issues"
                 type="text"
                 placeholder="Search issues..."
                 value={searchQuery}
@@ -1376,6 +1413,7 @@ export default function Dashboard() {
               <div className="hidden lg:block relative pl-4 flex-shrink">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary-muted" />
                 <input
+                  aria-label="Search issues"
                   type="text"
                   placeholder="Search issues..."
                   value={searchQuery}
@@ -1509,6 +1547,7 @@ export default function Dashboard() {
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary-muted" />
               <input
+                aria-label="Search issues"
                 type="text"
                 placeholder="Search issues..."
                 value={searchQuery}
@@ -1542,6 +1581,7 @@ export default function Dashboard() {
                   <Filter className="w-3.5 h-3.5 text-text-secondary-muted" />
                   <span className="text-xs text-text-secondary-muted">Epic:</span>
                   <select
+                    aria-label="Filter by epic"
                     value={filterEpic}
                     onChange={(e) => setFilterEpic(e.target.value)}
                     className="text-xs py-1 pl-2 pr-6 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
@@ -1558,6 +1598,7 @@ export default function Dashboard() {
                   <AlertTriangle className="w-3.5 h-3.5 text-text-secondary-muted" />
                   <span className="text-xs text-text-secondary-muted">Priority:</span>
                   <select
+                    aria-label="Filter by priority"
                     value={filterPriority}
                     onChange={(e) => setFilterPriority(e.target.value)}
                     className="text-xs py-1 pl-2 pr-6 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
@@ -1646,8 +1687,9 @@ export default function Dashboard() {
               <div className="flex flex-col md:hidden py-3 gap-3 border-t border-border-secondary/20 animate-[slide-down_150ms_ease-out] w-full">
                 {/* Epic Select */}
                 <div className="flex flex-col gap-1 text-left">
-                  <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Epic Category</label>
+                  <label htmlFor="mobile-filter-epic" className="text-[10px] font-bold text-text-secondary-muted uppercase">Epic Category</label>
                   <select
+                    id="mobile-filter-epic"
                     value={filterEpic}
                     onChange={(e) => setFilterEpic(e.target.value)}
                     className="w-full text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none min-h-[44px] cursor-pointer"
@@ -1661,8 +1703,9 @@ export default function Dashboard() {
 
                 {/* Priority Select */}
                 <div className="flex flex-col gap-1 text-left">
-                  <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Priority</label>
+                  <label htmlFor="mobile-filter-priority" className="text-[10px] font-bold text-text-secondary-muted uppercase">Priority</label>
                   <select
+                    id="mobile-filter-priority"
                     value={filterPriority}
                     onChange={(e) => setFilterPriority(e.target.value)}
                     className="w-full text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none min-h-[44px] cursor-pointer"
@@ -2335,8 +2378,9 @@ export default function Dashboard() {
                   <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider pb-1 border-b border-border-secondary/20">Add New Objective Goal</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Goal Title</label>
+                      <label htmlFor="goal-title" className="text-[10px] font-bold text-text-secondary-muted uppercase">Goal Title</label>
                       <input
+                        id="goal-title"
                         type="text"
                         required
                         value={newGoalTitle}
@@ -2346,8 +2390,9 @@ export default function Dashboard() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Owner / Lead</label>
+                      <label htmlFor="goal-owner" className="text-[10px] font-bold text-text-secondary-muted uppercase">Owner / Lead</label>
                       <select
+                        id="goal-owner"
                         value={newGoalOwner}
                         onChange={(e) => setNewGoalOwner(e.target.value)}
                         className="w-full text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none"
@@ -2361,8 +2406,9 @@ export default function Dashboard() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Description</label>
+                    <label htmlFor="goal-desc" className="text-[10px] font-bold text-text-secondary-muted uppercase">Description</label>
                     <textarea
+                      id="goal-desc"
                       value={newGoalDesc}
                       onChange={(e) => setNewGoalDesc(e.target.value)}
                       placeholder="Outline key metrics and align targets..."
@@ -2372,8 +2418,9 @@ export default function Dashboard() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Target Date</label>
+                      <label htmlFor="goal-target-date" className="text-[10px] font-bold text-text-secondary-muted uppercase">Target Date</label>
                       <input
+                        id="goal-target-date"
                         type="date"
                         value={newGoalDate}
                         onChange={(e) => setNewGoalDate(e.target.value)}
@@ -2381,8 +2428,9 @@ export default function Dashboard() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Status</label>
+                      <label htmlFor="goal-status" className="text-[10px] font-bold text-text-secondary-muted uppercase">Status</label>
                       <select
+                        id="goal-status"
                         value={newGoalStatus}
                         onChange={(e) => setNewGoalStatus(e.target.value)}
                         className="w-full text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none"
@@ -2393,8 +2441,9 @@ export default function Dashboard() {
                       </select>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Initial Progress ({newGoalProgress}%)</label>
+                      <label htmlFor="goal-progress" className="text-[10px] font-bold text-text-secondary-muted uppercase">Initial Progress ({newGoalProgress}%)</label>
                       <input
+                        id="goal-progress"
                         type="range"
                         min="0"
                         max="100"
@@ -2778,8 +2827,9 @@ export default function Dashboard() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Team Name</label>
+                      <label htmlFor="team-name" className="text-[10px] font-bold text-text-secondary-muted uppercase">Team Name</label>
                       <input
+                        id="team-name"
                         type="text"
                         required
                         value={newTeamName}
@@ -2789,8 +2839,9 @@ export default function Dashboard() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Description</label>
+                      <label htmlFor="team-desc" className="text-[10px] font-bold text-text-secondary-muted uppercase">Description</label>
                       <input
+                        id="team-desc"
                         type="text"
                         value={newTeamDesc}
                         onChange={(e) => setNewTeamDesc(e.target.value)}
@@ -2818,6 +2869,7 @@ export default function Dashboard() {
                         return (
                           <label key={m.id} className="flex items-center space-x-2.5 cursor-pointer select-none text-xs text-text-secondary">
                             <input
+                              aria-label={`Select ${m.name === 'You' && user?.name ? user.name : m.name} for this team`}
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {
@@ -2957,8 +3009,9 @@ export default function Dashboard() {
 
                           {/* Inline Member Adder */}
                           <div className="pt-2 flex items-center justify-between gap-3">
-                            <label className="text-[9px] font-bold text-text-secondary-muted uppercase flex-shrink-0">Add Member:</label>
+                            <label htmlFor={`team-${team.id}-member-add`} className="text-[9px] font-bold text-text-secondary-muted uppercase flex-shrink-0">Add Member:</label>
                             <select
+                              id={`team-${team.id}-member-add`}
                               value=""
                               onChange={(e) => {
                                 const val = e.target.value;
@@ -3264,7 +3317,7 @@ export default function Dashboard() {
 
       {/* 3. Create Issue Dialog Modal */}
       {showCreateModal && (
-        <div role="dialog" aria-modal="true" aria-labelledby="issue-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-[fade-in_150ms_ease-out]">
+        <div ref={createModalRef} role="dialog" aria-modal="true" aria-labelledby="issue-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-[fade-in_150ms_ease-out]">
           <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 overflow-hidden relative">
             {/* Accent border */}
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent to-accent-hover" />
@@ -3275,6 +3328,7 @@ export default function Dashboard() {
               <button 
                 onClick={() => setShowCreateModal(false)}
                 className="text-text-secondary-muted hover:text-text-secondary p-1 rounded-lg hover:bg-dominant-offset cursor-pointer"
+                aria-label="Close create issue dialog"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3288,6 +3342,7 @@ export default function Dashboard() {
                   id="issue-title"
                   type="text"
                   required
+                  data-autofocus
                   placeholder="e.g. Add validation to Signup form"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
@@ -3393,17 +3448,18 @@ export default function Dashboard() {
 
       {/* 4. Add Team Member Dialog Modal */}
       {showAddMemberModal && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-[fade-in_150ms_ease-out]">
+        <div ref={addMemberModalRef} role="dialog" aria-modal="true" aria-labelledby="member-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-[fade-in_150ms_ease-out]">
           <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 overflow-hidden relative">
             {/* Accent border */}
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent to-accent-hover" />
             
             {/* Header */}
             <div className="px-6 py-5 border-b border-border-secondary/40 flex justify-between items-center mt-1.5">
-              <h3 className="font-display font-extrabold text-lg text-text-secondary">Add a New Team Member</h3>
+              <h3 id="member-modal-title" className="font-display font-extrabold text-lg text-text-secondary">Add a New Team Member</h3>
               <button 
                 onClick={() => setShowAddMemberModal(false)}
                 className="text-text-secondary-muted hover:text-text-secondary p-1 rounded-lg hover:bg-dominant-offset cursor-pointer border-none bg-transparent"
+                aria-label="Close add member dialog"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -3417,6 +3473,7 @@ export default function Dashboard() {
                   <input
                     id="member-name"
                     type="text"
+                    data-autofocus
                     required
                     placeholder="e.g. Jane Doe"
                     value={memberName}

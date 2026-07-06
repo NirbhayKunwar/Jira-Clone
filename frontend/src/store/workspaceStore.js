@@ -57,7 +57,7 @@ export const useWorkspaceStore = create((set, get) => {
               get().setActiveWorkspace(defaultWS);
             }
 
-            if (currentView !== '/workspace-setup' && onViewChange) {
+            if (currentView === '/' && onViewChange) {
               onViewChange('/dashboard');
             }
           }
