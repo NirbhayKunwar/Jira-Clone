@@ -96,11 +96,13 @@ export default function WorkspaceSetup() {
         })
       });
 
-      const data = await response.json();
+      const resJson = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to create workspace.');
+        throw new Error(resJson.message || 'Failed to create workspace.');
       }
+
+      const newWorkspace = resJson.data || resJson;
 
       // Finish loading
       setTimeout(async () => {
@@ -108,8 +110,9 @@ export default function WorkspaceSetup() {
         setLoading(false);
         
         // Update local workspace list and selection
-        setWorkspaces([...workspaces, data]);
-        setActiveWorkspace(data);
+        const currentWorkspaces = Array.isArray(workspaces) ? workspaces : [];
+        setWorkspaces([...currentWorkspaces, newWorkspace]);
+        setActiveWorkspace(newWorkspace);
 
         // Update user config in DB if needed
         if (user && !user.hasConfiguredWorkspace) {

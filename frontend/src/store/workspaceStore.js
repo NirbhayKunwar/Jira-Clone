@@ -38,21 +38,22 @@ export const useWorkspaceStore = create((set, get) => {
           }
         });
         if (response.ok) {
-          const data = await response.json();
-          set({ workspaces: data, isLoadingWorkspaces: false });
+          const resJson = await response.json();
+          const workspacesList = Array.isArray(resJson.data) ? resJson.data : (Array.isArray(resJson) ? resJson : []);
+          set({ workspaces: workspacesList, isLoadingWorkspaces: false });
 
           if (!currentUser.hasConfiguredWorkspace) {
             if (onViewChange) onViewChange('/workspace-setup');
           } else {
             // Check if saved workspace still exists
             const savedWS = get().activeWorkspace;
-            const exists = savedWS ? data.some(w => w.id === savedWS.id) : false;
+            const exists = savedWS ? workspacesList.some(w => w.id === savedWS.id) : false;
             
             if (exists) {
-              const currentWS = data.find(w => w.id === savedWS.id);
+              const currentWS = workspacesList.find(w => w.id === savedWS.id);
               get().setActiveWorkspace(currentWS);
             } else {
-              const defaultWS = data.length > 0 ? data[0] : null;
+              const defaultWS = workspacesList.length > 0 ? workspacesList[0] : null;
               get().setActiveWorkspace(defaultWS);
             }
 
