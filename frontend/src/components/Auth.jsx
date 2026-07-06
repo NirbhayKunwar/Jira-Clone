@@ -4,6 +4,8 @@ import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2, AlertCir
 import { API_URL } from '../config/api';
 import { useAuthStore } from '../store/authStore';
 
+let googleInitialized = false;
+
 export default function Auth({ initialView = 'login', onClose, onSuccess, initialEmail = '' }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -230,12 +232,12 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
     const initializeGoogle = () => {
       if (window.google) {
         const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com";
-        if (!window.googleInitialized) {
+        if (!googleInitialized) {
           window.google.accounts.id.initialize({
             client_id: googleClientId,
             callback: handleCredentialResponse
           });
-          window.googleInitialized = true;
+          googleInitialized = true;
         }
 
         const btnElement = document.getElementById("google-signin-btn");
