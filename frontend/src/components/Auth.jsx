@@ -211,7 +211,8 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       const backendData = await backendRes.json();
  
       if (!backendRes.ok) {
-        throw new Error(backendData.message || 'Google Sign-In backend verification failed.');
+        const detail = backendData.error?.message ? `: ${backendData.error.message}` : '';
+        throw new Error(`${backendData.message || 'Google Sign-In backend verification failed.'}${detail}`);
       }
  
       setSuccess(`Successfully authenticated as ${backendData.user.name || backendData.user.email}! Redirecting...`);
