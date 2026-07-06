@@ -230,10 +230,13 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
     const initializeGoogle = () => {
       if (window.google) {
         const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com";
-        window.google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: handleCredentialResponse
-        });
+        if (!window.googleInitialized) {
+          window.google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleCredentialResponse
+          });
+          window.googleInitialized = true;
+        }
 
         const btnElement = document.getElementById("google-signin-btn");
         if (btnElement) {
@@ -420,6 +423,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         placeholder="John Doe"
+                        autoComplete="name"
                         disabled={loading || googleLoading}
                         className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
                       />
@@ -440,6 +444,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@company.com"
+                      autoComplete="username"
                       disabled={loading || googleLoading}
                       className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
                     />
@@ -477,6 +482,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                       value={password}
                       onChange={handlePasswordChange}
                       placeholder="••••••••"
+                      autoComplete={view === 'login' ? 'current-password' : 'new-password'}
                       disabled={loading || googleLoading}
                       className="block w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
                     />
