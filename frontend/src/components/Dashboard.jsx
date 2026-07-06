@@ -13,28 +13,23 @@ import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask } from '../
 import { useUsers, useAddUser, useRemoveUser } from '../hooks/useUsers';
 import { API_URL, getAuthHeaders } from '../config/api';
 
-// Lazy-loaded sub-panels — declared after all imports to avoid Rolldown TDZ ordering issues
+// Lazy-loaded sub-panels
+const ProfileSettings = lazy(() => import('./ProfileSettings'));
+const ScheduleCalendar = lazy(() => import('./ScheduleCalendar'));
 
+// Static lookup tables
+const THEMES = [
+  { id: 'atlassian', name: 'Atlassian Blue (Default)', colorBg: 'bg-[#0052cc]' },
+  { id: 'emerald', name: 'Emerald Forest', colorBg: 'bg-[#10b981]' },
+  { id: 'cyberpunk', name: 'Cyberpunk Neon', colorBg: 'bg-[#db2777]' },
+  { id: 'sunset', name: 'Sunset Amber', colorBg: 'bg-[#d97706]' }
+];
+const EPICS = ['Design System', 'DevOps & Security', 'Integrations', 'Tech Stack Upgrade', 'General Work'];
 
 export default function Dashboard() {
-  // Lazy-loaded sub-panels — stored in refs to avoid recreating on every render
-  // Defined inside function (not module scope) to avoid Rolldown TDZ ordering issues
-  const ProfileSettingsRef = useRef(lazy(() => import('./ProfileSettings')));
-  const ScheduleCalendarRef = useRef(lazy(() => import('./ScheduleCalendar')));
-  const ProfileSettings = ProfileSettingsRef.current;
-  const ScheduleCalendar = ScheduleCalendarRef.current;
-
-  // Static lookup tables
-  const THEMES = [
-    { id: 'atlassian', name: 'Atlassian Blue (Default)', colorBg: 'bg-[#0052cc]' },
-    { id: 'emerald', name: 'Emerald Forest', colorBg: 'bg-[#10b981]' },
-    { id: 'cyberpunk', name: 'Cyberpunk Neon', colorBg: 'bg-[#db2777]' },
-    { id: 'sunset', name: 'Sunset Amber', colorBg: 'bg-[#d97706]' }
-  ];
-  const EPICS = ['Design System', 'DevOps & Security', 'Integrations', 'Tech Stack Upgrade', 'General Work'];
-
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
 
   const { user, theme, setTheme, mode, toggleMode, logout: onLogout } = useAuthStore();
   const { activeWorkspace, workspaces, setActiveWorkspace: onSwitchWorkspace, deleteWorkspace } = useWorkspaceStore();
