@@ -57,7 +57,9 @@ export const useWorkspaceStore = create((set, get) => {
               get().setActiveWorkspace(defaultWS);
             }
 
-            if (currentView === '/' && onViewChange) {
+            if (workspacesList.length === 0 && currentView !== '/workspace-setup' && onViewChange) {
+              onViewChange('/workspace-setup');
+            } else if (currentView === '/' && onViewChange) {
               onViewChange('/dashboard');
             }
           }
@@ -85,11 +87,7 @@ export const useWorkspaceStore = create((set, get) => {
           
           if (updated.length === 0) {
             get().setActiveWorkspace(null);
-            if (!currentUser?.hasConfiguredWorkspace) {
-              if (onViewChange) onViewChange('/workspace-setup');
-            } else {
-              if (onViewChange) onViewChange('/dashboard');
-            }
+            if (onViewChange) onViewChange('/workspace-setup');
           } else {
             get().setActiveWorkspace(updated[0]);
           }

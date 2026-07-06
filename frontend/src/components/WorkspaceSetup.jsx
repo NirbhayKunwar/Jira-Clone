@@ -13,7 +13,7 @@ export default function WorkspaceSetup() {
   const { user, updateProfile } = useAuthStore();
   const { workspaces, setWorkspaces, setActiveWorkspace } = useWorkspaceStore();
   
-  const canCancel = user?.hasConfiguredWorkspace;
+  const canCancel = user?.hasConfiguredWorkspace && workspaces.length > 0;
   const [step, setStep] = useState(1); // 1: Choose Template, 2: Configure Settings, 3: Loader
   const [template, setTemplate] = useState('scrum'); // 'scrum' or 'kanban'
   
@@ -396,7 +396,7 @@ export default function WorkspaceSetup() {
 
                   {error && (
                     <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-xs font-semibold flex items-center">
-                      <span className="mr-2">⚠️</span>
+                      <Info className="w-3.5 h-3.5 mr-2 flex-shrink-0" />
                       <span>{error}</span>
                     </div>
                   )}
