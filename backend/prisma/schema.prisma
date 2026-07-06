@@ -44,7 +44,11 @@ model User {
   ownedWorkspaces        Workspace[] @relation("WorkspaceOwner")
   ownedGoals             Goal[]      @relation("GoalOwner")
   ownedTeams             Team[]      @relation("TeamOwner")
+  teamOwnerId            Int?        @map("team_owner_id")
+  teamOwner              User?       @relation("TeamMembershipOwner", fields: [teamOwnerId], references: [id], onDelete: SetNull)
+  teamMembers            User[]      @relation("TeamMembershipOwner")
 
+  @@index([teamOwnerId])
   @@map("users")
 }
 

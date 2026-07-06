@@ -400,7 +400,13 @@ export const updateProfile = async (req, res) => {
 
 export const getUsers = async (req, res) => {
   try {
+    const userId = req.user ? req.user.id : null;
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+    }
+
     const users = await prisma.user.findMany({
+      where: { teamOwnerId: userId },
       orderBy: { id: 'asc' }
     });
     
@@ -427,6 +433,11 @@ export const getUsers = async (req, res) => {
 export const addTeamMember = async (req, res) => {
   try {
     const { name, email, role, dept, location, githubUrl, linkedinUrl, websiteUrl } = req.body;
+    const userId = req.user ? req.user.id : null;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+    }
 
     if (!name || !email) {
       return res.status(400).json({ success: false, message: 'Name and Email are required.' });
@@ -454,7 +465,8 @@ export const addTeamMember = async (req, res) => {
         location: location || '',
         githubUrl: githubUrl || '',
         linkedinUrl: linkedinUrl || '',
-        websiteUrl: websiteUrl || ''
+        websiteUrl: websiteUrl || '',
+        teamOwnerId: userId
       }
     });
 
@@ -481,13 +493,29 @@ export const addTeamMember = async (req, res) => {
 export const deleteUser = async (req, res) => {
   try {
     const { id } = req.params;
+    const currentUserId = req.user ? req.user.id : null;
+    if (!currentUserId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+    }
+
     const userId = parseInt(id);
     if (isNaN(userId)) {
       return res.status(400).json({ success: false, message: 'Invalid user ID format. Must be an integer.' });
     }
 
-    if (req.user && userId === req.user.id) {
+    if (userId === currentUserId) {
       return res.status(400).json({ success: false, message: 'Self-deletion is not permitted. You cannot delete your own active account.' });
+    }
+
+    const teamMember = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        teamOwnerId: currentUserId
+      }
+    });
+
+    if (!teamMember) {
+      return res.status(404).json({ success: false, message: 'Team member not found.' });
     }
 
     await prisma.user.delete({
