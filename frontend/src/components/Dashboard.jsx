@@ -7,13 +7,15 @@ import {
   Target, Rocket, UserCircle, Clock, LayoutDashboard, List,
   Settings, Menu
 } from 'lucide-react';
-const ProfileSettings = lazy(() => import('./ProfileSettings'));
-const ScheduleCalendar = lazy(() => import('./ScheduleCalendar'));
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask } from '../hooks/useTasks';
 import { useUsers, useAddUser, useRemoveUser } from '../hooks/useUsers';
 import { API_URL, getAuthHeaders } from '../config/api';
+
+// Lazy-loaded sub-panels — declared after all imports to avoid Rolldown TDZ ordering issues
+const ProfileSettings = lazy(() => import('./ProfileSettings'));
+const ScheduleCalendar = lazy(() => import('./ScheduleCalendar'));
 
 const THEMES = [
   { id: 'atlassian', name: 'Atlassian Blue (Default)', colorBg: 'bg-[#0052cc]' },
