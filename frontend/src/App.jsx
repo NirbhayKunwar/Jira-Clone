@@ -35,12 +35,15 @@ function ProtectedRoute({ children }) {
 // Redirect authenticated users away from public auth pages
 function AuthRoute({ children }) {
   const user = useAuthStore((state) => state.user);
+  const location = useLocation();
+  const from = location.state?.from;
+  const redirectPath = from ? `${from.pathname}${from.search || ''}` : '/dashboard';
 
   if (user) {
     if (!user.hasConfiguredWorkspace) {
       return <Navigate to="/workspace-setup" replace />;
     }
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={redirectPath} replace />;
   }
 
   return children;
@@ -138,6 +141,16 @@ function App() {
               <Suspense fallback={<div className="min-h-screen bg-dominant flex items-center justify-center"><div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>}>
                 <Dashboard />
               </Suspense>
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Friendly profile route used by invite links */}
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/dashboard?tab=profile" replace />
             </ProtectedRoute>
           }
         />

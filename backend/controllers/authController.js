@@ -66,7 +66,7 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword 
     console.log(`[INVITE SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)`);
     console.log(`TEAM INVITE FOR ${to}`);
     console.log(`Invited by: ${invitedByName || 'Your team admin'}`);
-    console.log(`Login URL: ${appUrl}/auth`);
+    console.log(`Profile URL: ${appUrl}/profile`);
     console.log(`Temporary password: ${temporaryPassword}`);
     console.log(`==================================================\n`);
     return { sent: false, mock: true };
@@ -89,7 +89,7 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword 
           <p style="margin: 0;"><strong>Temporary password:</strong> ${safeTemporaryPassword}</p>
         </div>
         <p style="text-align: center; margin: 24px 0;">
-          <a href="${safeAppUrl}/auth" style="background-color: #0052cc; color: #ffffff; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">Open Jira Clone</a>
+          <a href="${safeAppUrl}/profile" style="background-color: #0052cc; color: #ffffff; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">Open Your Profile</a>
         </p>
         <p style="color: #ff5630; font-size: 12px;"><strong>Note:</strong> Please change this password after signing in.</p>
         <hr style="border: 0; border-top: 1px solid #eeeeee; margin-top: 30px;" />
