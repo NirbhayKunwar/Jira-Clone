@@ -29,6 +29,7 @@ const EPICS = ['Design System', 'DevOps & Security', 'Integrations', 'Tech Stack
 export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [dashboardOpenedAt] = useState(() => Date.now());
 
 
   const { user, theme, setTheme, mode, toggleMode, logout: onLogout } = useAuthStore();
@@ -596,9 +597,9 @@ export default function Dashboard() {
     const totalPoints = 10;
     
     // Start of the sprint (use workspace creation date as reference)
-    const workspaceCreated = new Date(activeWorkspace.created_at || Date.now());
+    const workspaceCreated = new Date(activeWorkspace.created_at || dashboardOpenedAt);
     const sprintDurationMs = durationWeeks * 7 * 24 * 60 * 60 * 1000;
-    const elapsed = Date.now() - workspaceCreated.getTime();
+    const elapsed = dashboardOpenedAt - workspaceCreated.getTime();
     const sprintIndex = Math.max(0, Math.floor(elapsed / sprintDurationMs));
     const sprintStart = new Date(workspaceCreated.getTime() + sprintIndex * sprintDurationMs);
     
@@ -606,7 +607,7 @@ export default function Dashboard() {
 
     const getCompletionTime = (t) => {
       if (t.completedAt) return new Date(t.completedAt).getTime();
-      if (t.status === 'done') return new Date(t.createdAt || Date.now()).getTime();
+      if (t.status === 'done') return new Date(t.createdAt || dashboardOpenedAt).getTime();
       return Infinity;
     };
 
@@ -651,7 +652,7 @@ export default function Dashboard() {
     }
     
     return { points, idealPoints, labels };
-  }, [activeWorkspace, tasks]);
+  }, [activeWorkspace, tasks, dashboardOpenedAt]);
 
   const completedPathD = useMemo(() => {
     if (!burnupData.points || burnupData.points.length === 0) return "";

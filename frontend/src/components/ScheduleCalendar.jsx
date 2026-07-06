@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, Clock, Trash2, MapPin, AlignLeft, Info } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, Clock, Trash2, AlignLeft, Info } from 'lucide-react';
 import { API_URL, getAuthHeaders } from '../config/api';
 
 export default function ScheduleCalendar({ activeWorkspace }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   // Modal States
@@ -20,31 +19,33 @@ export default function ScheduleCalendar({ activeWorkspace }) {
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
 
-  // Fetch events for active workspace
-  const fetchEvents = async () => {
-    if (!activeWorkspace?.id) return;
-    setIsLoading(true);
-    setError('');
-    try {
-      const response = await fetch(`${API_URL}/api/schedule-events?workspaceId=${activeWorkspace.id}`, {
-        headers: getAuthHeaders()
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setEvents(data);
-      } else {
-        setError('Failed to fetch scheduled events.');
-      }
-    } catch (err) {
-      console.error('Fetch events error:', err);
-      setError('Error connecting to backend database.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchEvents();
+    if (!activeWorkspace?.id) return;
+
+    const controller = new AbortController();
+
+    const loadEvents = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/schedule-events?workspaceId=${activeWorkspace.id}`, {
+          headers: getAuthHeaders(),
+          signal: controller.signal
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setEvents(data);
+          setError('');
+        } else {
+          setError('Failed to fetch scheduled events.');
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        console.error('Fetch events error:', err);
+        setError('Error connecting to backend database.');
+      }
+    };
+
+    loadEvents();
+    return () => controller.abort();
   }, [activeWorkspace?.id]);
 
   // Calendar calculations
