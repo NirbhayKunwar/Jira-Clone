@@ -12,6 +12,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask } from '../hooks/useTasks';
 import { useUsers, useAddUser, useRemoveUser } from '../hooks/useUsers';
 import { API_URL, getAuthHeaders } from '../config/api';
+import { getApiData, getApiList } from '../config/apiResponse';
 
 // Lazy-loaded sub-panels
 const ProfileSettings = lazy(() => import('./ProfileSettings'));
@@ -216,11 +217,11 @@ export default function Dashboard() {
         
         if (goalsRes.ok) {
           const goalsData = await goalsRes.json();
-          setGoalsList(goalsData);
+          setGoalsList(getApiList(goalsData, 'Goals'));
         }
         if (teamsRes.ok) {
           const teamsData = await teamsRes.json();
-          setTeamsList(teamsData);
+          setTeamsList(getApiList(teamsData, 'Teams'));
         }
       } catch (err) {
         console.error('Failed to load goals or teams from backend:', err);
@@ -2300,6 +2301,7 @@ export default function Dashboard() {
                         if (!res.ok) throw new Error('Failed to create goal');
                         return res.json();
                       })
+                      .then(getApiData)
                       .then(createdGoal => {
                         setGoalsList(prev => [createdGoal, ...prev]);
                         setNewGoalTitle('');
@@ -2744,6 +2746,7 @@ export default function Dashboard() {
                         if (!res.ok) throw new Error('Failed to create team');
                         return res.json();
                       })
+                      .then(getApiData)
                       .then(createdTeam => {
                         setTeamsList(prev => [createdTeam, ...prev]);
                         setNewTeamName('');

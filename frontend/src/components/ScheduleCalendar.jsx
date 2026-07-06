@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, X, Clock, Trash2, AlignLeft, Info } from 'lucide-react';
 import { API_URL, getAuthHeaders } from '../config/api';
+import { getApiData, getApiList } from '../config/apiResponse';
 
 export default function ScheduleCalendar({ activeWorkspace }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -32,7 +33,7 @@ export default function ScheduleCalendar({ activeWorkspace }) {
         });
         if (response.ok) {
           const data = await response.json();
-          setEvents(data);
+          setEvents(getApiList(data, 'Schedule events'));
           setError('');
         } else {
           setError('Failed to fetch scheduled events.');
@@ -123,7 +124,7 @@ export default function ScheduleCalendar({ activeWorkspace }) {
       });
 
       if (response.ok) {
-        const newEv = await response.json();
+        const newEv = getApiData(await response.json());
         setEvents(prev => [...prev, newEv]);
         setShowAddModal(false);
       } else {

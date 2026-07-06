@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_URL, getAuthHeaders } from '../config/api';
+import { getApiList } from '../config/apiResponse';
 
 export function useUsers() {
   return useQuery({
@@ -11,7 +12,7 @@ export function useUsers() {
       if (!response.ok) {
         throw new Error('Failed to fetch team users');
       }
-      return response.json();
+      return getApiList(await response.json(), 'Users');
     }
   });
 }

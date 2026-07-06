@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_URL, getAuthHeaders } from '../config/api';
+import { getApiList } from '../config/apiResponse';
 
 export function useTasks(workspaceId) {
   return useQuery({
@@ -12,7 +13,7 @@ export function useTasks(workspaceId) {
       if (!response.ok) {
         throw new Error('Failed to fetch tasks');
       }
-      return response.json();
+      return getApiList(await response.json(), 'Tasks');
     },
     enabled: !!workspaceId,
     staleTime: 5000 // 5 seconds stale time for dynamic board sync
