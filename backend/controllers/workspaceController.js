@@ -1,15 +1,32 @@
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 
-// Get all workspaces (scoped to user ownership)
+// Get all workspaces (scoped to user ownership or team membership)
 export const getWorkspaces = asyncHandler(async (req, res, next) => {
   const userId = req.user ? req.user.id : null;
   if (!userId) {
     return next(new AppError('Unauthorized. Session user not found.', 401));
   }
 
+  // Get user details to check if they belong to a team
+  let teamOwnerId = null;
+  if (prisma.user && typeof prisma.user.findUnique === 'function') {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { teamOwnerId: true }
+    });
+    if (user) {
+      teamOwnerId = user.teamOwnerId;
+    }
+  }
+
+  const ownerIds = [userId];
+  if (teamOwnerId) {
+    ownerIds.push(teamOwnerId);
+  }
+
   const workspaces = await prisma.workspace.findMany({
-    where: { ownerId: userId },
+    where: { ownerId: { in: ownerIds } },
     orderBy: { id: 'asc' }
   });
   
@@ -28,7 +45,7 @@ export const getWorkspaces = asyncHandler(async (req, res, next) => {
   return res.status(200).json({ success: true, data: mapped });
 });
 
-// Get workspace by ID (with ownership verification)
+// Get workspace by ID (with ownership/membership verification)
 export const getWorkspaceById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const workspaceId = parseInt(id);
@@ -44,9 +61,21 @@ export const getWorkspaceById = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  // BOLA authorization check
+  // BOLA authorization check (allow owner and team members of owner)
   if (w.ownerId && w.ownerId !== req.user.id) {
-    return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
+    let authorized = false;
+    if (prisma.user && typeof prisma.user.findUnique === 'function') {
+      const user = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { teamOwnerId: true }
+      });
+      if (user && user.teamOwnerId === w.ownerId) {
+        authorized = true;
+      }
+    }
+    if (!authorized) {
+      return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
+    }
   }
 
   const mapped = {

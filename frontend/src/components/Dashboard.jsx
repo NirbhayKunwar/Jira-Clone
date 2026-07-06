@@ -596,7 +596,8 @@ export default function Dashboard() {
 
   const handleCopyCredentials = () => {
     if (!addedMemberCreds) return;
-    const text = `Jira Clone Team Member Invite\n============================\nName: ${addedMemberCreds.name}\nEmail: ${addedMemberCreds.email}\nTemporary Password: ${addedMemberCreds.temporaryPassword}\nInvitation Link: ${addedMemberCreds.inviteUrl || '(Check your profile settings)'}`;
+    const pwdText = addedMemberCreds.temporaryPassword || '(Use your existing account password)';
+    const text = `Jira Clone Team Member Invite\n============================\nName: ${addedMemberCreds.name}\nEmail: ${addedMemberCreds.email}\nPassword: ${pwdText}\nInvitation Link: ${addedMemberCreds.inviteUrl || '(Check your profile settings)'}`;
     navigator.clipboard.writeText(text);
     setCopiedCreds(true);
     setTimeout(() => setCopiedCreds(false), 2000);
@@ -3518,8 +3519,12 @@ export default function Dashboard() {
                     <span className="text-xs font-mono font-bold text-text-secondary select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block">{addedMemberCreds.email}</span>
                   </div>
                   <div>
-                    <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">Temporary Password</span>
-                    <span className="text-xs font-mono font-bold text-red-400 select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block">{addedMemberCreds.temporaryPassword}</span>
+                    <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">
+                      {addedMemberCreds.temporaryPassword ? 'Temporary Password' : 'Password'}
+                    </span>
+                    <span className={`text-xs font-bold select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block ${addedMemberCreds.temporaryPassword ? 'text-red-400 font-mono' : 'text-emerald-500 font-sans'}`}>
+                      {addedMemberCreds.temporaryPassword || 'Use existing account password'}
+                    </span>
                   </div>
                   {addedMemberCreds.inviteUrl && (
                     <div>

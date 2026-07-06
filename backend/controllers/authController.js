@@ -534,7 +534,48 @@ export const addTeamMember = async (req, res) => {
       where: { email: normalizedEmail }
     });
     if (existingUser) {
-      return res.status(400).json({ success: false, message: 'A user with this email address already exists in the system.' });
+      // Update existing user to belong to this team
+      const updatedMember = await prisma.user.update({
+        where: { id: existingUser.id },
+        data: {
+          teamOwnerId: userId,
+          role: role || existingUser.role || 'Full Stack Engineer',
+          dept: dept || existingUser.dept || 'Core Engineering',
+          location: location || existingUser.location || ''
+        }
+      });
+
+      let inviteResult;
+      try {
+        inviteResult = await sendTeamInviteEmail({
+          to: updatedMember.email,
+          name: updatedMember.name,
+          invitedByName: req.user.email,
+          temporaryPassword: null // Null signifies they already have an account/password
+        });
+      } catch (inviteError) {
+        console.error('Team Invite Email Error for Existing User:', inviteError);
+        return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: inviteResult.mock
+          ? 'Existing user added to your team. Invite generated in mock mode; check backend console.'
+          : 'Existing user added to your team and notification sent successfully.',
+        invite: inviteResult,
+        user: {
+          id: updatedMember.id.toString(),
+          name: updatedMember.name,
+          email: updatedMember.email,
+          role: updatedMember.role,
+          dept: updatedMember.dept,
+          location: updatedMember.location,
+          githubUrl: updatedMember.githubUrl || '',
+          linkedinUrl: updatedMember.linkedinUrl || '',
+          websiteUrl: updatedMember.websiteUrl || ''
+        }
+      });
     }
 
     // Generate a secure, unique, and easy-to-read temporary password

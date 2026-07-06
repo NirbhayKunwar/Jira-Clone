@@ -1,6 +1,17 @@
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 
+const hasWorkspaceAccess = async (workspaceOwnerId, userId) => {
+  if (!workspaceOwnerId) return true;
+  if (workspaceOwnerId === userId) return true;
+  if (!prisma.user || typeof prisma.user.findUnique !== 'function') return false;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { teamOwnerId: true }
+  });
+  return user && user.teamOwnerId === workspaceOwnerId;
+};
+
 // Get all tasks
 export const getTasks = asyncHandler(async (req, res, next) => {
   const { workspaceId } = req.query;
@@ -23,7 +34,7 @@ export const getTasks = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  if (ws.ownerId && ws.ownerId !== req.user.id) {
+  if (!(await hasWorkspaceAccess(ws.ownerId, req.user.id))) {
     return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
   }
   
@@ -75,7 +86,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  if (ws.ownerId && ws.ownerId !== req.user.id) {
+  if (!(await hasWorkspaceAccess(ws.ownerId, req.user.id))) {
     return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
   }
 
@@ -143,7 +154,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
     return next(new AppError('Task not found.', 404));
   }
 
-  if (taskCheck.workspace && taskCheck.workspace.ownerId && taskCheck.workspace.ownerId !== req.user.id) {
+  if (taskCheck.workspace && !(await hasWorkspaceAccess(taskCheck.workspace.ownerId, req.user.id))) {
     return next(new AppError('Forbidden. You do not have access to this task.', 403));
   }
 
@@ -164,7 +175,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
       }
       // Verify new workspace owner as well
       const wsCheck = await prisma.workspace.findUnique({ where: { id: parsedWorkspaceId } });
-      if (!wsCheck || (wsCheck.ownerId && wsCheck.ownerId !== req.user.id)) {
+      if (!wsCheck || !(await hasWorkspaceAccess(wsCheck.ownerId, req.user.id))) {
         return next(new AppError('Forbidden. You do not have access to target workspace.', 403));
       }
       updateData.workspaceId = parsedWorkspaceId;
@@ -229,7 +240,7 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
     return next(new AppError('Task not found.', 404));
   }
 
-  if (taskCheck.workspace && taskCheck.workspace.ownerId && taskCheck.workspace.ownerId !== req.user.id) {
+  if (taskCheck.workspace && !(await hasWorkspaceAccess(taskCheck.workspace.ownerId, req.user.id))) {
     return next(new AppError('Forbidden. You do not have access to this task.', 403));
   }
 

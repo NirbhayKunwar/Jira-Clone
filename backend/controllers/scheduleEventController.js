@@ -1,7 +1,18 @@
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 
-// Get all schedule events (scoped to workspace ownership)
+const hasWorkspaceAccess = async (workspaceOwnerId, userId) => {
+  if (!workspaceOwnerId) return true;
+  if (workspaceOwnerId === userId) return true;
+  if (!prisma.user || typeof prisma.user.findUnique !== 'function') return false;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { teamOwnerId: true }
+  });
+  return user && user.teamOwnerId === workspaceOwnerId;
+};
+
+// Get all schedule events (scoped to workspace ownership or team membership)
 export const getEvents = asyncHandler(async (req, res, next) => {
   const { workspaceId } = req.query;
   
@@ -23,7 +34,7 @@ export const getEvents = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  if (ws.ownerId && ws.ownerId !== req.user.id) {
+  if (!(await hasWorkspaceAccess(ws.ownerId, req.user.id))) {
     return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
   }
   
@@ -74,7 +85,7 @@ export const createEvent = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  if (ws.ownerId && ws.ownerId !== req.user.id) {
+  if (!(await hasWorkspaceAccess(ws.ownerId, req.user.id))) {
     return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
   }
 
@@ -121,7 +132,7 @@ export const deleteEvent = asyncHandler(async (req, res, next) => {
     return next(new AppError('Event not found.', 404));
   }
 
-  if (eventCheck.workspace && eventCheck.workspace.ownerId && eventCheck.workspace.ownerId !== req.user.id) {
+  if (eventCheck.workspace && !(await hasWorkspaceAccess(eventCheck.workspace.ownerId, req.user.id))) {
     return next(new AppError('Forbidden. You do not have access to this event.', 403));
   }
 
