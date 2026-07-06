@@ -18,6 +18,13 @@
             }
         },
         {
+            "source": "/",
+            "destination": {
+                "type": "service",
+                "service": "frontend"
+            }
+        },
+        {
             "source": "/assets/:path*",
             "destination": {
                 "type": "service",
@@ -32,7 +39,7 @@
             }
         },
         {
-            "source": "/:path*",
+            "source": "/:path+",
             "destination": {
                 "type": "service",
                 "service": "frontend",
