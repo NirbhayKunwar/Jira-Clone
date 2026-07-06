@@ -556,6 +556,13 @@ export const googleSignIn = async (req, res) => {
     return sendTokens(res, user, 200, 'Logged in successfully with Google.');
   } catch (error) {
     console.error('Google Sign In Error:', error);
-    return res.status(500).json({ success: false, message: 'Internal Server Error during Google Sign-In.' });
+    return res.status(500).json({
+      success: false,
+      message: 'Internal Server Error during Google Sign-In.',
+      error: {
+        message: error.message,
+        code: error.code || 'UNKNOWN_ERROR'
+      }
+    });
   }
 };
