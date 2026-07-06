@@ -1694,7 +1694,7 @@ export default function Dashboard() {
         )}
 
         {/* Content Area */}
-        <main className="flex-grow p-4 sm:p-6 lg:p-8 overflow-y-auto bg-dominant-offset/30">
+        <main className="flex-grow min-w-0 p-4 pb-24 sm:p-6 lg:p-8 overflow-y-auto overflow-x-hidden bg-dominant-offset/30">
           
           {/* TAB 1: KANBAN BOARD */}
           {activeTab === 'board' && (
@@ -1781,10 +1781,10 @@ export default function Dashboard() {
 
           {/* TAB: FOR YOU */}
           {activeTab === 'foryou' && (
-            <div className="space-y-8 max-w-5xl mx-auto p-4 animate-[fade-in_200ms_ease-out]">
+            <div className="space-y-8 max-w-5xl mx-auto w-full animate-[fade-in_200ms_ease-out]">
               
               {/* Section 1: Recommended spaces */}
-              <div className="bg-card-secondary p-6 rounded-xl border border-border-secondary/40 shadow-sm space-y-6">
+              <div className="bg-card-secondary p-4 sm:p-6 rounded-xl border border-border-secondary/40 shadow-sm space-y-6">
                 <div className="flex items-center justify-between border-b border-border-secondary/20 pb-3">
                   <h3 className="text-sm font-bold text-text-secondary">Recommended spaces</h3>
                   <button 
@@ -1826,15 +1826,15 @@ export default function Dashboard() {
               </div>
 
               {/* Section 2: For you */}
-              <div className="bg-card-secondary p-6 rounded-xl border border-border-secondary/40 shadow-sm space-y-6">
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-secondary/20 pb-3">
-                  <h3 className="text-sm font-bold text-text-secondary">For you</h3>
+              <div className="bg-card-secondary p-4 sm:p-6 rounded-xl border border-border-secondary/40 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-border-secondary/20 pb-3 min-w-0">
+                  <h3 className="text-sm font-bold text-text-secondary flex-shrink-0">For you</h3>
                   
                   {/* Sub Tab Buttons */}
-                  <div className="flex items-center space-x-1 bg-dominant-offset/30 p-1 rounded-lg border border-border-secondary/40">
+                  <div className="flex items-center gap-1 bg-dominant-offset/30 p-1 rounded-lg border border-border-secondary/40 max-w-full overflow-x-auto scrollbar-thin">
                     <button
                       onClick={() => setForYouSubTab('recommended')}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none ${
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none whitespace-nowrap flex-shrink-0 ${
                         forYouSubTab === 'recommended' 
                           ? 'bg-card-secondary text-accent shadow-sm' 
                           : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
@@ -1844,7 +1844,7 @@ export default function Dashboard() {
                     </button>
                     <button
                       onClick={() => setForYouSubTab('assigned')}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none flex items-center ${
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none flex items-center whitespace-nowrap flex-shrink-0 ${
                         forYouSubTab === 'assigned' 
                           ? 'bg-card-secondary text-accent shadow-sm' 
                           : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
@@ -1859,7 +1859,7 @@ export default function Dashboard() {
                     </button>
                     <button
                       onClick={() => setForYouSubTab('starred')}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none ${
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none whitespace-nowrap flex-shrink-0 ${
                         forYouSubTab === 'starred' 
                           ? 'bg-card-secondary text-accent shadow-sm' 
                           : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
@@ -1869,7 +1869,7 @@ export default function Dashboard() {
                     </button>
                     <button
                       onClick={() => setForYouSubTab('worked')}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none ${
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none whitespace-nowrap flex-shrink-0 ${
                         forYouSubTab === 'worked' 
                           ? 'bg-card-secondary text-accent shadow-sm' 
                           : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
@@ -1879,7 +1879,7 @@ export default function Dashboard() {
                     </button>
                     <button
                       onClick={() => setForYouSubTab('viewed')}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none ${
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer border-none whitespace-nowrap flex-shrink-0 ${
                         forYouSubTab === 'viewed' 
                           ? 'bg-card-secondary text-accent shadow-sm' 
                           : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
@@ -1893,12 +1893,12 @@ export default function Dashboard() {
                 {/* Sub Tab Content */}
                 <div className="space-y-4">
                   {forYouSubTab === 'recommended' && (
-                    <div className="border border-border-secondary/60 rounded-xl p-5 bg-dominant-offset/5">
-                      <div className="flex items-start space-x-4">
+                    <div className="border border-border-secondary/60 rounded-xl p-4 sm:p-5 bg-dominant-offset/5">
+                      <div className="flex items-start gap-4 min-w-0">
                         <div className="w-10 h-10 rounded-lg bg-pink-500/10 text-pink-500 flex items-center justify-center flex-shrink-0">
                           <Activity className="w-5 h-5" />
                         </div>
-                        <div className="flex-grow space-y-3">
+                        <div className="flex-grow min-w-0 space-y-3">
                           <div>
                             <h4 className="text-xs font-bold text-text-secondary">View popular spaces</h4>
                             <p className="text-[11px] text-text-secondary-muted">View spaces used by teams in your organization.</p>
@@ -2024,9 +2024,9 @@ export default function Dashboard() {
               </div>
 
               {/* Bottom Feedback Card */}
-              <div className="bg-card-secondary p-4 rounded-xl border border-border-secondary/40 shadow-sm flex flex-wrap items-center justify-center gap-6 text-[11px] text-text-secondary-muted">
+              <div className="bg-card-secondary p-4 rounded-xl border border-border-secondary/40 shadow-sm flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-3 sm:gap-6 text-[11px] text-text-secondary-muted text-center">
                 <span>Were these recommendations useful?</span>
-                <div className="flex items-center space-x-4">
+                <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                   <button className="flex items-center space-x-1.5 hover:text-accent bg-transparent border-none cursor-pointer">
                     <span>👍</span>
                     <span>Yes</span>
@@ -2035,7 +2035,7 @@ export default function Dashboard() {
                     <span>👎</span>
                     <span>No</span>
                   </button>
-                  <span className="text-border-secondary/60">|</span>
+                  <span className="hidden sm:inline text-border-secondary/60">|</span>
                   <button className="flex items-center space-x-1.5 hover:text-accent bg-transparent border-none cursor-pointer">
                     <Activity className="w-3.5 h-3.5" />
                     <span>Give us feedback</span>
@@ -2235,14 +2235,14 @@ export default function Dashboard() {
             <div className="space-y-8 animate-[fade-in_200ms_ease-out]">
               
               {/* Header */}
-              <div className="bg-card-secondary p-6 rounded-xl border border-border-secondary/40 shadow-sm flex items-center justify-between">
-                <div>
+              <div className="bg-card-secondary p-5 sm:p-6 rounded-xl border border-border-secondary/40 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="min-w-0">
                   <h3 className="font-bold text-text-secondary text-base">Goals Directory</h3>
                   <p className="text-xs text-text-secondary-muted mt-0.5">Define corporate objectives, track progress slider values, and align deliverables.</p>
                 </div>
                 <button
                   onClick={() => setShowCreateGoalForm(!showCreateGoalForm)}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
+                  className="flex items-center justify-center space-x-1.5 px-3 py-2 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none whitespace-nowrap self-start sm:self-auto"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>{showCreateGoalForm ? 'Cancel Goal' : 'Create Goal'}</span>
@@ -3501,7 +3501,7 @@ export default function Dashboard() {
       {/* Mobile Floating Action Button (FAB) for Create Task */}
       <button
         onClick={() => setShowCreateModal(true)}
-        className="fixed bottom-6 right-6 md:hidden w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all z-40 border-none cursor-pointer"
+        className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 md:hidden w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all z-40 border-none cursor-pointer"
         aria-label="Create Task"
       >
         <Plus className="w-7 h-7" />
