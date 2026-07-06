@@ -5,7 +5,7 @@ import {
   Trash2, X, AlertTriangle, CheckCircle2, ChevronRight,
   Filter, UserCheck, Calendar, Activity, Info, User, Palette, ChevronDown,
   Target, Rocket, UserCircle, Clock, LayoutDashboard, List,
-  Settings, Menu
+  Settings, Menu, Copy, Check
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -58,6 +58,8 @@ export default function Dashboard() {
   const [newAssignee, setNewAssignee] = useState('You');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [addedMemberCreds, setAddedMemberCreds] = useState(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
 
   const activeTab = searchParams.get('tab') || 'board';
   const setActiveTab = (tab) => {
@@ -574,8 +576,12 @@ export default function Dashboard() {
     };
 
     addUserMutation.mutate(newMemberData, {
-      onSuccess: () => {
-        setShowAddMemberModal(false);
+      onSuccess: (data) => {
+        setAddedMemberCreds({
+          ...data.invite,
+          email: data.user.email,
+          name: data.user.name
+        });
         setMemberName('');
         setMemberEmail('');
         setMemberRole('Full Stack Engineer');
@@ -586,6 +592,14 @@ export default function Dashboard() {
         alert(err.message || 'Failed to add team member.');
       }
     });
+  };
+
+  const handleCopyCredentials = () => {
+    if (!addedMemberCreds) return;
+    const text = `Jira Clone Team Member Invite\n============================\nName: ${addedMemberCreds.name}\nEmail: ${addedMemberCreds.email}\nTemporary Password: ${addedMemberCreds.temporaryPassword}\nInvitation Link: ${addedMemberCreds.inviteUrl || '(Check your profile settings)'}`;
+    navigator.clipboard.writeText(text);
+    setCopiedCreds(true);
+    setTimeout(() => setCopiedCreds(false), 2000);
   };
 
   // Remove Team Member
@@ -3455,9 +3469,14 @@ export default function Dashboard() {
             
             {/* Header */}
             <div className="px-6 py-5 border-b border-border-secondary/40 flex justify-between items-center mt-1.5">
-              <h3 id="member-modal-title" className="font-display font-extrabold text-lg text-text-secondary">Add a New Team Member</h3>
+              <h3 id="member-modal-title" className="font-display font-extrabold text-lg text-text-secondary">
+                {addedMemberCreds ? 'Invitation Ready' : 'Add a New Team Member'}
+              </h3>
               <button 
-                onClick={() => setShowAddMemberModal(false)}
+                onClick={() => {
+                  setShowAddMemberModal(false);
+                  setAddedMemberCreds(null);
+                }}
                 className="text-text-secondary-muted hover:text-text-secondary p-1 rounded-lg hover:bg-dominant-offset cursor-pointer border-none bg-transparent"
                 aria-label="Close add member dialog"
               >
@@ -3465,93 +3484,169 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleAddMember} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            {addedMemberCreds ? (
+              <div className="p-6 space-y-5 text-center">
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center animate-bounce">
+                    <CheckCircle2 className="w-8 h-8" />
+                  </div>
+                  <h4 className="font-display font-extrabold text-base text-text-secondary">Team Member Added!</h4>
+                  <p className="text-xs text-text-secondary-muted max-w-sm">
+                    <strong>{addedMemberCreds.name}</strong> was successfully registered in the system.
+                  </p>
+                </div>
+
+                {addedMemberCreds.mock ? (
+                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-left space-y-1">
+                    <h5 className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">Mock Mode Active</h5>
+                    <p className="text-[10px] text-text-secondary-muted leading-relaxed">
+                      SMTP credentials are not configured. The invitation email was not sent, but you can copy and share the credentials below directly with your teammate.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-left space-y-1">
+                    <h5 className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide">Email Dispatched</h5>
+                    <p className="text-[10px] text-text-secondary-muted leading-relaxed">
+                      A premium HTML invitation email has been sent successfully to the user's email address.
+                    </p>
+                  </div>
+                )}
+
+                <div className="p-4 bg-dominant border border-border-secondary/60 rounded-xl text-left space-y-3.5">
+                  <div>
+                    <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">Email Username</span>
+                    <span className="text-xs font-mono font-bold text-text-secondary select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block">{addedMemberCreds.email}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">Temporary Password</span>
+                    <span className="text-xs font-mono font-bold text-red-400 select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block">{addedMemberCreds.temporaryPassword}</span>
+                  </div>
+                  {addedMemberCreds.inviteUrl && (
+                    <div>
+                      <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">Direct Invite Link</span>
+                      <span className="text-xs font-mono text-text-secondary truncate select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block" title={addedMemberCreds.inviteUrl}>{addedMemberCreds.inviteUrl}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-border-secondary/40 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={handleCopyCredentials}
+                    className="px-4 py-2 border border-border-secondary text-text-secondary-muted hover:text-text-secondary hover:bg-dominant-offset rounded-lg text-xs font-semibold cursor-pointer bg-transparent flex items-center space-x-1.5"
+                  >
+                    {copiedCreds ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy Credentials</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddMemberModal(false);
+                      setAddedMemberCreds(null);
+                    }}
+                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer border-none"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleAddMember} className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="member-name" className="block text-xs font-semibold text-text-secondary mb-1.5">Full Name</label>
+                    <input
+                      id="member-name"
+                      type="text"
+                      data-autofocus
+                      required
+                      placeholder="e.g. Jane Doe"
+                      value={memberName}
+                      onChange={(e) => setMemberName(e.target.value)}
+                      className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="member-email" className="block text-xs font-semibold text-text-secondary mb-1.5">Email Address</label>
+                    <input
+                      id="member-email"
+                      type="email"
+                      required
+                      placeholder="e.g. jane@example.com"
+                      value={memberEmail}
+                      onChange={(e) => setMemberEmail(e.target.value)}
+                      className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label htmlFor="member-name" className="block text-xs font-semibold text-text-secondary mb-1.5">Full Name</label>
+                  <label htmlFor="member-role" className="block text-xs font-semibold text-text-secondary mb-1.5">Role / Job Title</label>
                   <input
-                    id="member-name"
+                    id="member-role"
                     type="text"
-                    data-autofocus
-                    required
-                    placeholder="e.g. Jane Doe"
-                    value={memberName}
-                    onChange={(e) => setMemberName(e.target.value)}
+                    placeholder="e.g. Frontend Engineer, Product Manager"
+                    value={memberRole}
+                    onChange={(e) => setMemberRole(e.target.value)}
                     className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="member-email" className="block text-xs font-semibold text-text-secondary mb-1.5">Email Address</label>
-                  <input
-                    id="member-email"
-                    type="email"
-                    required
-                    placeholder="e.g. jane@example.com"
-                    value={memberEmail}
-                    onChange={(e) => setMemberEmail(e.target.value)}
-                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                  />
-                </div>
-              </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="member-dept" className="block text-xs font-semibold text-text-secondary mb-1.5">Department</label>
+                    <input
+                      id="member-dept"
+                      type="text"
+                      placeholder="e.g. Core Engineering, Design"
+                      value={memberDept}
+                      onChange={(e) => setMemberDept(e.target.value)}
+                      className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                    />
+                  </div>
 
-              <div>
-                <label htmlFor="member-role" className="block text-xs font-semibold text-text-secondary mb-1.5">Role / Job Title</label>
-                <input
-                  id="member-role"
-                  type="text"
-                  placeholder="e.g. Frontend Engineer, Product Manager"
-                  value={memberRole}
-                  onChange={(e) => setMemberRole(e.target.value)}
-                  className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="member-dept" className="block text-xs font-semibold text-text-secondary mb-1.5">Department</label>
-                  <input
-                    id="member-dept"
-                    type="text"
-                    placeholder="e.g. Core Engineering, Design"
-                    value={memberDept}
-                    onChange={(e) => setMemberDept(e.target.value)}
-                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                  />
+                  <div>
+                    <label htmlFor="member-location" className="block text-xs font-semibold text-text-secondary mb-1.5">Location</label>
+                    <input
+                      id="member-location"
+                      type="text"
+                      placeholder="e.g. Boston, MA"
+                      value={memberLocation}
+                      onChange={(e) => setMemberLocation(e.target.value)}
+                      className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label htmlFor="member-location" className="block text-xs font-semibold text-text-secondary mb-1.5">Location</label>
-                  <input
-                    id="member-location"
-                    type="text"
-                    placeholder="e.g. Boston, MA"
-                    value={memberLocation}
-                    onChange={(e) => setMemberLocation(e.target.value)}
-                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                  />
+                {/* Action Buttons */}
+                <div className="pt-4 border-t border-border-secondary/40 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddMemberModal(false)}
+                    className="px-4 py-2 border border-border-secondary text-text-secondary-muted hover:text-text-secondary hover:bg-dominant-offset rounded-lg text-xs font-semibold cursor-pointer bg-transparent"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer border-none"
+                  >
+                    Add Member
+                  </button>
                 </div>
-              </div>
 
-              {/* Action Buttons */}
-              <div className="pt-4 border-t border-border-secondary/40 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAddMemberModal(false)}
-                  className="px-4 py-2 border border-border-secondary text-text-secondary-muted hover:text-text-secondary hover:bg-dominant-offset rounded-lg text-xs font-semibold cursor-pointer bg-transparent"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer border-none"
-                >
-                  Add Member
-                </button>
-              </div>
-
-            </form>
+              </form>
+            )}
           </div>
         </div>
       )}

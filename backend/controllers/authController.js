@@ -62,6 +62,13 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword 
   const safeTemporaryPassword = escapeHtml(temporaryPassword);
   const safeInviteUrl = escapeHtml(inviteUrl);
 
+  const inviteData = {
+    sent: !isMockMode,
+    mock: isMockMode,
+    inviteUrl,
+    temporaryPassword
+  };
+
   if (isMockMode) {
     console.log(`\n==================================================`);
     console.log(`[INVITE SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)`);
@@ -70,38 +77,49 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword 
     console.log(`Profile URL: ${inviteUrl}`);
     console.log(`Temporary password: ${temporaryPassword}`);
     console.log(`==================================================\n`);
-    return { sent: false, mock: true };
+    return inviteData;
   }
 
   const transporter = createGmailTransporter(emailUser, emailPass);
   const mailOptions = {
-    from: emailUser,
+    from: `"Jira Clone Team" <${emailUser}>`,
     to,
     subject: 'You have been invited to Jira Clone',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #0052cc; text-align: center;">You have been invited to Jira Clone</h2>
-        <hr style="border: 0; border-top: 1px solid #eeeeee;" />
-        <p>Hello ${safeName},</p>
-        <p>${safeInvitedByName} added you to their Jira Clone workspace.</p>
-        <p>You can sign in with this email address and the temporary password below:</p>
-        <div style="background-color: #f4f5f7; border: 1px dashed #0052cc; padding: 15px; font-size: 16px; color: #172b4d; margin: 20px 0; border-radius: 4px;">
-          <p style="margin: 0 0 8px;"><strong>Email:</strong> ${safeEmail}</p>
-          <p style="margin: 0;"><strong>Temporary password:</strong> ${safeTemporaryPassword}</p>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 0; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; background-color: #ffffff;">
+        <div style="background-color: #0052cc; padding: 32px 24px; text-align: center; color: #ffffff;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Jira Clone</h1>
+          <p style="margin: 8px 0 0; opacity: 0.85; font-size: 14px;">Collaboration & Project Tracking</p>
         </div>
-        <p style="text-align: center; margin: 24px 0;">
-          <a href="${safeInviteUrl}" style="background-color: #0052cc; color: #ffffff; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">Open Your Profile</a>
-        </p>
-        <p style="color: #ff5630; font-size: 12px;"><strong>Note:</strong> Please change this password after signing in.</p>
-        <hr style="border: 0; border-top: 1px solid #eeeeee; margin-top: 30px;" />
-        <p style="font-size: 10px; color: #7a869a; text-align: center;">This is an automated invitation. Please do not reply directly to this email.</p>
+        <div style="padding: 32px 24px; color: #172b4d; line-height: 1.6;">
+          <h2 style="margin-top: 0; color: #172b4d; font-size: 20px; font-weight: 700;">Hello ${safeName},</h2>
+          <p style="font-size: 15px; margin-bottom: 24px;"><strong>${safeInvitedByName}</strong> has added you to their team workspace. You can now log in and start collaborating on tasks, tracking sprints, and planning roadmaps.</p>
+          
+          <div style="background-color: #f4f5f7; border: 1px solid #dfe1e6; border-radius: 8px; padding: 20px; margin-bottom: 28px;">
+            <h3 style="margin-top: 0; font-size: 13px; color: #5e6c84; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Your Credentials</h3>
+            <p style="margin: 6px 0; font-size: 14px;"><strong>Email:</strong> <span style="font-family: monospace; color: #0052cc;">${safeEmail}</span></p>
+            <p style="margin: 6px 0; font-size: 14px;"><strong>Temporary Password:</strong> <span style="font-family: monospace; background-color: #ebecf0; padding: 3px 6px; border-radius: 4px; font-weight: bold; color: #de350b;">${safeTemporaryPassword}</span></p>
+          </div>
+
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${safeInviteUrl}" style="background-color: #0052cc; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 2px 4px rgba(0, 82, 204, 0.2); transition: background-color 0.2s;">Accept Invitation & Setup Profile</a>
+          </div>
+
+          <p style="color: #de350b; font-size: 12px; margin-top: 24px; padding: 10px; background-color: #ffebe6; border-left: 3px solid #ff5630; border-radius: 4px;">
+            <strong>Important Security Notice:</strong> This is a temporary password. You will be redirected to your profile settings to configure a secure password immediately after signing in.
+          </p>
+        </div>
+        <div style="background-color: #f4f5f7; padding: 24px; text-align: center; border-top: 1px solid #e0e0e0;">
+          <p style="font-size: 11px; color: #7a869a; margin: 0 0 8px;">This invitation was generated automatically. Please do not reply directly to this message.</p>
+          <p style="font-size: 11px; color: #7a869a; margin: 0;">&copy; 2026 Jira Clone. All rights reserved.</p>
+        </div>
       </div>
     `
   };
 
   await transporter.sendMail(mailOptions);
   console.log(`[INVITE SERVICE] Invite successfully sent via email to: ${to}`);
-  return { sent: true, mock: false };
+  return inviteData;
 };
 
 // Helper to generate access and refresh tokens, set cookies, and send response
@@ -519,7 +537,8 @@ export const addTeamMember = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A user with this email address already exists in the system.' });
     }
 
-    const temporaryPassword = 'temporary_default_password_123!';
+    // Generate a secure, unique, and easy-to-read temporary password
+    const temporaryPassword = crypto.randomBytes(6).toString('hex') + '!';
     const salt = await bcrypt.genSalt(10);
     const defaultHashedPassword = await bcrypt.hash(temporaryPassword, salt);
 
