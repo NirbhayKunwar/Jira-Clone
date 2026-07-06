@@ -74,6 +74,25 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, user?.hasConfiguredWorkspace, fetchWorkspaces]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (location.pathname !== '/' || params.get('invite') !== 'profile') return;
+
+    const profileTarget = { pathname: '/dashboard', search: '?tab=profile' };
+    if (user) {
+      navigate('/dashboard?tab=profile', { replace: true });
+      return;
+    }
+
+    navigate('/auth', {
+      replace: true,
+      state: {
+        from: profileTarget,
+        email: params.get('email') || ''
+      }
+    });
+  }, [location.pathname, location.search, navigate, user]);
+
   return (
     <div className="min-h-screen bg-dominant text-text-secondary selection:bg-accent-light selection:text-accent transition-colors duration-300">
       <Routes>

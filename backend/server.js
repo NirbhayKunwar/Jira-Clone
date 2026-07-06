@@ -32,12 +32,34 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 
 // Enable CORS with whitelist configuration
-const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-const corsWhitelist = [clientUrl, 'http://localhost:3000', 'http://localhost:5000'];
+const parseOrigins = (value = '') => value
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+const clientOrigins = [
+  ...parseOrigins(process.env.CLIENT_URL),
+  ...parseOrigins(process.env.FRONTEND_URL),
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000'
+].filter(Boolean);
+const corsWhitelist = [...new Set(clientOrigins)];
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    if (corsWhitelist.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+    const isAllowedOrigin = corsWhitelist.includes(origin);
+    let isAllowedVercelPreview = false;
+
+    try {
+      isAllowedVercelPreview = process.env.NODE_ENV === 'production'
+        && /\.vercel\.app$/.test(new URL(origin).hostname);
+    } catch {
+      isAllowedVercelPreview = false;
+    }
+
+    if (isAllowedOrigin || isAllowedVercelPreview || process.env.NODE_ENV !== 'production') {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));

@@ -55,18 +55,19 @@ const escapeHtml = (value = '') => String(value)
 const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword }) => {
   const { emailUser, emailPass, isMockMode } = getEmailConfig();
   const appUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+  const inviteUrl = `${appUrl}/?invite=profile&email=${encodeURIComponent(to)}`;
   const safeName = escapeHtml(name);
   const safeEmail = escapeHtml(to);
   const safeInvitedByName = escapeHtml(invitedByName || 'Your team admin');
   const safeTemporaryPassword = escapeHtml(temporaryPassword);
-  const safeAppUrl = escapeHtml(appUrl);
+  const safeInviteUrl = escapeHtml(inviteUrl);
 
   if (isMockMode) {
     console.log(`\n==================================================`);
     console.log(`[INVITE SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)`);
     console.log(`TEAM INVITE FOR ${to}`);
     console.log(`Invited by: ${invitedByName || 'Your team admin'}`);
-    console.log(`Profile URL: ${appUrl}/profile`);
+    console.log(`Profile URL: ${inviteUrl}`);
     console.log(`Temporary password: ${temporaryPassword}`);
     console.log(`==================================================\n`);
     return { sent: false, mock: true };
@@ -89,7 +90,7 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword 
           <p style="margin: 0;"><strong>Temporary password:</strong> ${safeTemporaryPassword}</p>
         </div>
         <p style="text-align: center; margin: 24px 0;">
-          <a href="${safeAppUrl}/profile" style="background-color: #0052cc; color: #ffffff; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">Open Your Profile</a>
+          <a href="${safeInviteUrl}" style="background-color: #0052cc; color: #ffffff; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">Open Your Profile</a>
         </p>
         <p style="color: #ff5630; font-size: 12px;"><strong>Note:</strong> Please change this password after signing in.</p>
         <hr style="border: 0; border-top: 1px solid #eeeeee; margin-top: 30px;" />
