@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [newPriority, setNewPriority] = useState('Medium');
   const [newEpic, setNewEpic] = useState('General Work');
   const [newAssignee, setNewAssignee] = useState('You');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const activeTab = searchParams.get('tab') || 'board';
   const setActiveTab = (tab) => {
@@ -176,7 +177,6 @@ export default function Dashboard() {
   }, [dbUsers, user, tasks]);
   
   // Modal & Search States
-  const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterEpic, setFilterEpic] = useState('All');
   const [filterPriority, setFilterPriority] = useState('All');
