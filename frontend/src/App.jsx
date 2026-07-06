@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -10,8 +10,8 @@ import Testimonials from './components/Testimonials';
 import FAQ from './components/FAQ';
 import Footer from './components/Footer';
 import Auth from './components/Auth';
-import Dashboard from './components/Dashboard';
-import WorkspaceSetup from './components/WorkspaceSetup';
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const WorkspaceSetup = lazy(() => import('./components/WorkspaceSetup'));
 import { useAuthStore } from './store/authStore';
 import { useWorkspaceStore } from './store/workspaceStore';
 
@@ -123,7 +123,9 @@ function App() {
           path="/workspace-setup"
           element={
             <ProtectedRoute>
-              <WorkspaceSetup />
+              <Suspense fallback={<div className="min-h-screen bg-dominant flex items-center justify-center"><div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>}>
+                <WorkspaceSetup />
+              </Suspense>
             </ProtectedRoute>
           }
         />
@@ -133,7 +135,9 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <Suspense fallback={<div className="min-h-screen bg-dominant flex items-center justify-center"><div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>}>
+                <Dashboard />
+              </Suspense>
             </ProtectedRoute>
           }
         />
