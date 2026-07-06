@@ -18,7 +18,21 @@
             }
         },
         {
-            "source": "/(.*)",
+            "source": "/assets/:path*",
+            "destination": {
+                "type": "service",
+                "service": "frontend"
+            }
+        },
+        {
+            "source": "/:path*(.js|.css|.png|.jpg|.jpeg|.gif|.svg|.ico|.json|.woff|.woff2|.ttf)",
+            "destination": {
+                "type": "service",
+                "service": "frontend"
+            }
+        },
+        {
+            "source": "/:path*",
             "destination": {
                 "type": "service",
                 "service": "frontend",
