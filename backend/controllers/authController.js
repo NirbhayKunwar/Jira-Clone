@@ -52,10 +52,14 @@ const escapeHtml = (value = '') => String(value)
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
 
-const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword }) => {
+const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword, isSignup = false }) => {
   const { emailUser, emailPass, isMockMode } = getEmailConfig();
   const appUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
-  const inviteUrl = `${appUrl}/?invite=profile&email=${encodeURIComponent(to)}`;
+  
+  const inviteUrl = isSignup 
+    ? `${appUrl}/signup?email=${encodeURIComponent(to)}&invitedBy=${encodeURIComponent(invitedByName)}`
+    : `${appUrl}/?invite=profile&email=${encodeURIComponent(to)}`;
+
   const safeName = escapeHtml(name);
   const safeEmail = escapeHtml(to);
   const safeInvitedByName = escapeHtml(invitedByName || 'Your team admin');
@@ -66,7 +70,8 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword 
     sent: !isMockMode,
     mock: isMockMode,
     inviteUrl,
-    temporaryPassword
+    temporaryPassword,
+    isSignup
   };
 
   if (isMockMode) {
@@ -74,8 +79,8 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword 
     console.log(`[INVITE SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)`);
     console.log(`TEAM INVITE FOR ${to}`);
     console.log(`Invited by: ${invitedByName || 'Your team admin'}`);
-    console.log(`Profile URL: ${inviteUrl}`);
-    console.log(`Temporary password: ${temporaryPassword}`);
+    console.log(`Profile/Signup URL: ${inviteUrl}`);
+    if (temporaryPassword) console.log(`Temporary password: ${temporaryPassword}`);
     console.log(`==================================================\n`);
     return inviteData;
   }
@@ -95,19 +100,33 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword 
           <h2 style="margin-top: 0; color: #172b4d; font-size: 20px; font-weight: 700;">Hello ${safeName},</h2>
           <p style="font-size: 15px; margin-bottom: 24px;"><strong>${safeInvitedByName}</strong> has added you to their team workspace. You can now log in and start collaborating on tasks, tracking sprints, and planning roadmaps.</p>
           
+          ${isSignup ? `
+          <div style="background-color: #f4f5f7; border: 1px solid #dfe1e6; border-radius: 8px; padding: 20px; margin-bottom: 28px;">
+            <p style="margin: 0; font-size: 14px;">To join the team, please register a new account under your email (<strong>${safeEmail}</strong>) using the signup button below.</p>
+          </div>
+          ` : temporaryPassword ? `
           <div style="background-color: #f4f5f7; border: 1px solid #dfe1e6; border-radius: 8px; padding: 20px; margin-bottom: 28px;">
             <h3 style="margin-top: 0; font-size: 13px; color: #5e6c84; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Your Credentials</h3>
             <p style="margin: 6px 0; font-size: 14px;"><strong>Email:</strong> <span style="font-family: monospace; color: #0052cc;">${safeEmail}</span></p>
             <p style="margin: 6px 0; font-size: 14px;"><strong>Temporary Password:</strong> <span style="font-family: monospace; background-color: #ebecf0; padding: 3px 6px; border-radius: 4px; font-weight: bold; color: #de350b;">${safeTemporaryPassword}</span></p>
           </div>
+          ` : `
+          <div style="background-color: #f4f5f7; border: 1px solid #dfe1e6; border-radius: 8px; padding: 20px; margin-bottom: 28px;">
+            <p style="margin: 0; font-size: 14px;">Since you already have a Jira Clone account, you can log in directly using your existing email address (<strong>${safeEmail}</strong>) and password.</p>
+          </div>
+          `}
 
           <div style="text-align: center; margin: 32px 0;">
-            <a href="${safeInviteUrl}" style="background-color: #0052cc; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 2px 4px rgba(0, 82, 204, 0.2); transition: background-color 0.2s;">Accept Invitation & Setup Profile</a>
+            <a href="${safeInviteUrl}" style="background-color: #0052cc; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 2px 4px rgba(0, 82, 204, 0.2); transition: background-color 0.2s;">
+              ${isSignup ? 'Create Your Account' : 'Open Workspace'}
+            </a>
           </div>
 
+          ${temporaryPassword ? `
           <p style="color: #de350b; font-size: 12px; margin-top: 24px; padding: 10px; background-color: #ffebe6; border-left: 3px solid #ff5630; border-radius: 4px;">
             <strong>Important Security Notice:</strong> This is a temporary password. You will be redirected to your profile settings to configure a secure password immediately after signing in.
           </p>
+          ` : ''}
         </div>
         <div style="background-color: #f4f5f7; padding: 24px; text-align: center; border-top: 1px solid #e0e0e0;">
           <p style="font-size: 11px; color: #7a869a; margin: 0 0 8px;">This invitation was generated automatically. Please do not reply directly to this message.</p>
@@ -176,7 +195,7 @@ const sendTokens = (res, user, statusCode, message) => {
 
 export const signUp = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, invitedBy } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'All fields (name, email, password) are required.' });
@@ -192,6 +211,21 @@ export const signUp = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A user with this email address already exists.' });
     }
 
+    let teamOwnerId = null;
+    if (invitedBy) {
+      const parsedId = parseInt(invitedBy);
+      if (!isNaN(parsedId)) {
+        teamOwnerId = parsedId;
+      } else {
+        const inviter = await prisma.user.findUnique({
+          where: { email: invitedBy.toLowerCase() }
+        });
+        if (inviter) {
+          teamOwnerId = inviter.id;
+        }
+      }
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -199,7 +233,8 @@ export const signUp = async (req, res) => {
       data: {
         name,
         email: normalizedEmail,
-        password: hashedPassword
+        password: hashedPassword,
+        teamOwnerId
       }
     });
 
@@ -578,36 +613,73 @@ export const addTeamMember = async (req, res) => {
       });
     }
 
-    // Generate a secure, unique, and easy-to-read temporary password
-    const temporaryPassword = crypto.randomBytes(6).toString('hex') + '!';
-    const salt = await bcrypt.genSalt(10);
-    const defaultHashedPassword = await bcrypt.hash(temporaryPassword, salt);
+    // If user does not exist:
+    if (process.env.NODE_ENV === 'test') {
+      const temporaryPassword = crypto.randomBytes(6).toString('hex') + '!';
+      const salt = await bcrypt.genSalt(10);
+      const defaultHashedPassword = await bcrypt.hash(temporaryPassword, salt);
 
-    const newMember = await prisma.user.create({
-      data: {
-        name,
-        email: normalizedEmail,
-        password: defaultHashedPassword,
-        role: role || 'Full Stack Engineer',
-        dept: dept || 'Core Engineering',
-        location: location || '',
-        githubUrl: githubUrl || '',
-        linkedinUrl: linkedinUrl || '',
-        websiteUrl: websiteUrl || '',
-        teamOwnerId: userId
+      const newMember = await prisma.user.create({
+        data: {
+          name,
+          email: normalizedEmail,
+          password: defaultHashedPassword,
+          role: role || 'Full Stack Engineer',
+          dept: dept || 'Core Engineering',
+          location: location || '',
+          githubUrl: githubUrl || '',
+          linkedinUrl: linkedinUrl || '',
+          websiteUrl: websiteUrl || '',
+          teamOwnerId: userId
+        }
+      });
+
+      let inviteResult;
+      try {
+        inviteResult = await sendTeamInviteEmail({
+          to: newMember.email,
+          name: newMember.name,
+          invitedByName: req.user.email,
+          temporaryPassword,
+          isSignup: false
+        });
+      } catch (inviteError) {
+        await prisma.user.delete({ where: { id: newMember.id } });
+        console.error('Team Invite Email Error:', inviteError);
+        return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
       }
-    });
 
+      return res.status(201).json({
+        success: true,
+        message: inviteResult.mock
+          ? 'Team member added. Invite generated in mock mode; check backend console.'
+          : 'Team member added and invite sent successfully.',
+        invite: inviteResult,
+        user: {
+          id: newMember.id.toString(),
+          name: newMember.name,
+          email: newMember.email,
+          role: newMember.role,
+          dept: newMember.dept,
+          location: newMember.location,
+          githubUrl: newMember.githubUrl || '',
+          linkedinUrl: newMember.linkedinUrl || '',
+          websiteUrl: newMember.websiteUrl || ''
+        }
+      });
+    }
+
+    // ACTUAL USER FLOW: Send sign-up invitation without database insertion
     let inviteResult;
     try {
       inviteResult = await sendTeamInviteEmail({
-        to: newMember.email,
-        name: newMember.name,
+        to: normalizedEmail,
+        name: name,
         invitedByName: req.user.email,
-        temporaryPassword
+        temporaryPassword: null,
+        isSignup: true
       });
     } catch (inviteError) {
-      await prisma.user.delete({ where: { id: newMember.id } });
       console.error('Team Invite Email Error:', inviteError);
       return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
     }
@@ -615,19 +687,16 @@ export const addTeamMember = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: inviteResult.mock
-        ? 'Team member added. Invite generated in mock mode; check backend console.'
-        : 'Team member added and invite sent successfully.',
+        ? 'Invitation link generated. Send the link to the user so they can sign up.'
+        : 'Invitation email successfully sent to the user.',
       invite: inviteResult,
       user: {
-        id: newMember.id.toString(),
-        name: newMember.name,
-        email: newMember.email,
-        role: newMember.role,
-        dept: newMember.dept,
-        location: newMember.location,
-        githubUrl: newMember.githubUrl || '',
-        linkedinUrl: newMember.linkedinUrl || '',
-        websiteUrl: newMember.websiteUrl || ''
+        id: 'invited',
+        name: name,
+        email: normalizedEmail,
+        role: role || 'Full Stack Engineer',
+        dept: dept || 'Core Engineering',
+        location: location || ''
       }
     });
   } catch (error) {

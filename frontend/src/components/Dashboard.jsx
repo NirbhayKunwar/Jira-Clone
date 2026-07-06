@@ -3491,9 +3491,15 @@ export default function Dashboard() {
                   <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center animate-bounce">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
-                  <h4 className="font-display font-extrabold text-base text-text-secondary">Team Member Added!</h4>
+                  <h4 className="font-display font-extrabold text-base text-text-secondary">
+                    {addedMemberCreds.isSignup ? 'Invitation Ready!' : 'Team Member Added!'}
+                  </h4>
                   <p className="text-xs text-text-secondary-muted max-w-sm">
-                    <strong>{addedMemberCreds.name}</strong> was successfully registered in the system.
+                    {addedMemberCreds.isSignup ? (
+                      <>An invitation link has been prepared for <strong>{addedMemberCreds.name}</strong> to sign up.</>
+                    ) : (
+                      <><strong>{addedMemberCreds.name}</strong> was successfully registered in the system.</>
+                    )}
                   </p>
                 </div>
 
@@ -3501,14 +3507,20 @@ export default function Dashboard() {
                   <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-left space-y-1">
                     <h5 className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">Mock Mode Active</h5>
                     <p className="text-[10px] text-text-secondary-muted leading-relaxed">
-                      SMTP credentials are not configured. The invitation email was not sent, but you can copy and share the credentials below directly with your teammate.
+                      {addedMemberCreds.isSignup 
+                        ? 'SMTP credentials are not configured. The signup invitation link was not emailed, but you can copy and share the signup link below directly.'
+                        : 'SMTP credentials are not configured. The invitation email was not sent, but you can copy and share the credentials below directly with your teammate.'
+                      }
                     </p>
                   </div>
                 ) : (
                   <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-left space-y-1">
                     <h5 className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide">Email Dispatched</h5>
                     <p className="text-[10px] text-text-secondary-muted leading-relaxed">
-                      A premium HTML invitation email has been sent successfully to the user's email address.
+                      {addedMemberCreds.isSignup 
+                        ? 'A signup invitation email has been sent successfully to the user\'s email address.'
+                        : 'A premium HTML invitation email has been sent successfully to the user\'s email address.'
+                      }
                     </p>
                   </div>
                 )}
@@ -3520,10 +3532,10 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">
-                      {addedMemberCreds.temporaryPassword ? 'Temporary Password' : 'Password'}
+                      {addedMemberCreds.isSignup ? 'Password' : addedMemberCreds.temporaryPassword ? 'Temporary Password' : 'Password'}
                     </span>
                     <span className={`text-xs font-bold select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block ${addedMemberCreds.temporaryPassword ? 'text-red-400 font-mono' : 'text-emerald-500 font-sans'}`}>
-                      {addedMemberCreds.temporaryPassword || 'Use existing account password'}
+                      {addedMemberCreds.isSignup ? 'Configure your own password during registration' : addedMemberCreds.temporaryPassword || 'Use existing account password'}
                     </span>
                   </div>
                   {addedMemberCreds.inviteUrl && (

@@ -12,8 +12,11 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
   const login = useAuthStore((state) => state.login);
 
   const routeState = location.state || {};
-  const initialEmailVal = routeState.email || initialEmail;
-  const initialViewVal = routeState.isSignUp ? 'signup' : initialView;
+  const queryParams = new URLSearchParams(location.search);
+  const invitedBy = queryParams.get('invitedBy') || routeState.invitedBy || '';
+  const isSignUpPath = location.pathname === '/signup' || queryParams.get('signup') === 'true' || !!invitedBy;
+  const initialEmailVal = queryParams.get('email') || routeState.email || initialEmail;
+  const initialViewVal = isSignUpPath || routeState.isSignUp ? 'signup' : initialView;
 
   const [view, setView] = useState(initialViewVal); // 'login', 'signup', or 'forgot'
   const [email, setEmail] = useState(initialEmailVal);
@@ -156,7 +159,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         : `${API_URL}/api/auth/signin`;
       
       const body = view === 'signup' 
-        ? { name, email, password } 
+        ? { name, email, password, invitedBy } 
         : { email, password };
 
       const response = await fetch(endpoint, {
