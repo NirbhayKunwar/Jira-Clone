@@ -232,6 +232,8 @@ export default function Dashboard() {
   }, [user]);
   
   const [expandedEpic, setExpandedEpic] = useState(null);
+  const [customEpics, setCustomEpics] = useState([]);
+  const [epicTimelineOverrides, setEpicTimelineOverrides] = useState({});
 
   const months = useMemo(() => {
     const result = [];
@@ -244,9 +246,12 @@ export default function Dashboard() {
   }, []);
 
   const epicsList = useMemo(() => (
-    [...new Set(tasks.map(task => task.epic?.trim()).filter(Boolean))]
+    [...new Set([
+      ...tasks.map(task => task.epic?.trim()).filter(Boolean),
+      ...customEpics
+    ])]
       .sort((a, b) => a.localeCompare(b))
-  ), [tasks]);
+  ), [customEpics, tasks]);
 
   const epicTimelines = useMemo(() => {
     const rangeStart = new Date(dashboardOpenedAt);
@@ -266,13 +271,13 @@ export default function Dashboard() {
       const ends = epicTasks.map(task => toMonthIndex(task.completedAt || dashboardOpenedAt));
       const clamp = value => Math.min(5, Math.max(0, value));
 
-      return [epic, {
+      return [epic, epicTimelineOverrides[epic] || {
         start: clamp(Math.min(...starts)),
         end: clamp(Math.max(...ends)),
         color: ROADMAP_COLORS[index % ROADMAP_COLORS.length]
       }];
     }));
-  }, [dashboardOpenedAt, epicsList, tasks]);
+  }, [dashboardOpenedAt, epicTimelineOverrides, epicsList, tasks]);
 
   // Form States cleared (moved to top of functional component)
 
@@ -562,9 +567,13 @@ export default function Dashboard() {
 
   // Filters
   const filteredTasks = tasks.filter(t => {
-    const matchesSearch = t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          t.desc.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          t.epic.toLowerCase().includes(searchQuery.toLowerCase());
+    const title = t.title || '';
+    const desc = t.desc || '';
+    const epic = t.epic || '';
+    const normalizedSearch = searchQuery.toLowerCase();
+    const matchesSearch = title.toLowerCase().includes(normalizedSearch) ||
+                          desc.toLowerCase().includes(normalizedSearch) ||
+                          epic.toLowerCase().includes(normalizedSearch);
     const matchesEpic = filterEpic === 'All' || t.epic === filterEpic;
     const matchesPriority = filterPriority === 'All' || t.priority === filterPriority;
     
@@ -1538,7 +1547,7 @@ export default function Dashboard() {
                     className="text-xs py-1 pl-2 pr-6 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
                   >
                     <option value="All">All Epics</option>
-                    {EPICS.map(epic => (
+                    {epicsList.map(epic => (
                       <option key={epic} value={epic}>{epic}</option>
                     ))}
                   </select>
@@ -1590,7 +1599,7 @@ export default function Dashboard() {
               >
                 All Epics
               </button>
-              {EPICS.map(epic => (
+              {epicsList.map(epic => (
                 <button
                   key={epic}
                   onClick={() => setFilterEpic(epic)}
@@ -1644,7 +1653,7 @@ export default function Dashboard() {
                     className="w-full text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none min-h-[44px] cursor-pointer"
                   >
                     <option value="All">All Epics</option>
-                    {EPICS.map(epic => (
+                    {epicsList.map(epic => (
                       <option key={epic} value={epic}>{epic}</option>
                     ))}
                   </select>
@@ -2053,8 +2062,8 @@ export default function Dashboard() {
                     if (newEpicName && newEpicName.trim()) {
                       const name = newEpicName.trim();
                       if (!epicsList.includes(name)) {
-                        setEpicsList(prev => [...prev, name]);
-                        setEpicTimelines(prev => ({
+                        setCustomEpics(prev => [...prev, name]);
+                        setEpicTimelineOverrides(prev => ({
                           ...prev,
                           [name]: { start: 1, end: 3, color: 'bg-indigo-500' }
                         }));
@@ -2140,7 +2149,7 @@ export default function Dashboard() {
                                   } else {
                                     next.end = mIdx;
                                   }
-                                  setEpicTimelines(prev => ({
+                                  setEpicTimelineOverrides(prev => ({
                                     ...prev,
                                     [epic]: next
                                   }));
@@ -3353,7 +3362,7 @@ export default function Dashboard() {
                     onChange={(e) => setNewEpic(e.target.value)}
                     className="block w-full px-3 py-2 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                   >
-                    {EPICS.map(epic => (
+                    {epicsList.map(epic => (
                       <option key={epic} value={epic}>{epic}</option>
                     ))}
                   </select>
