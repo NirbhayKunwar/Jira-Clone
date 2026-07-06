@@ -18,10 +18,25 @@
             }
         },
         {
-            "source": "/(.*)",
+            "source": "/assets/:path*",
             "destination": {
                 "type": "service",
                 "service": "frontend"
+            }
+        },
+        {
+            "source": "/:file(.*\\.[a-zA-Z0-9]+)",
+            "destination": {
+                "type": "service",
+                "service": "frontend"
+            }
+        },
+        {
+            "source": "/:path*",
+            "destination": {
+                "type": "service",
+                "service": "frontend",
+                "path": "/index.html"
             }
         }
     ]
