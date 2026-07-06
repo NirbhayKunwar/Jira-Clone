@@ -49,16 +49,20 @@ const poolConfig = {
 export const pool = new Pool(poolConfig);
 
 export const initializeDatabase = async () => {
-  // 1. Ensure the database exists
-  await ensureDatabaseExists();
+  if (process.env.NODE_ENV !== 'production') {
+    // 1. Ensure the database exists
+    await ensureDatabaseExists();
 
-  // 2. Synchronize Prisma models with PostgreSQL and generate the client
-  try {
-    console.log('[DATABASE] Running Prisma database schema synchronization (db push)...');
-    execSync('npx prisma db push --skip-generate', { stdio: 'inherit' });
-    console.log('[DATABASE] Prisma schema synchronization completed successfully.');
-  } catch (error) {
-    console.error('[DATABASE] Prisma schema synchronization failed:', error);
-    throw error;
+    // 2. Synchronize Prisma models with PostgreSQL and generate the client
+    try {
+      console.log('[DATABASE] Running Prisma database schema synchronization (db push)...');
+      execSync('npx prisma db push --skip-generate', { stdio: 'inherit' });
+      console.log('[DATABASE] Prisma schema synchronization completed successfully.');
+    } catch (error) {
+      console.error('[DATABASE] Prisma schema synchronization failed:', error);
+      throw error;
+    }
+  } else {
+    console.log('[DATABASE] Production mode: Skipping runtime database schema synchronization.');
   }
 };
