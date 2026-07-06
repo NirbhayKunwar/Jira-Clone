@@ -29,6 +29,80 @@ const getJwtRefreshSecret = () => {
   return process.env.JWT_REFRESH_SECRET || getJwtSecret();
 };
 
+const getEmailConfig = () => {
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASS;
+  const isMockMode = !emailUser || !emailPass || emailUser === 'your-email@gmail.com' || emailPass === 'your-16-character-app-password';
+
+  return { emailUser, emailPass, isMockMode };
+};
+
+const createGmailTransporter = (emailUser, emailPass) => nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: emailUser,
+    pass: emailPass
+  }
+});
+
+const escapeHtml = (value = '') => String(value)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
+const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword }) => {
+  const { emailUser, emailPass, isMockMode } = getEmailConfig();
+  const appUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+  const safeName = escapeHtml(name);
+  const safeEmail = escapeHtml(to);
+  const safeInvitedByName = escapeHtml(invitedByName || 'Your team admin');
+  const safeTemporaryPassword = escapeHtml(temporaryPassword);
+  const safeAppUrl = escapeHtml(appUrl);
+
+  if (isMockMode) {
+    console.log(`\n==================================================`);
+    console.log(`[INVITE SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)`);
+    console.log(`TEAM INVITE FOR ${to}`);
+    console.log(`Invited by: ${invitedByName || 'Your team admin'}`);
+    console.log(`Login URL: ${appUrl}/auth`);
+    console.log(`Temporary password: ${temporaryPassword}`);
+    console.log(`==================================================\n`);
+    return { sent: false, mock: true };
+  }
+
+  const transporter = createGmailTransporter(emailUser, emailPass);
+  const mailOptions = {
+    from: emailUser,
+    to,
+    subject: 'You have been invited to Jira Clone',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #0052cc; text-align: center;">You have been invited to Jira Clone</h2>
+        <hr style="border: 0; border-top: 1px solid #eeeeee;" />
+        <p>Hello ${safeName},</p>
+        <p>${safeInvitedByName} added you to their Jira Clone workspace.</p>
+        <p>You can sign in with this email address and the temporary password below:</p>
+        <div style="background-color: #f4f5f7; border: 1px dashed #0052cc; padding: 15px; font-size: 16px; color: #172b4d; margin: 20px 0; border-radius: 4px;">
+          <p style="margin: 0 0 8px;"><strong>Email:</strong> ${safeEmail}</p>
+          <p style="margin: 0;"><strong>Temporary password:</strong> ${safeTemporaryPassword}</p>
+        </div>
+        <p style="text-align: center; margin: 24px 0;">
+          <a href="${safeAppUrl}/auth" style="background-color: #0052cc; color: #ffffff; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold;">Open Jira Clone</a>
+        </p>
+        <p style="color: #ff5630; font-size: 12px;"><strong>Note:</strong> Please change this password after signing in.</p>
+        <hr style="border: 0; border-top: 1px solid #eeeeee; margin-top: 30px;" />
+        <p style="font-size: 10px; color: #7a869a; text-align: center;">This is an automated invitation. Please do not reply directly to this email.</p>
+      </div>
+    `
+  };
+
+  await transporter.sendMail(mailOptions);
+  console.log(`[INVITE SERVICE] Invite successfully sent via email to: ${to}`);
+  return { sent: true, mock: false };
+};
+
 // Helper to generate access and refresh tokens, set cookies, and send response
 const sendTokens = (res, user, statusCode, message) => {
   const accessToken = jwt.sign(
@@ -212,9 +286,7 @@ export const sendOtp = async (req, res) => {
 
     const normalizedEmail = email.toLowerCase();
     
-    const emailUser = process.env.EMAIL_USER;
-    const emailPass = process.env.EMAIL_PASS;
-    const isMockMode = !emailUser || !emailPass || emailUser === 'your-email@gmail.com' || emailPass === 'your-16-character-app-password';
+    const { emailUser, emailPass, isMockMode } = getEmailConfig();
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
@@ -243,13 +315,7 @@ export const sendOtp = async (req, res) => {
       });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: emailUser,
-        pass: emailPass
-      }
-    });
+    const transporter = createGmailTransporter(emailUser, emailPass);
 
     const mailOptions = {
       from: emailUser,
@@ -452,8 +518,9 @@ export const addTeamMember = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A user with this email address already exists in the system.' });
     }
 
+    const temporaryPassword = 'temporary_default_password_123!';
     const salt = await bcrypt.genSalt(10);
-    const defaultHashedPassword = await bcrypt.hash('temporary_default_password_123!', salt);
+    const defaultHashedPassword = await bcrypt.hash(temporaryPassword, salt);
 
     const newMember = await prisma.user.create({
       data: {
@@ -470,8 +537,26 @@ export const addTeamMember = async (req, res) => {
       }
     });
 
+    let inviteResult;
+    try {
+      inviteResult = await sendTeamInviteEmail({
+        to: newMember.email,
+        name: newMember.name,
+        invitedByName: req.user.email,
+        temporaryPassword
+      });
+    } catch (inviteError) {
+      await prisma.user.delete({ where: { id: newMember.id } });
+      console.error('Team Invite Email Error:', inviteError);
+      return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
+    }
+
     return res.status(201).json({
       success: true,
+      message: inviteResult.mock
+        ? 'Team member added. Invite generated in mock mode; check backend console.'
+        : 'Team member added and invite sent successfully.',
+      invite: inviteResult,
       user: {
         id: newMember.id.toString(),
         name: newMember.name,
