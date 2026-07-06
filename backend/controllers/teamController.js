@@ -1,137 +1,144 @@
 import prisma from '../config/prisma.js';
+import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 
-// Get all teams
-export const getTeams = async (req, res) => {
-  try {
-    const teams = await prisma.team.findMany({
-      orderBy: { id: 'desc' }
-    });
-
-    const mapped = teams.map(t => {
-      let resolvedMembers = [];
-      try {
-        resolvedMembers = JSON.parse(t.membersText || '[]');
-      } catch (e) {
-        resolvedMembers = [];
-      }
-      return {
-        id: t.id.toString(),
-        name: t.name,
-        desc: t.descText || '',
-        members: resolvedMembers
-      };
-    });
-
-    return res.status(200).json(mapped);
-  } catch (error) {
-    console.error('Get Teams Error:', error);
-    return res.status(500).json({ message: 'Internal Server Error while fetching teams.' });
+// Get all teams (scoped to user)
+export const getTeams = asyncHandler(async (req, res, next) => {
+  const userId = req.user ? req.user.id : null;
+  if (!userId) {
+    return next(new AppError('Unauthorized.', 401));
   }
-};
 
-// Create a team
-export const createTeam = async (req, res) => {
-  try {
-    const { name, desc, members } = req.body;
+  const teams = await prisma.team.findMany({
+    where: { ownerId: userId },
+    orderBy: { id: 'desc' }
+  });
 
-    if (!name || !name.trim()) {
-      return res.status(400).json({ message: 'Team name is required.' });
-    }
-
-    const t = await prisma.team.create({
-      data: {
-        name: name.trim(),
-        descText: desc || '',
-        membersText: JSON.stringify(members || [])
-      }
-    });
-
+  const mapped = teams.map(t => {
     let resolvedMembers = [];
     try {
-      resolvedMembers = JSON.parse(t.membersText);
+      resolvedMembers = JSON.parse(t.membersText || '[]');
     } catch (e) {
       resolvedMembers = [];
     }
-
-    const mapped = {
+    return {
       id: t.id.toString(),
       name: t.name,
       desc: t.descText || '',
       members: resolvedMembers
     };
+  });
 
-    return res.status(201).json(mapped);
-  } catch (error) {
-    console.error('Create Team Error:', error);
-    return res.status(500).json({ message: 'Internal Server Error while creating team.' });
+  return res.status(200).json({ success: true, data: mapped });
+});
+
+// Create a team (linked to owner)
+export const createTeam = asyncHandler(async (req, res, next) => {
+  const { name, desc, members } = req.body;
+  const userId = req.user ? req.user.id : null;
+
+  if (!name || !name.trim()) {
+    return next(new AppError('Team name is required.', 400));
   }
-};
 
-// Update a team
-export const updateTeam = async (req, res) => {
+  const t = await prisma.team.create({
+    data: {
+      name: name.trim(),
+      descText: desc || '',
+      membersText: JSON.stringify(members || []),
+      ownerId: userId
+    }
+  });
+
+  let resolvedMembers = [];
   try {
-    const { id } = req.params;
-    const { name, desc, members } = req.body;
-
-    const teamId = parseInt(id);
-    if (isNaN(teamId)) {
-      return res.status(400).json({ message: 'Invalid team ID format. Must be an integer.' });
-    }
-
-    const updateData = {};
-    if (name !== undefined) updateData.name = name.trim();
-    if (desc !== undefined) updateData.descText = desc;
-    if (members !== undefined) updateData.membersText = JSON.stringify(members);
-
-    const t = await prisma.team.update({
-      where: { id: teamId },
-      data: updateData
-    });
-
-    let resolvedMembers = [];
-    try {
-      resolvedMembers = JSON.parse(t.membersText);
-    } catch (e) {
-      resolvedMembers = [];
-    }
-
-    const mapped = {
-      id: t.id.toString(),
-      name: t.name,
-      desc: t.descText || '',
-      members: resolvedMembers
-    };
-
-    return res.status(200).json(mapped);
-  } catch (error) {
-    console.error('Update Team Error:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: 'Team not found.' });
-    }
-    return res.status(500).json({ message: 'Internal Server Error while updating team.' });
+    resolvedMembers = JSON.parse(t.membersText);
+  } catch (e) {
+    resolvedMembers = [];
   }
-};
 
-// Delete a team
-export const deleteTeam = async (req, res) => {
+  const mapped = {
+    id: t.id.toString(),
+    name: t.name,
+    desc: t.descText || '',
+    members: resolvedMembers
+  };
+
+  return res.status(201).json({ success: true, message: 'Team created successfully.', data: mapped });
+});
+
+// Update a team (verify ownership)
+export const updateTeam = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { name, desc, members } = req.body;
+
+  const teamId = parseInt(id);
+  if (isNaN(teamId)) {
+    return next(new AppError('Invalid team ID format. Must be an integer.', 400));
+  }
+
+  const teamCheck = await prisma.team.findUnique({
+    where: { id: teamId }
+  });
+
+  if (!teamCheck) {
+    return next(new AppError('Team not found.', 404));
+  }
+
+  if (teamCheck.ownerId && teamCheck.ownerId !== req.user.id) {
+    return next(new AppError('Forbidden. You do not have access to this team.', 403));
+  }
+
+  const updateData = {};
+  if (name !== undefined) updateData.name = name.trim();
+  if (desc !== undefined) updateData.descText = desc;
+  if (members !== undefined) updateData.membersText = JSON.stringify(members);
+
+  const t = await prisma.team.update({
+    where: { id: teamId },
+    data: updateData
+  });
+
+  let resolvedMembers = [];
   try {
-    const { id } = req.params;
-
-    const teamId = parseInt(id);
-    if (isNaN(teamId)) {
-      return res.status(400).json({ message: 'Invalid team ID format. Must be an integer.' });
-    }
-
-    await prisma.team.delete({
-      where: { id: teamId }
-    });
-
-    return res.status(200).json({ message: 'Team deleted successfully.' });
-  } catch (error) {
-    console.error('Delete Team Error:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: 'Team not found.' });
-    }
-    return res.status(500).json({ message: 'Internal Server Error while deleting team.' });
+    resolvedMembers = JSON.parse(t.membersText);
+  } catch (e) {
+    resolvedMembers = [];
   }
-};
+
+  const mapped = {
+    id: t.id.toString(),
+    name: t.name,
+    desc: t.descText || '',
+    members: resolvedMembers
+  };
+
+  return res.status(200).json({ success: true, message: 'Team updated successfully.', data: mapped });
+});
+
+// Delete a team (verify ownership)
+export const deleteTeam = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const teamId = parseInt(id);
+  if (isNaN(teamId)) {
+    return next(new AppError('Invalid team ID format. Must be an integer.', 400));
+  }
+
+  const teamCheck = await prisma.team.findUnique({
+    where: { id: teamId }
+  });
+
+  if (!teamCheck) {
+    return next(new AppError('Team not found.', 404));
+  }
+
+  if (teamCheck.ownerId && teamCheck.ownerId !== req.user.id) {
+    return next(new AppError('Forbidden. You do not have access to this team.', 403));
+  }
+
+  await prisma.team.delete({
+    where: { id: teamId }
+  });
+
+  return res.status(200).json({ success: true, message: 'Team deleted successfully.' });
+});

@@ -1,5 +1,5 @@
 import express from 'express';
-import { signUp, signIn, signOut, sendOtp, changePassword, updateProfile, getUsers, addTeamMember, deleteUser, googleSignIn } from '../controllers/authController.js';
+import { signUp, signIn, signOut, refreshTokens, sendOtp, changePassword, updateProfile, getUsers, addTeamMember, deleteUser, googleSignIn } from '../controllers/authController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { rateLimiter } from '../middleware/rateLimiter.js';
 
@@ -12,6 +12,7 @@ const strictLimiter = rateLimiter(15 * 60 * 1000, 10);
 router.post('/signup', strictLimiter, signUp);
 router.post('/signin', strictLimiter, signIn);
 router.post('/signout', signOut);
+router.post('/refresh', refreshTokens);
 router.post('/google-signin', strictLimiter, googleSignIn);
 
 // Password Reset / Change Endpoints via OTP

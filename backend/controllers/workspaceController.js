@@ -1,84 +1,86 @@
 import prisma from '../config/prisma.js';
+import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 
-// Get all workspaces
-export const getWorkspaces = async (req, res) => {
-  try {
-    const workspaces = await prisma.workspace.findMany({
-      orderBy: { id: 'asc' }
-    });
-    
-    // Map DB schema fields to camelCase names for frontend consistency
-    const mapped = workspaces.map(w => ({
-      id: w.id.toString(),
-      name: w.name,
-      key: w.key,
-      template_type: w.templateType,
-      board_name: w.boardName,
-      description: w.description,
-      sprint_duration: w.sprintDuration,
-      wip_limit: w.wipLimit,
-      created_at: w.createdAt
-    }));
-
-    return res.status(200).json(mapped);
-  } catch (error) {
-    console.error('Get Workspaces Error:', error);
-    return res.status(500).json({ message: 'Internal Server Error while fetching workspaces.' });
+// Get all workspaces (scoped to user ownership)
+export const getWorkspaces = asyncHandler(async (req, res, next) => {
+  const userId = req.user ? req.user.id : null;
+  if (!userId) {
+    return next(new AppError('Unauthorized. Session user not found.', 401));
   }
-};
 
-// Get workspace by ID
-export const getWorkspaceById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const workspaceId = parseInt(id);
-    if (isNaN(workspaceId)) {
-      return res.status(400).json({ message: 'Invalid workspace ID format. Must be an integer.' });
-    }
-    const w = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
-    });
+  const workspaces = await prisma.workspace.findMany({
+    where: { ownerId: userId },
+    orderBy: { id: 'asc' }
+  });
+  
+  const mapped = workspaces.map(w => ({
+    id: w.id.toString(),
+    name: w.name,
+    key: w.key,
+    template_type: w.templateType,
+    board_name: w.boardName,
+    description: w.description,
+    sprint_duration: w.sprintDuration,
+    wip_limit: w.wipLimit,
+    created_at: w.createdAt
+  }));
 
-    if (!w) {
-      return res.status(404).json({ message: 'Workspace not found.' });
-    }
+  return res.status(200).json({ success: true, data: mapped });
+});
 
-    const mapped = {
-      id: w.id.toString(),
-      name: w.name,
-      key: w.key,
-      template_type: w.templateType,
-      board_name: w.boardName,
-      description: w.description,
-      sprint_duration: w.sprintDuration,
-      wip_limit: w.wipLimit,
-      created_at: w.createdAt
-    };
-
-    return res.status(200).json(mapped);
-  } catch (error) {
-    console.error('Get Workspace By ID Error:', error);
-    return res.status(500).json({ message: 'Internal Server Error while fetching workspace.' });
+// Get workspace by ID (with ownership verification)
+export const getWorkspaceById = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const workspaceId = parseInt(id);
+  if (isNaN(workspaceId)) {
+    return next(new AppError('Invalid workspace ID format. Must be an integer.', 400));
   }
-};
 
-// Create a new workspace
-export const createWorkspace = async (req, res) => {
+  const w = await prisma.workspace.findUnique({
+    where: { id: workspaceId }
+  });
+
+  if (!w) {
+    return next(new AppError('Workspace not found.', 404));
+  }
+
+  // BOLA authorization check
+  if (w.ownerId && w.ownerId !== req.user.id) {
+    return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
+  }
+
+  const mapped = {
+    id: w.id.toString(),
+    name: w.name,
+    key: w.key,
+    template_type: w.templateType,
+    board_name: w.boardName,
+    description: w.description,
+    sprint_duration: w.sprintDuration,
+    wip_limit: w.wipLimit,
+    created_at: w.createdAt
+  };
+
+  return res.status(200).json({ success: true, data: mapped });
+});
+
+// Create a new workspace (linked to owner)
+export const createWorkspace = asyncHandler(async (req, res, next) => {
+  const { name, key, template_type, board_name, description, sprint_duration, wip_limit } = req.body;
+
+  if (!name || !name.trim()) {
+    return next(new AppError('Workspace name is required.', 400));
+  }
+  const normalizedKey = key.toUpperCase().trim();
+  if (!/^[A-Z][A-Z0-9]{1,9}$/.test(normalizedKey)) {
+    return next(new AppError('Project key must start with a letter and consist of 2 to 10 alphanumeric characters.', 400));
+  }
+  if (!template_type) {
+    return next(new AppError('Workspace template type (scrum or kanban) is required.', 400));
+  }
+
+  // Create workspace with owner ID
   try {
-    const { name, key, template_type, board_name, description, sprint_duration, wip_limit } = req.body;
-
-    if (!name || !name.trim()) {
-      return res.status(400).json({ message: 'Workspace name is required.' });
-    }
-    const normalizedKey = key.toUpperCase().trim();
-    if (!/^[A-Z][A-Z0-9]{1,9}$/.test(normalizedKey)) {
-      return res.status(400).json({ message: 'Project key must start with a letter and consist of 2 to 10 alphanumeric characters (e.g., PROJ).' });
-    }
-    if (!template_type) {
-      return res.status(400).json({ message: 'Workspace template type (scrum or kanban) is required.' });
-    }
-
-    // Create workspace without seeding tasks
     const w = await prisma.workspace.create({
       data: {
         name: name.trim(),
@@ -87,7 +89,8 @@ export const createWorkspace = async (req, res) => {
         boardName: board_name || `${name} Board`,
         description: description || '',
         sprintDuration: template_type === 'scrum' ? (sprint_duration || 2) : null,
-        wipLimit: template_type === 'kanban' ? (wip_limit || 5) : null
+        wipLimit: template_type === 'kanban' ? (wip_limit || 5) : null,
+        ownerId: req.user ? req.user.id : null
       }
     });
 
@@ -105,36 +108,40 @@ export const createWorkspace = async (req, res) => {
       created_at: w.createdAt
     };
 
-    return res.status(201).json(mapped);
+    return res.status(201).json({ success: true, message: 'Workspace created successfully.', data: mapped });
   } catch (error) {
-    console.error('Create Workspace Error:', error);
-    if (error.code === 'P2002') { // Prisma unique constraint violation code
-      return res.status(400).json({ message: 'A project with this key already exists. Please choose a different key.' });
+    if (error.code === 'P2002') {
+      return next(new AppError('A project with this key already exists. Please choose a different key.', 400));
     }
-    return res.status(500).json({ message: 'Internal Server Error while creating workspace.' });
+    return next(error);
   }
-};
+});
 
 // Delete workspace
-export const deleteWorkspace = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const workspaceId = parseInt(id);
-    if (isNaN(workspaceId)) {
-      return res.status(400).json({ message: 'Invalid workspace ID format. Must be an integer.' });
-    }
-    
-    await prisma.workspace.delete({
-      where: { id: workspaceId }
-    });
-
-    console.log(`[WORKSPACE SERVICE] Deleted workspace ${id} and all cascading tasks via Prisma.`);
-    return res.status(200).json({ message: 'Workspace and its tasks deleted successfully.' });
-  } catch (error) {
-    console.error('Delete Workspace Error:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: 'Workspace not found.' });
-    }
-    return res.status(500).json({ message: 'Internal Server Error while deleting workspace.' });
+export const deleteWorkspace = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const workspaceId = parseInt(id);
+  if (isNaN(workspaceId)) {
+    return next(new AppError('Invalid workspace ID format. Must be an integer.', 400));
   }
-};
+  
+  const w = await prisma.workspace.findUnique({
+    where: { id: workspaceId }
+  });
+
+  if (!w) {
+    return next(new AppError('Workspace not found.', 404));
+  }
+
+  // BOLA authorization check
+  if (w.ownerId && w.ownerId !== req.user.id) {
+    return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
+  }
+
+  await prisma.workspace.delete({
+    where: { id: workspaceId }
+  });
+
+  console.log(`[WORKSPACE SERVICE] Deleted workspace ${id} and all cascading tasks via Prisma.`);
+  return res.status(200).json({ success: true, message: 'Workspace and its tasks deleted successfully.' });
+});

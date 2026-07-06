@@ -1,131 +1,137 @@
 import prisma from '../config/prisma.js';
+import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 
-// Get all goals
-export const getGoals = async (req, res) => {
-  try {
-    const goals = await prisma.goal.findMany({
-      orderBy: { id: 'desc' }
-    });
-
-    // Map to frontend structure
-    const mapped = goals.map(g => ({
-      id: g.id.toString(),
-      title: g.title,
-      desc: g.descText || '',
-      owner: g.owner,
-      targetDate: g.targetDate || '',
-      progress: g.progress,
-      status: g.status
-    }));
-
-    return res.status(200).json(mapped);
-  } catch (error) {
-    console.error('Get Goals Error:', error);
-    return res.status(500).json({ message: 'Internal Server Error while fetching goals.' });
+// Get all goals (scoped to user)
+export const getGoals = asyncHandler(async (req, res, next) => {
+  const userId = req.user ? req.user.id : null;
+  if (!userId) {
+    return next(new AppError('Unauthorized.', 401));
   }
-};
 
-// Create a goal
-export const createGoal = async (req, res) => {
-  try {
-    const { title, desc, owner, targetDate, progress, status } = req.body;
+  const goals = await prisma.goal.findMany({
+    where: { ownerId: userId },
+    orderBy: { id: 'desc' }
+  });
 
-    if (!title || !title.trim()) {
-      return res.status(400).json({ message: 'Goal title is required.' });
-    }
+  const mapped = goals.map(g => ({
+    id: g.id.toString(),
+    title: g.title,
+    desc: g.descText || '',
+    owner: g.owner,
+    targetDate: g.targetDate || '',
+    progress: g.progress,
+    status: g.status
+  }));
 
-    const g = await prisma.goal.create({
-      data: {
-        title: title.trim(),
-        descText: desc || '',
-        owner: owner || 'You',
-        targetDate: targetDate || '',
-        progress: progress !== undefined ? parseInt(progress) : 0,
-        status: status || 'on_track'
-      }
-    });
+  return res.status(200).json({ success: true, data: mapped });
+});
 
-    const mapped = {
-      id: g.id.toString(),
-      title: g.title,
-      desc: g.descText || '',
-      owner: g.owner,
-      targetDate: g.targetDate || '',
-      progress: g.progress,
-      status: g.status
-    };
+// Create a goal (linked to user)
+export const createGoal = asyncHandler(async (req, res, next) => {
+  const { title, desc, owner, targetDate, progress, status } = req.body;
+  const userId = req.user ? req.user.id : null;
 
-    return res.status(201).json(mapped);
-  } catch (error) {
-    console.error('Create Goal Error:', error);
-    return res.status(500).json({ message: 'Internal Server Error while creating goal.' });
+  if (!title || !title.trim()) {
+    return next(new AppError('Goal title is required.', 400));
   }
-};
 
-// Update a goal
-export const updateGoal = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { progress, status, title, desc, owner, targetDate } = req.body;
-
-    const goalId = parseInt(id);
-    if (isNaN(goalId)) {
-      return res.status(400).json({ message: 'Invalid goal ID format. Must be an integer.' });
+  const g = await prisma.goal.create({
+    data: {
+      title: title.trim(),
+      descText: desc || '',
+      owner: owner || 'You',
+      targetDate: targetDate || '',
+      progress: progress !== undefined ? parseInt(progress) : 0,
+      status: status || 'on_track',
+      ownerId: userId
     }
+  });
 
-    const updateData = {};
-    if (progress !== undefined) updateData.progress = parseInt(progress);
-    if (status !== undefined) updateData.status = status;
-    if (title !== undefined) updateData.title = title;
-    if (desc !== undefined) updateData.descText = desc;
-    if (owner !== undefined) updateData.owner = owner;
-    if (targetDate !== undefined) updateData.targetDate = targetDate;
+  const mapped = {
+    id: g.id.toString(),
+    title: g.title,
+    desc: g.descText || '',
+    owner: g.owner,
+    targetDate: g.targetDate || '',
+    progress: g.progress,
+    status: g.status
+  };
 
-    const g = await prisma.goal.update({
-      where: { id: goalId },
-      data: updateData
-    });
+  return res.status(201).json({ success: true, message: 'Goal created successfully.', data: mapped });
+});
 
-    const mapped = {
-      id: g.id.toString(),
-      title: g.title,
-      desc: g.descText || '',
-      owner: g.owner,
-      targetDate: g.targetDate || '',
-      progress: g.progress,
-      status: g.status
-    };
+// Update a goal (verify ownership)
+export const updateGoal = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { progress, status, title, desc, owner, targetDate } = req.body;
 
-    return res.status(200).json(mapped);
-  } catch (error) {
-    console.error('Update Goal Error:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: 'Goal not found.' });
-    }
-    return res.status(500).json({ message: 'Internal Server Error while updating goal.' });
+  const goalId = parseInt(id);
+  if (isNaN(goalId)) {
+    return next(new AppError('Invalid goal ID format. Must be an integer.', 400));
   }
-};
 
-// Delete a goal
-export const deleteGoal = async (req, res) => {
-  try {
-    const { id } = req.params;
+  const goalCheck = await prisma.goal.findUnique({
+    where: { id: goalId }
+  });
 
-    const goalId = parseInt(id);
-    if (isNaN(goalId)) {
-      return res.status(400).json({ message: 'Invalid goal ID format. Must be an integer.' });
-    }
-
-    await prisma.goal.delete({
-      where: { id: goalId }
-    });
-
-    return res.status(200).json({ message: 'Goal deleted successfully.' });
-  } catch (error) {
-    console.error('Delete Goal Error:', error);
-    if (error.code === 'P2025') {
-      return res.status(404).json({ message: 'Goal not found.' });
-    }
-    return res.status(500).json({ message: 'Internal Server Error while deleting goal.' });
+  if (!goalCheck) {
+    return next(new AppError('Goal not found.', 404));
   }
-};
+
+  if (goalCheck.ownerId && goalCheck.ownerId !== req.user.id) {
+    return next(new AppError('Forbidden. You do not have access to this goal.', 403));
+  }
+
+  const updateData = {};
+  if (progress !== undefined) updateData.progress = parseInt(progress);
+  if (status !== undefined) updateData.status = status;
+  if (title !== undefined) updateData.title = title;
+  if (desc !== undefined) updateData.descText = desc;
+  if (owner !== undefined) updateData.owner = owner;
+  if (targetDate !== undefined) updateData.targetDate = targetDate;
+
+  const g = await prisma.goal.update({
+    where: { id: goalId },
+    data: updateData
+  });
+
+  const mapped = {
+    id: g.id.toString(),
+    title: g.title,
+    desc: g.descText || '',
+    owner: g.owner,
+    targetDate: g.targetDate || '',
+    progress: g.progress,
+    status: g.status
+  };
+
+  return res.status(200).json({ success: true, message: 'Goal updated successfully.', data: mapped });
+});
+
+// Delete a goal (verify ownership)
+export const deleteGoal = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+
+  const goalId = parseInt(id);
+  if (isNaN(goalId)) {
+    return next(new AppError('Invalid goal ID format. Must be an integer.', 400));
+  }
+
+  const goalCheck = await prisma.goal.findUnique({
+    where: { id: goalId }
+  });
+
+  if (!goalCheck) {
+    return next(new AppError('Goal not found.', 404));
+  }
+
+  if (goalCheck.ownerId && goalCheck.ownerId !== req.user.id) {
+    return next(new AppError('Forbidden. You do not have access to this goal.', 403));
+  }
+
+  await prisma.goal.delete({
+    where: { id: goalId }
+  });
+
+  return res.status(200).json({ success: true, message: 'Goal deleted successfully.' });
+});

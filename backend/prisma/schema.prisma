@@ -18,7 +18,11 @@ model Workspace {
   wipLimit        Int?     @default(5) @map("wip_limit")
   createdAt       DateTime @default(now()) @map("created_at")
   tasks           Task[]
+  scheduleEvents  ScheduleEvent[]
+  ownerId         Int?     @map("owner_id")
+  owner           User?    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
+  @@index([ownerId])
   @@map("workspaces")
 }
 
@@ -29,10 +33,17 @@ model User {
   password               String   @db.VarChar(255)
   role                   String?  @default("Full Stack Engineer") @db.VarChar(255)
   dept                   String?  @default("Core Engineering") @db.VarChar(255)
-  location               String?  @default("San Francisco, CA") @db.VarChar(255)
+  location               String?  @db.VarChar(255)
+  githubUrl              String?  @map("github_url") @db.VarChar(255)
+  linkedinUrl            String?  @map("linkedin_url") @db.VarChar(255)
+  websiteUrl             String?  @map("website_url") @db.VarChar(255)
+  otherLinks             String?  @map("other_links") @db.Text
   hasConfiguredWorkspace Boolean? @default(false) @map("has_configured_workspace")
   createdAt              DateTime @default(now()) @map("created_at")
   tasks                  Task[]
+  ownedWorkspaces        Workspace[] @relation("WorkspaceOwner")
+  ownedGoals             Goal[]      @relation("GoalOwner")
+  ownedTeams             Team[]      @relation("TeamOwner")
 
   @@map("users")
 }
@@ -49,7 +60,12 @@ model Task {
   workspaceId Int?       @map("workspace_id")
   workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdAt   DateTime   @default(now()) @map("created_at")
+  completedAt DateTime?  @map("completed_at")
 
+  @@index([workspaceId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([createdAt])
   @@map("tasks")
 }
 
@@ -62,7 +78,10 @@ model Goal {
   progress    Int      @default(0)
   status      String   @default("on_track") @db.VarChar(50)
   createdAt   DateTime @default(now()) @map("created_at")
+  ownerId     Int?     @map("owner_id")
+  ownerUser   User?    @relation("GoalOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
+  @@index([ownerId])
   @@map("goals")
 }
 
@@ -71,7 +90,26 @@ model Team {
   name        String   @db.VarChar(255)
   descText    String?  @map("desc_text") @db.Text
   membersText String   @map("members_text") @db.Text
+  ownerId     Int?     @map("owner_id")
+  owner       User?    @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: SetNull)
 
+  @@index([ownerId])
   @@map("teams")
+}
+
+model ScheduleEvent {
+  id          Int        @id @default(autoincrement())
+  title       String     @db.VarChar(255)
+  descText    String?    @map("desc_text") @db.Text
+  eventDate   String     @map("event_date") @db.VarChar(50)
+  startTime   String?    @map("start_time") @db.VarChar(50)
+  endTime     String?    @map("end_time") @db.VarChar(50)
+  workspaceId Int?       @map("workspace_id")
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  @@index([workspaceId])
+  @@index([eventDate])
+  @@map("schedule_events")
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Kanban, BarChart3, Users, LogOut, Sun, Moon, Plus, Search, 
@@ -7,7 +7,8 @@ import {
   Target, Rocket, UserCircle, Clock, LayoutDashboard, List,
   Settings, Menu
 } from 'lucide-react';
-import ProfileSettings from './ProfileSettings';
+const ProfileSettings = lazy(() => import('./ProfileSettings'));
+const ScheduleCalendar = lazy(() => import('./ScheduleCalendar'));
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask } from '../hooks/useTasks';
@@ -73,6 +74,26 @@ export default function Dashboard() {
     }, 0);
     return () => clearTimeout(timer);
   }, [activeTab, activeWorkspace]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setNewTitle('');
+        setNewDesc('');
+        setNewStatus(defaultStatus);
+        setNewPriority('Medium');
+        setNewEpic('General Work');
+        setNewAssignee('You');
+        setShowCreateModal(false);
+      }
+    };
+    if (showCreateModal) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showCreateModal, defaultStatus]);
 
   const isScrum = activeWorkspace?.template_type === 'scrum';
 
@@ -568,6 +589,84 @@ export default function Dashboard() {
   const highPriorityCount = tasks.filter(t => t.priority === 'High').length;
   const completionRate = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
+  // Dynamic Burnup Tracker Calculations
+  const burnupData = useMemo(() => {
+    if (!activeWorkspace) return { points: [], idealPoints: [], labels: [] };
+
+    // Default duration is 2 weeks (14 days)
+    const durationWeeks = activeWorkspace.sprint_duration || 2;
+    const totalPoints = 10;
+    
+    // Start of the sprint (use workspace creation date as reference)
+    const workspaceCreated = new Date(activeWorkspace.created_at || Date.now());
+    const sprintDurationMs = durationWeeks * 7 * 24 * 60 * 60 * 1000;
+    const elapsed = Date.now() - workspaceCreated.getTime();
+    const sprintIndex = Math.max(0, Math.floor(elapsed / sprintDurationMs));
+    const sprintStart = new Date(workspaceCreated.getTime() + sprintIndex * sprintDurationMs);
+    
+    const intervalMs = sprintDurationMs / (totalPoints - 1);
+
+    const getCompletionTime = (t) => {
+      if (t.completedAt) return new Date(t.completedAt).getTime();
+      if (t.status === 'done') return new Date(t.createdAt || Date.now()).getTime();
+      return Infinity;
+    };
+
+    // Filter tasks belonging to the current sprint (active tasks + tasks completed during current sprint)
+    const sprintTasks = tasks.filter(t => {
+      const compTime = getCompletionTime(t);
+      return compTime === Infinity || compTime >= sprintStart.getTime();
+    });
+
+    const totalSprintTasks = sprintTasks.length;
+    
+    const points = [];
+    const idealPoints = [];
+    const labels = [];
+    
+    for (let i = 0; i < totalPoints; i++) {
+      const timeAtPoint = sprintStart.getTime() + i * intervalMs;
+      
+      // Calculate how many tasks were completed before or at this point in time
+      const completedCount = sprintTasks.filter(t => getCompletionTime(t) <= timeAtPoint).length;
+      
+      // Y position: 180 (0% completed) to 20 (100% completed)
+      const completionFraction = totalSprintTasks > 0 ? completedCount / totalSprintTasks : 0;
+      const yVal = 180 - completionFraction * 160;
+      
+      // X position: 10 to 490
+      const xVal = 10 + (i / (totalPoints - 1)) * 480;
+      
+      points.push({ x: xVal, y: yVal, count: completedCount });
+      
+      // Ideal scope: linear increase from 0 to totalSprintTasks
+      const idealFraction = totalPoints > 1 ? i / (totalPoints - 1) : 1;
+      const idealY = totalSprintTasks > 0 ? 180 - idealFraction * 160 : 180;
+      idealPoints.push({ x: xVal, y: idealY });
+      
+      // Create labels
+      const dayNum = i + 1;
+      if (dayNum === 1) labels.push("Day 1");
+      else if (dayNum === totalPoints) labels.push(`Day ${totalPoints} (Sprint End)`);
+      else if (dayNum % 2 === 1) labels.push(`Day ${dayNum}`);
+      else labels.push("");
+    }
+    
+    return { points, idealPoints, labels };
+  }, [activeWorkspace, tasks]);
+
+  const completedPathD = useMemo(() => {
+    if (!burnupData.points || burnupData.points.length === 0) return "";
+    return burnupData.points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  }, [burnupData.points]);
+
+  const completedGradientD = useMemo(() => {
+    if (!burnupData.points || burnupData.points.length === 0) return "";
+    const startX = burnupData.points[0].x;
+    const endX = burnupData.points[burnupData.points.length - 1].x;
+    return `M ${startX} 180 ` + burnupData.points.map(p => `L ${p.x} ${p.y}`).join(' ') + ` L ${endX} 180 Z`;
+  }, [burnupData.points]);
+
   // Get user avatar initials
   const getUserInitials = () => {
     if (!user || !user.name) return 'U';
@@ -581,12 +680,12 @@ export default function Dashboard() {
       {isSidebarOpen && (
         <div 
           onClick={() => setIsSidebarOpen(false)}
-          className="fixed inset-0 bg-slate-900/60 z-25 xl:hidden animate-[fade-in_150ms_ease-out]"
+          className="fixed inset-0 bg-slate-900/60 z-45 xl:hidden animate-[fade-in_150ms_ease-out]"
         />
       )}
 
       {/* 1. Sidebar Navigation */}
-      <aside className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-30 transform transition-transform duration-300 xl:relative xl:translate-x-0 ${
+      <aside className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div>
@@ -892,6 +991,18 @@ export default function Dashboard() {
               <span>Roadmap</span>
             </button>
 
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                activeTab === 'calendar'
+                  ? 'bg-accent text-white shadow-sm' 
+                  : 'text-text-secondary-muted hover:text-text-secondary hover:bg-dominant-offset'
+              }`}
+            >
+              <Clock className="w-4.5 h-4.5" />
+              <span>Schedule Calendar</span>
+            </button>
+
             {/* Active Board Nested Sub-menu */}
             <div className="space-y-2">
               <div className="w-full flex items-center px-4 py-2 text-xs font-bold text-text-secondary-muted uppercase tracking-wider select-none">
@@ -1081,6 +1192,18 @@ export default function Dashboard() {
                   <span>Projects</span>
                 </div>
               </button>
+
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-500/5 transition-all cursor-pointer border-none bg-transparent mt-2.5"
+              >
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-6 h-6 rounded border flex items-center justify-center flex-shrink-0 bg-red-500/10 border-red-500/20 text-red-500">
+                    <LogOut className="w-3.5 h-3.5" />
+                  </div>
+                  <span>Sign Out</span>
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -1091,7 +1214,7 @@ export default function Dashboard() {
       {/* 2. Main content container */}
       <div className="flex-grow flex flex-col min-w-0">
           {/* Top Header */}
-        <header className="sticky top-0 z-40 bg-card-secondary border-b border-border-secondary/60 w-full flex flex-col transition-colors duration-300">
+        <header className="sticky top-0 z-30 bg-card-secondary border-b border-border-secondary/60 w-full flex flex-col transition-colors duration-300">
           
           {/* Mobile Header Bar (<768px) */}
           <div className="h-14 px-4 flex md:hidden items-center justify-between w-full relative">
@@ -1213,7 +1336,9 @@ export default function Dashboard() {
               <ChevronRight className="w-3.5 h-3.5" />
               <span className="capitalize truncate max-w-[100px] lg:max-w-[150px]">
                 {activeTab === 'board' 
-                  ? (isScrum ? 'Sprint Board' : 'Kanban Board') 
+                  ? 'Board' 
+                  : activeTab === 'calendar'
+                  ? 'Calendar'
                   : activeTab === 'analytics' 
                   ? 'Insights' 
                   : activeTab === 'team' 
@@ -1389,7 +1514,7 @@ export default function Dashboard() {
 
         {/* sticky Global Filter Bar */}
         {(activeTab === 'board' || activeTab === 'foryou' || activeTab === 'roadmap') && (
-          <div className="sticky top-[104px] lg:top-[64px] z-30 bg-card-secondary border-b border-border-secondary/40 px-4 sm:px-6 lg:px-8 py-2 flex flex-col transition-colors duration-300 w-full">
+          <div className="sticky top-[104px] lg:top-[64px] z-20 bg-card-secondary border-b border-border-secondary/40 px-4 sm:px-6 lg:px-8 py-2 flex flex-col transition-colors duration-300 w-full">
             
             {/* Desktop / Laptop Inline Filter Panel (>=1024px) */}
             <div className="hidden lg:flex items-center justify-between gap-4 w-full">
@@ -2453,23 +2578,49 @@ export default function Dashboard() {
                       <line x1="0" y1="150" x2="500" y2="150" stroke="var(--border-secondary)" strokeWidth="0.5" opacity="0.3" />
 
                       {/* Ideal Line (dashed) */}
-                      <line x1="10" y1="180" x2="490" y2="20" stroke="var(--text-secondary-muted)" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.4" />
+                      {burnupData.idealPoints && burnupData.idealPoints.length > 0 && (
+                        <line 
+                          x1={burnupData.idealPoints[0].x} 
+                          y1={burnupData.idealPoints[0].y} 
+                          x2={burnupData.idealPoints[burnupData.idealPoints.length - 1].x} 
+                          y2={burnupData.idealPoints[burnupData.idealPoints.length - 1].y} 
+                          stroke="var(--text-secondary-muted)" 
+                          strokeWidth="1.5" 
+                          strokeDasharray="4 4" 
+                          opacity="0.4" 
+                        />
+                      )}
 
                       {/* Completed Line */}
-                      <path 
-                        d="M 10 180 Q 125 150, 250 110 T 490 50" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        strokeWidth="3.5" 
-                        strokeLinecap="round"
-                      />
+                      {completedPathD && (
+                        <path 
+                          d={completedPathD} 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="3.5" 
+                          strokeLinecap="round"
+                        />
+                      )}
                       
                       {/* Gradient Fill Area */}
-                      <path 
-                        d="M 10 180 Q 125 150, 250 110 T 490 50 L 490 200 L 10 200 Z" 
-                        fill="url(#chart-gradient)" 
-                        opacity="0.1"
-                      />
+                      {completedGradientD && (
+                        <path 
+                          d={completedGradientD} 
+                          fill="url(#chart-gradient)" 
+                          opacity="0.1"
+                        />
+                      )}
+
+                      {/* Micro-indicator Circle Marks */}
+                      {burnupData.points && burnupData.points.map((p, idx) => (
+                        <circle
+                          key={idx}
+                          cx={p.x}
+                          cy={p.y}
+                          r="4"
+                          className="fill-accent stroke-card-secondary stroke-2"
+                        />
+                      ))}
 
                       <defs>
                         <linearGradient id="chart-gradient" x1="0" y1="0" x2="0" y2="1">
@@ -2481,11 +2632,9 @@ export default function Dashboard() {
 
                     {/* Chart Labels */}
                     <div className="absolute bottom-0 left-0 right-0 flex justify-between px-2 text-[8px] font-semibold text-text-secondary-muted">
-                      <span>Day 1</span>
-                      <span>Day 3</span>
-                      <span>Day 5</span>
-                      <span>Day 7</span>
-                      <span>Day 10 (Sprint End)</span>
+                      {burnupData.labels && burnupData.labels.map((lbl, idx) => (
+                        <span key={idx}>{lbl}</span>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -3081,7 +3230,15 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'profile' && (
-            <ProfileSettings />
+            <Suspense fallback={<div className="p-8 text-center text-text-secondary animate-pulse">Loading Profile Settings...</div>}>
+              <ProfileSettings />
+            </Suspense>
+          )}
+
+          {activeTab === 'calendar' && (
+            <Suspense fallback={<div className="p-8 text-center text-text-secondary animate-pulse">Loading Calendar Schedule...</div>}>
+              <ScheduleCalendar activeWorkspace={activeWorkspace} />
+            </Suspense>
           )}
 
         </main>
@@ -3089,14 +3246,14 @@ export default function Dashboard() {
 
       {/* 3. Create Issue Dialog Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-[fade-in_150ms_ease-out]">
+        <div role="dialog" aria-modal="true" aria-labelledby="issue-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-[fade-in_150ms_ease-out]">
           <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 overflow-hidden relative">
             {/* Accent border */}
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent to-accent-hover" />
             
             {/* Header */}
             <div className="px-6 py-5 border-b border-border-secondary/40 flex justify-between items-center mt-1.5">
-              <h3 className="font-display font-extrabold text-lg text-text-secondary">Create a New Issue</h3>
+              <h3 id="issue-modal-title" className="font-display font-extrabold text-lg text-text-secondary">Create a New Issue</h3>
               <button 
                 onClick={() => setShowCreateModal(false)}
                 className="text-text-secondary-muted hover:text-text-secondary p-1 rounded-lg hover:bg-dominant-offset cursor-pointer"

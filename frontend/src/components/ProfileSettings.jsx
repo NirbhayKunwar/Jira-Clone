@@ -1,7 +1,22 @@
 import { useState } from 'react';
-import { User, Mail, Briefcase, MapPin, Key, ShieldCheck, CheckCircle2, AlertCircle, Camera } from 'lucide-react';
+import { User, Mail, Briefcase, MapPin, Key, ShieldCheck, CheckCircle2, AlertCircle, Camera, Eye, EyeOff, Plus, Trash2, Link } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuthStore } from '../store/authStore';
+
+const GithubIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+    <path d="M9 18c-4.51 2-5-2-7-2" />
+  </svg>
+);
+
+const LinkedinIcon = (props) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect width="4" height="12" x="2" y="9" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
 
 export default function ProfileSettings() {
   const { user, updateProfile } = useAuthStore();
@@ -9,8 +24,27 @@ export default function ProfileSettings() {
   const [name, setName] = useState(user?.name || '');
   const [role, setRole] = useState(user?.role || 'Full Stack Engineer');
   const [dept, setDept] = useState(user?.dept || 'Core Engineering');
-  const [location, setLocation] = useState(user?.location || 'San Francisco, CA');
+  const [location, setLocation] = useState(user?.location || '');
+  const [githubUrl, setGithubUrl] = useState(user?.githubUrl || '');
+  const [linkedinUrl, setLinkedinUrl] = useState(user?.linkedinUrl || '');
+  const [otherLinks, setOtherLinks] = useState(() => {
+    if (user?.otherLinks) {
+      try {
+        return JSON.parse(user.otherLinks);
+      } catch (e) {
+        console.error('Error parsing otherLinks:', e);
+        return [];
+      }
+    }
+    return [];
+  });
+  const [newLinkLabel, setNewLinkLabel] = useState('');
+  const [newLinkUrl, setNewLinkUrl] = useState('');
   const [email] = useState(user?.email || ''); // Keep email read-only for security simulation
+
+  // Password Visibility Toggle States
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Password & OTP Verification States
   const [otpValue, setOtpValue] = useState('');
@@ -110,6 +144,9 @@ export default function ProfileSettings() {
           role,
           dept,
           location,
+          githubUrl,
+          linkedinUrl,
+          otherLinks: JSON.stringify(otherLinks),
           email,
         }),
       });
@@ -127,6 +164,9 @@ export default function ProfileSettings() {
         role: data.user.role,
         dept: data.user.dept,
         location: data.user.location,
+        githubUrl: data.user.githubUrl,
+        linkedinUrl: data.user.linkedinUrl,
+        otherLinks: data.user.otherLinks,
         hasConfiguredWorkspace: data.user.hasConfiguredWorkspace
       });
 
@@ -277,18 +317,14 @@ export default function ProfileSettings() {
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
                       <Briefcase className="w-4 h-4" />
                     </div>
-                    <select
+                    <input
                       id="prof-role"
+                      type="text"
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
-                    >
-                      <option value="Full Stack Engineer">Full Stack Engineer</option>
-                      <option value="Frontend UI/UX Designer">Frontend UI/UX Designer</option>
-                      <option value="Lead Backend Developer">Lead Backend Developer</option>
-                      <option value="DevOps & Infrastructure Engineer">DevOps & Infrastructure Engineer</option>
-                      <option value="Product Manager">Product Manager</option>
-                    </select>
+                      placeholder="e.g. Full Stack Engineer"
+                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent transition-all"
+                    />
                   </div>
                 </div>
 
@@ -321,9 +357,124 @@ export default function ProfileSettings() {
                     type="text"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    placeholder="San Francisco, CA"
+                    placeholder="e.g. San Francisco, CA or Remote"
                     className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="prof-github" className="block text-xs font-semibold text-text-secondary mb-1.5">GitHub Profile Link</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
+                      <GithubIcon className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="prof-github"
+                      type="url"
+                      value={githubUrl}
+                      onChange={(e) => setGithubUrl(e.target.value)}
+                      placeholder="https://github.com/username"
+                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="prof-linkedin" className="block text-xs font-semibold text-text-secondary mb-1.5">LinkedIn Profile Link</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
+                      <LinkedinIcon className="w-4 h-4" />
+                    </div>
+                    <input
+                      id="prof-linkedin"
+                      type="url"
+                      value={linkedinUrl}
+                      onChange={(e) => setLinkedinUrl(e.target.value)}
+                      placeholder="https://linkedin.com/in/username"
+                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dynamic Other Links Section */}
+              <div className="border-t border-border-secondary/40 pt-4 mt-4 space-y-4">
+                <div className="flex justify-between items-center text-left">
+                  <div>
+                    <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Dynamic Other Links</h4>
+                    <span className="text-[10px] text-text-secondary-muted font-medium block mt-0.5">Add portfolio, blog, or custom web links</span>
+                  </div>
+                </div>
+
+                {/* Render Links as Card Grid */}
+                {otherLinks.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                    {otherLinks.map((link, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-3 rounded-lg border border-border-secondary bg-dominant-offset/30 text-xs shadow-sm"
+                      >
+                        <div className="min-w-0 pr-3">
+                          <span className="block font-bold text-text-secondary truncate">{link.label}</span>
+                          <a
+                            href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent hover:underline truncate block text-[10px] mt-0.5"
+                          >
+                            {link.url}
+                          </a>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setOtherLinks(prev => prev.filter((_, i) => i !== idx))}
+                          className="p-1.5 text-text-secondary-muted hover:text-red-500 rounded-lg hover:bg-dominant cursor-pointer border-none bg-transparent flex items-center justify-center flex-shrink-0"
+                          title="Remove Link"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Form to add a new link */}
+                <div className="flex flex-col sm:flex-row items-end gap-3 bg-dominant-offset/10 p-3 rounded-xl border border-border-secondary/40 text-left">
+                  <div className="w-full sm:flex-1">
+                    <label className="block text-[10px] font-bold text-text-secondary mb-1 uppercase">Link Label</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Portfolio"
+                      value={newLinkLabel}
+                      onChange={(e) => setNewLinkLabel(e.target.value)}
+                      className="block w-full px-3 py-2 text-xs rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                    />
+                  </div>
+                  <div className="w-full sm:flex-grow-[2]">
+                    <label className="block text-[10px] font-bold text-text-secondary mb-1 uppercase">URL</label>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={newLinkUrl}
+                      onChange={(e) => setNewLinkUrl(e.target.value)}
+                      className="block w-full px-3 py-2 text-xs rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newLinkLabel.trim() || !newLinkUrl.trim()) return;
+                      setOtherLinks(prev => [...prev, { label: newLinkLabel.trim(), url: newLinkUrl.trim() }]);
+                      setNewLinkLabel('');
+                      setNewLinkUrl('');
+                    }}
+                    className="w-full sm:w-auto px-4 py-2 bg-accent/15 hover:bg-accent text-accent hover:text-white text-xs font-bold rounded-lg border border-accent/20 hover:border-transparent transition-all cursor-pointer flex items-center justify-center space-x-1 min-h-[34px]"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Link</span>
+                  </button>
                 </div>
               </div>
 
@@ -394,14 +545,24 @@ export default function ProfileSettings() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="sec-new" className="block text-xs font-semibold text-text-secondary mb-1.5">New Password</label>
-                  <input
-                    id="sec-new"
-                    type="password"
-                    value={newPassword}
-                    onChange={handlePasswordChange}
-                    placeholder="••••••••"
-                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      id="sec-new"
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={handlePasswordChange}
+                      placeholder="••••••••"
+                      className="block w-full pl-3.5 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-text-secondary-muted hover:text-text-secondary cursor-pointer border-none bg-transparent"
+                      title={showNewPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showNewPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                    </button>
+                  </div>
                   {newPassword && (
                     <div className="mt-2 space-y-1">
                       <div className="flex space-x-1 h-1">
@@ -431,14 +592,24 @@ export default function ProfileSettings() {
 
                 <div>
                   <label htmlFor="sec-confirm" className="block text-xs font-semibold text-text-secondary mb-1.5">Confirm New Password</label>
-                  <input
-                    id="sec-confirm"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                  />
+                  <div className="relative">
+                    <input
+                      id="sec-confirm"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="block w-full pl-3.5 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-text-secondary-muted hover:text-text-secondary cursor-pointer border-none bg-transparent"
+                      title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -483,6 +654,34 @@ export default function ProfileSettings() {
               <p className="text-xs text-accent font-semibold">{role}</p>
               <p className="text-[10px] text-text-secondary-muted mt-1 uppercase tracking-wide font-bold">{dept}</p>
 
+              {/* Social Links Badge Row */}
+              {(githubUrl || linkedinUrl) && (
+                <div className="flex items-center justify-center gap-3.5 mt-3">
+                  {githubUrl && (
+                    <a
+                      href={githubUrl.startsWith('http') ? githubUrl : `https://${githubUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 rounded-full bg-dominant-offset/50 hover:bg-accent/10 text-text-secondary-muted hover:text-accent flex items-center justify-center transition-all"
+                      title="GitHub Profile"
+                    >
+                      <GithubIcon className="w-4 h-4" />
+                    </a>
+                  )}
+                  {linkedinUrl && (
+                    <a
+                      href={linkedinUrl.startsWith('http') ? linkedinUrl : `https://${linkedinUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 rounded-full bg-dominant-offset/50 hover:bg-accent/10 text-text-secondary-muted hover:text-accent flex items-center justify-center transition-all"
+                      title="LinkedIn Profile"
+                    >
+                      <LinkedinIcon className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              )}
+
               <div className="w-full border-t border-border-secondary/40 my-4" />
 
               <div className="w-full text-left space-y-2 text-xs">
@@ -499,6 +698,27 @@ export default function ProfileSettings() {
                   <span className="font-semibold text-green-500">Active</span>
                 </div>
               </div>
+
+              {/* Dynamic Additional Links List in Preview Card */}
+              {otherLinks && otherLinks.length > 0 && (
+                <div className="w-full mt-4 pt-3 border-t border-border-secondary/40 text-left">
+                  <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-2">Other Links</span>
+                  <div className="grid grid-cols-1 gap-2">
+                    {otherLinks.map((link, idx) => (
+                      <a
+                        key={idx}
+                        href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-2 p-2 rounded-lg bg-dominant-offset/40 border border-border-secondary/35 hover:border-accent/40 text-text-secondary hover:text-accent transition-all text-xs font-semibold"
+                      >
+                        <Link className="w-3.5 h-3.5 flex-shrink-0 text-text-secondary-muted" />
+                        <span className="truncate">{link.label}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

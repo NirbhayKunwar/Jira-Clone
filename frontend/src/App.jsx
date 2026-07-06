@@ -69,7 +69,7 @@ function App() {
       fetchWorkspaces(user, navigate, location.pathname);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, fetchWorkspaces]);
+  }, [user?.id, user?.hasConfiguredWorkspace, fetchWorkspaces]);
 
   return (
     <div className="min-h-screen bg-dominant text-text-secondary selection:bg-accent-light selection:text-accent transition-colors duration-300">

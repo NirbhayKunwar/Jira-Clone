@@ -102,7 +102,7 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
             </a>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center space-x-1">
+            <nav className="hidden lg:flex items-center space-x-2">
               {navLinks.map((link, idx) => (
                 <div 
                   key={idx}
@@ -110,7 +110,7 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
                   onMouseEnter={() => setActiveDropdown(idx)}
                   onMouseLeave={() => setActiveDropdown(null)}
                 >
-                  <button className="flex items-center px-3 py-2 text-[15px] font-medium text-text-secondary-muted hover:text-accent hover:bg-dominant-offset rounded-md cursor-pointer">
+                  <button className="flex items-center px-3 py-2 text-[15px] font-medium text-text-secondary-muted hover:text-accent hover:bg-dominant-offset rounded-md cursor-pointer transition-all duration-200">
                     <span>{link.name}</span>
                     <ChevronDown className={`ml-1 w-4 h-4 transition-transform duration-200 ${activeDropdown === idx ? 'rotate-180' : ''}`} />
                   </button>
@@ -126,10 +126,10 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
                         <a 
                           key={itemIdx} 
                           href="#" 
-                          className="flex items-start p-2.5 rounded-lg hover:bg-dominant-offset group/item"
+                          className="flex items-start p-2.5 rounded-lg hover:bg-dominant-offset group/item transition-all duration-200"
                         >
                           <div className="flex-1">
-                            <div className="flex items-center font-semibold text-text-secondary text-sm group-hover/item:text-accent">
+                            <div className="flex items-center font-semibold text-text-secondary text-sm group-hover/item:text-accent transition-colors duration-200">
                               {item.title}
                               {item.badge && (
                                 <span className="ml-2 px-1.5 py-0.5 text-[10px] bg-accent-light text-accent font-bold rounded-full uppercase tracking-wider">
@@ -148,7 +148,7 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
                   </div>
                 </div>
               ))}
-              <a href="#" className="px-3 py-2 text-[15px] font-medium text-text-secondary-muted hover:text-accent">
+              <a href="#" className="px-3 py-2 text-[15px] font-medium text-text-secondary-muted hover:text-accent hover:bg-dominant-offset rounded-md transition-all duration-200">
                 Pricing
               </a>
             </nav>
@@ -161,7 +161,7 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
             <div className="relative flex-shrink-0" ref={pickerRef}>
                 <button
                   onClick={() => setShowThemePicker(!showThemePicker)}
-                  className="flex items-center space-x-1.5 p-2 text-text-secondary-muted hover:text-accent rounded-lg hover:bg-dominant-offset cursor-pointer"
+                  className="flex items-center space-x-1.5 p-2 text-text-secondary-muted hover:text-accent rounded-lg hover:bg-dominant-offset cursor-pointer transition-all duration-200"
                   title="Choose Color Theme"
                 >
                   <Palette className="w-5 h-5" />
@@ -184,7 +184,7 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
                         setTheme(t.id);
                         setShowThemePicker(false);
                       }}
-                      className={`w-full flex items-center space-x-2.5 p-2 rounded-lg text-xs font-semibold hover:bg-dominant-offset cursor-pointer text-left ${
+                      className={`w-full flex items-center space-x-2.5 p-2 rounded-lg text-xs font-semibold hover:bg-dominant-offset cursor-pointer text-left transition-all duration-200 ${
                         theme === t.id ? 'text-accent bg-accent-light' : 'text-text-secondary'
                       }`}
                     >
@@ -199,27 +199,27 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
             {/* Mode Toggle Button */}
               <button 
                 onClick={toggleMode}
-                className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset cursor-pointer"
+                className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset cursor-pointer transition-all duration-200"
                 title={mode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               >
                 {mode === 'dark' ? <Sun className="w-5.5 h-5.5" /> : <Moon className="w-5.5 h-5.5" />}
               </button>
 
             {/* Search Icon */}
-              <button className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset cursor-pointer">
+              <button className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset cursor-pointer transition-all duration-200">
                 <Search className="w-5 h-5" />
               </button>
             
               <button 
                 onClick={() => onNavigate('login')} 
-                className="text-[15px] font-medium text-text-secondary-muted hover:text-accent cursor-pointer px-2 py-1 whitespace-nowrap border-none bg-transparent"
+                className="px-3 py-2 text-[15px] font-medium text-text-secondary-muted hover:text-accent hover:bg-dominant-offset rounded-md cursor-pointer whitespace-nowrap border-none bg-transparent transition-all duration-200"
               >
                 Sign in
               </button>
             
               <button 
                 onClick={() => onNavigate('signup')} 
-                className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded font-semibold text-[15px] shadow-sm cursor-pointer block whitespace-nowrap border-none"
+                className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-md font-semibold text-[15px] shadow-sm cursor-pointer block whitespace-nowrap border-none transition-all duration-200"
               >
                 Get it free
               </button>
