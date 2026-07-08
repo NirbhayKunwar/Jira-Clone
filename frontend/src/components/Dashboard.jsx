@@ -143,7 +143,7 @@ export default function Dashboard() {
       const exists = list.some(u => u.email.toLowerCase() === user.email.toLowerCase());
       if (!exists) {
         list.push({
-          id: 'current',
+          id: user.id ? String(user.id) : 'current',
           name: user.name || user.email.split('@')[0],
           email: user.email,
           role: user.role || 'Full Stack Engineer',
