@@ -169,13 +169,13 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword,
 // Helper to generate access and refresh tokens, set cookies, and send response
 const sendTokens = (res, user, statusCode, message) => {
   const accessToken = jwt.sign(
-    { id: user.id, email: user.email },
+    { id: user.id, email: user.email, teamOwnerId: user.teamOwnerId },
     getJwtSecret(),
     { expiresIn: '15m' } // 15 minutes access token
   );
 
   const refreshToken = jwt.sign(
-    { id: user.id, email: user.email },
+    { id: user.id, email: user.email, teamOwnerId: user.teamOwnerId },
     getJwtRefreshSecret(),
     { expiresIn: '7d' } // 7 days refresh token
   );
@@ -567,9 +567,14 @@ export const getUsers = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized.' });
     }
 
-    // Resolve the organization owner (inviter)
-    let teamOwnerId = null;
-    if (prisma.user && typeof prisma.user.findUnique === 'function') {
+    // Resolve the organization owner (inviter) - check token cache first!
+    let teamOwnerId = req.user ? req.user.teamOwnerId : null;
+    if (teamOwnerId === undefined) {
+      teamOwnerId = null;
+    }
+
+    // Database fallback if token does not have teamOwnerId cached
+    if (teamOwnerId === null && prisma.user && typeof prisma.user.findUnique === 'function') {
       const user = await prisma.user.findUnique({
         where: { id: userId },
         select: { teamOwnerId: true }

@@ -8,9 +8,14 @@ export const getWorkspaces = asyncHandler(async (req, res, next) => {
     return next(new AppError('Unauthorized. Session user not found.', 401));
   }
 
-  // Get user details to check if they belong to a team
-  let teamOwnerId = null;
-  if (prisma.user && typeof prisma.user.findUnique === 'function') {
+  // Get user details to check if they belong to a team - check token cache first!
+  let teamOwnerId = req.user ? req.user.teamOwnerId : null;
+  if (teamOwnerId === undefined) {
+    teamOwnerId = null;
+  }
+
+  // Database fallback if token does not have teamOwnerId cached
+  if (teamOwnerId === null && prisma.user && typeof prisma.user.findUnique === 'function') {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { teamOwnerId: true }
