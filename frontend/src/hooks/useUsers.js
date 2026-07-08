@@ -13,7 +13,8 @@ export function useUsers() {
         throw new Error('Failed to fetch team users');
       }
       return getApiList(await response.json(), 'Users');
-    }
+    },
+    staleTime: 30000 // 30 seconds stale time to cache team members
   });
 }
 
