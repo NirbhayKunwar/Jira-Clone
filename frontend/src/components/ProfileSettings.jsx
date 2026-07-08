@@ -699,6 +699,7 @@ export default function ProfileSettings() {
               </div>
 
               <h4 className="font-display font-extrabold text-text-secondary text-base mt-2">{name}</h4>
+              <p className="text-xs font-mono text-text-secondary-muted lowercase mb-1">@{user?.email ? user.email.split('@')[0] : 'user'}</p>
               <p className="text-xs text-accent font-semibold">{role}</p>
               <p className="text-[10px] text-text-secondary-muted mt-1 uppercase tracking-wide font-bold">{dept}</p>
 

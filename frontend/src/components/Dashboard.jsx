@@ -3045,7 +3045,12 @@ export default function Dashboard() {
                               <div className={`w-5 h-5 rounded-full ${m.color} text-white flex items-center justify-center font-bold text-[8px]`}>
                                 {m.avatar}
                               </div>
-                              <span className="font-medium">{m.name === 'You' && user?.name ? user.name : m.name}</span>
+                              <span className="font-medium">
+                                {m.name === 'You' && user?.name ? user.name : m.name}
+                                <span className="ml-1.5 text-[10px] text-text-secondary-muted font-mono font-normal lowercase">
+                                  @{m.email ? m.email.split('@')[0] : 'user'}
+                                </span>
+                              </span>
                               <span className="text-[9px] text-text-secondary-muted font-normal">({m.role || 'Member'})</span>
                             </div>
                           </label>
@@ -3399,6 +3404,9 @@ export default function Dashboard() {
                         <div>
                           <h4 className="font-bold text-text-secondary text-sm flex items-center">
                             {displayName}
+                            <span className="ml-2 text-xs font-normal text-text-secondary-muted font-mono lowercase">
+                              @{member.email ? member.email.split('@')[0] : 'user'}
+                            </span>
                             {member.name === 'You' && (
                               <span className="ml-2 px-1.5 py-0.5 text-[8px] bg-accent/15 text-accent font-bold rounded-full uppercase tracking-wider">You</span>
                             )}
@@ -3547,7 +3555,7 @@ export default function Dashboard() {
                   >
                     {teamMembers.map(member => (
                       <option key={member.email} value={member.name}>
-                        {member.name} ({member.role})
+                        {member.name} (@{member.email ? member.email.split('@')[0] : 'user'}) ({member.role})
                       </option>
                     ))}
                   </select>
