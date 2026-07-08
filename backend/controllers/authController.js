@@ -602,7 +602,8 @@ export const getUsers = async (req, res) => {
       githubUrl: u.githubUrl || '',
       linkedinUrl: u.linkedinUrl || '',
       websiteUrl: u.websiteUrl || '',
-      otherLinks: u.otherLinks || ''
+      otherLinks: u.otherLinks || '',
+      isOwner: u.teamOwnerId === null
     }));
 
     return res.status(200).json(mappedUsers);
