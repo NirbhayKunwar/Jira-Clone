@@ -8,8 +8,25 @@ export const getGoals = asyncHandler(async (req, res, next) => {
     return next(new AppError('Unauthorized.', 401));
   }
 
+  // Get user details to check if they belong to a team
+  let teamOwnerId = null;
+  if (prisma.user && typeof prisma.user.findUnique === 'function') {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { teamOwnerId: true }
+    });
+    if (user) {
+      teamOwnerId = user.teamOwnerId;
+    }
+  }
+
+  const ownerIds = [userId];
+  if (teamOwnerId) {
+    ownerIds.push(teamOwnerId);
+  }
+
   const goals = await prisma.goal.findMany({
-    where: { ownerId: userId },
+    where: { ownerId: { in: ownerIds } },
     orderBy: { id: 'desc' }
   });
 
