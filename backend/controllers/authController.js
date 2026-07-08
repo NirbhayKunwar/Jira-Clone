@@ -847,3 +847,44 @@ export const googleSignIn = async (req, res) => {
     });
   }
 };
+
+export const updateTeamMemberRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    const currentUserId = req.user ? req.user.id : null;
+    
+    if (!currentUserId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+    }
+
+    const memberId = parseInt(id);
+    if (isNaN(memberId)) {
+      return res.status(400).json({ success: false, message: 'Invalid member ID.' });
+    }
+
+    // Verify current user is indeed the owner of this member
+    const member = await prisma.user.findFirst({
+      where: {
+        id: memberId,
+        teamOwnerId: currentUserId
+      }
+    });
+
+    if (!member) {
+      return res.status(403).json({ success: false, message: 'Forbidden. You do not have permissions to manage this member.' });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: memberId },
+      data: { role }
+    });
+
+    addNotification(`Role for team member ${updated.name} updated to "${role}".`, 'member');
+
+    return res.status(200).json({ success: true, message: 'Member role updated successfully.', data: updated });
+  } catch (error) {
+    console.error('Update Member Role Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error while updating role.' });
+  }
+};

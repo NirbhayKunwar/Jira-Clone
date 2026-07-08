@@ -104,7 +104,7 @@ export default function Dashboard() {
 
   // TanStack Query Hooks
   const { data: tasks = [] } = useTasks(activeWorkspace?.id);
-  const { data: dbUsers = [] } = useUsers();
+  const { data: dbUsers = [], refetch: refetchUsers } = useUsers();
 
   const createTaskMutation = useCreateTask(activeWorkspace?.id);
   const updateTaskStatusMutation = useUpdateTaskStatus(activeWorkspace?.id);
@@ -656,6 +656,26 @@ export default function Dashboard() {
           alert(err.message || 'Failed to remove team member.');
         }
       });
+    }
+  };
+
+  const handleUpdateMemberRole = async (memberId, newRole) => {
+    if (!memberId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/auth/users/${memberId}/role`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ role: newRole })
+      });
+      if (res.ok) {
+        refetchUsers();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to update member role.');
+      }
+    } catch (err) {
+      console.error('Error updating member role:', err);
+      alert('Error updating member role.');
     }
   };
 
@@ -3411,7 +3431,24 @@ export default function Dashboard() {
                               <span className="ml-2 px-1.5 py-0.5 text-[8px] bg-accent/15 text-accent font-bold rounded-full uppercase tracking-wider">You</span>
                             )}
                           </h4>
-                          <p className="text-xs text-text-secondary-muted mt-0.5">{member.role}</p>
+                          {(!user?.teamOwnerId && member.name !== 'You') ? (
+                            <select
+                              aria-label={`Assign role for ${displayName}`}
+                              value={member.role || 'Full Stack Engineer'}
+                              onChange={(e) => handleUpdateMemberRole(member.id, e.target.value)}
+                              className="text-[10px] font-semibold bg-dominant border border-border-secondary rounded px-2 py-1 text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer mt-1"
+                            >
+                              <option value="Full Stack Engineer">Full Stack Engineer</option>
+                              <option value="Frontend Developer">Frontend Developer</option>
+                              <option value="Backend Developer">Backend Developer</option>
+                              <option value="Project Manager">Project Manager</option>
+                              <option value="QA Engineer">QA Engineer</option>
+                              <option value="UI/UX Designer">UI/UX Designer</option>
+                              <option value="DevOps Engineer">DevOps Engineer</option>
+                            </select>
+                          ) : (
+                            <p className="text-xs text-text-secondary-muted mt-0.5">{member.role}</p>
+                          )}
                         </div>
                       </div>
 
