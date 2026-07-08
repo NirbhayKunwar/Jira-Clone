@@ -16,7 +16,7 @@ export const getTeams = asyncHandler(async (req, res, next) => {
   const mapped = teams.map(t => {
     let resolvedMembers = [];
     try {
-      resolvedMembers = JSON.parse(t.membersText || '[]');
+      resolvedMembers = JSON.parse(t.membersText || '[]').map(String);
     } catch (e) {
       resolvedMembers = [];
     }
@@ -51,7 +51,7 @@ export const createTeam = asyncHandler(async (req, res, next) => {
 
   let resolvedMembers = [];
   try {
-    resolvedMembers = JSON.parse(t.membersText);
+    resolvedMembers = JSON.parse(t.membersText).map(String);
   } catch (e) {
     resolvedMembers = [];
   }
@@ -100,7 +100,7 @@ export const updateTeam = asyncHandler(async (req, res, next) => {
 
   let resolvedMembers = [];
   try {
-    resolvedMembers = JSON.parse(t.membersText);
+    resolvedMembers = JSON.parse(t.membersText).map(String);
   } catch (e) {
     resolvedMembers = [];
   }

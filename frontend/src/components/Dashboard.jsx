@@ -2942,7 +2942,7 @@ export default function Dashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {teamsList.map(team => {
                     // Resolve members details
-                    const resolvedMembers = teamMembers.filter(m => team.members.includes(m.id));
+                    const resolvedMembers = teamMembers.filter(m => team.members.map(String).includes(String(m.id)));
                     
                     // Aggregate tasks
                     const totalActiveTasks = resolvedMembers.reduce((sum, m) => sum + (m.activeTasks || 0), 0);
@@ -3031,10 +3031,10 @@ export default function Dashboard() {
                               onChange={(e) => {
                                 const val = e.target.value;
                                 if (!val) return;
-                                const memberId = isNaN(val) ? val : parseInt(val);
-                                if (team.members.includes(memberId)) return;
+                                const memberId = String(val);
+                                if (team.members.map(String).includes(memberId)) return;
                                 
-                                const updatedMembers = [...team.members, memberId];
+                                const updatedMembers = [...team.members.map(String), memberId];
                                 
                                 fetch(`${API_URL}/api/teams/${team.id}`, {
                                   method: 'PUT',
@@ -3055,7 +3055,7 @@ export default function Dashboard() {
                               className="text-[10px] px-2 py-1.5 rounded border border-border-secondary bg-dominant text-text-secondary focus:outline-none max-w-[150px] cursor-pointer"
                             >
                               <option value="">Select user...</option>
-                              {teamMembers.filter(m => !team.members.includes(m.id)).map(m => (
+                              {teamMembers.filter(m => !team.members.map(String).includes(String(m.id))).map(m => (
                                 <option key={m.id} value={m.id}>
                                   {m.name === 'You' && user?.name ? user.name : m.name}
                                 </option>

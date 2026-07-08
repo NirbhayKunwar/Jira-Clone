@@ -208,6 +208,21 @@ export const signUp = async (req, res) => {
     });
     
     if (userCheck) {
+      if (userCheck.otherLinks === 'PENDING_INVITE') {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        
+        const updatedUser = await prisma.user.update({
+          where: { id: userCheck.id },
+          data: {
+            name: name,
+            password: hashedPassword,
+            otherLinks: ''
+          }
+        });
+        
+        return sendTokens(res, updatedUser, 201, 'User registered successfully.');
+      }
       return res.status(400).json({ success: false, message: 'A user with this email address already exists.' });
     }
 
@@ -614,72 +629,37 @@ export const addTeamMember = async (req, res) => {
     }
 
     // If user does not exist:
-    if (process.env.NODE_ENV === 'test') {
-      const temporaryPassword = crypto.randomBytes(6).toString('hex') + '!';
-      const salt = await bcrypt.genSalt(10);
-      const defaultHashedPassword = await bcrypt.hash(temporaryPassword, salt);
+    const temporaryPassword = crypto.randomBytes(6).toString('hex') + '!';
+    const salt = await bcrypt.genSalt(10);
+    const defaultHashedPassword = await bcrypt.hash(temporaryPassword, salt);
 
-      const newMember = await prisma.user.create({
-        data: {
-          name,
-          email: normalizedEmail,
-          password: defaultHashedPassword,
-          role: role || 'Full Stack Engineer',
-          dept: dept || 'Core Engineering',
-          location: location || '',
-          githubUrl: githubUrl || '',
-          linkedinUrl: linkedinUrl || '',
-          websiteUrl: websiteUrl || '',
-          teamOwnerId: userId
-        }
-      });
-
-      let inviteResult;
-      try {
-        inviteResult = await sendTeamInviteEmail({
-          to: newMember.email,
-          name: newMember.name,
-          invitedByName: req.user.email,
-          temporaryPassword,
-          isSignup: false
-        });
-      } catch (inviteError) {
-        await prisma.user.delete({ where: { id: newMember.id } });
-        console.error('Team Invite Email Error:', inviteError);
-        return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
+    const newMember = await prisma.user.create({
+      data: {
+        name,
+        email: normalizedEmail,
+        password: defaultHashedPassword,
+        role: role || 'Full Stack Engineer',
+        dept: dept || 'Core Engineering',
+        location: location || '',
+        githubUrl: githubUrl || '',
+        linkedinUrl: linkedinUrl || '',
+        websiteUrl: websiteUrl || '',
+        teamOwnerId: userId,
+        otherLinks: 'PENDING_INVITE'
       }
+    });
 
-      return res.status(201).json({
-        success: true,
-        message: inviteResult.mock
-          ? 'Team member added. Invite generated in mock mode; check backend console.'
-          : 'Team member added and invite sent successfully.',
-        invite: inviteResult,
-        user: {
-          id: newMember.id.toString(),
-          name: newMember.name,
-          email: newMember.email,
-          role: newMember.role,
-          dept: newMember.dept,
-          location: newMember.location,
-          githubUrl: newMember.githubUrl || '',
-          linkedinUrl: newMember.linkedinUrl || '',
-          websiteUrl: newMember.websiteUrl || ''
-        }
-      });
-    }
-
-    // ACTUAL USER FLOW: Send sign-up invitation without database insertion
     let inviteResult;
     try {
       inviteResult = await sendTeamInviteEmail({
-        to: normalizedEmail,
-        name: name,
+        to: newMember.email,
+        name: newMember.name,
         invitedByName: req.user.email,
-        temporaryPassword: null,
+        temporaryPassword,
         isSignup: true
       });
     } catch (inviteError) {
+      await prisma.user.delete({ where: { id: newMember.id } });
       console.error('Team Invite Email Error:', inviteError);
       return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
     }
@@ -688,15 +668,18 @@ export const addTeamMember = async (req, res) => {
       success: true,
       message: inviteResult.mock
         ? 'Invitation link generated. Send the link to the user so they can sign up.'
-        : 'Invitation email successfully sent to the user.',
+        : 'Team member added and invite sent successfully.',
       invite: inviteResult,
       user: {
-        id: 'invited',
-        name: name,
-        email: normalizedEmail,
-        role: role || 'Full Stack Engineer',
-        dept: dept || 'Core Engineering',
-        location: location || ''
+        id: newMember.id.toString(),
+        name: newMember.name,
+        email: newMember.email,
+        role: newMember.role,
+        dept: newMember.dept,
+        location: newMember.location,
+        githubUrl: newMember.githubUrl || '',
+        linkedinUrl: newMember.linkedinUrl || '',
+        websiteUrl: newMember.websiteUrl || ''
       }
     });
   } catch (error) {
