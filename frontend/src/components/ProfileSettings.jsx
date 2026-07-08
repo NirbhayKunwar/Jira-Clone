@@ -703,7 +703,7 @@ export default function ProfileSettings() {
               <p className="text-[10px] text-text-secondary-muted mt-1 uppercase tracking-wide font-bold">{dept}</p>
 
               {/* Social Links Badge Row */}
-              {(githubUrl || linkedinUrl) && (
+              {(githubUrl || linkedinUrl || (otherLinks && otherLinks.filter(link => link && link.url && link.label).length > 0)) && (
                 <div className="flex items-center justify-center gap-3.5 mt-3">
                   {githubUrl && (
                     <a
@@ -727,6 +727,18 @@ export default function ProfileSettings() {
                       <LinkedinIcon className="w-4 h-4" />
                     </a>
                   )}
+                  {otherLinks && otherLinks.filter(link => link && link.url && link.label).map((link, idx) => (
+                    <a
+                      key={idx}
+                      href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-7 h-7 rounded-full bg-dominant-offset/50 hover:bg-accent/10 text-text-secondary-muted hover:text-accent flex items-center justify-center transition-all"
+                      title={link.label}
+                    >
+                      <Link className="w-4 h-4" />
+                    </a>
+                  ))}
                 </div>
               )}
 
