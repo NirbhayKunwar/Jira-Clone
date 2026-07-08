@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Mail, Briefcase, MapPin, Key, ShieldCheck, CheckCircle2, AlertCircle, Camera, Eye, EyeOff, Plus, Trash2, Link } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuthStore } from '../store/authStore';
@@ -29,6 +29,9 @@ export default function ProfileSettings() {
   const [linkedinUrl, setLinkedinUrl] = useState(user?.linkedinUrl || '');
   const [otherLinks, setOtherLinks] = useState(() => {
     if (user?.otherLinks) {
+      if (Array.isArray(user.otherLinks)) {
+        return user.otherLinks;
+      }
       try {
         return JSON.parse(user.otherLinks);
       } catch (e) {
@@ -40,7 +43,34 @@ export default function ProfileSettings() {
   });
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
-  const [email] = useState(user?.email || ''); // Keep email read-only for security simulation
+  const [email, setEmail] = useState(user?.email || ''); // Keep email read-only for security simulation
+
+  // Synchronize local states when the global user object changes (e.g. after async load or profile save)
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setRole(user.role || 'Full Stack Engineer');
+      setDept(user.dept || 'Core Engineering');
+      setLocation(user.location || '');
+      setGithubUrl(user.githubUrl || '');
+      setLinkedinUrl(user.linkedinUrl || '');
+      setEmail(user.email || '');
+      if (user.otherLinks) {
+        if (Array.isArray(user.otherLinks)) {
+          setOtherLinks(user.otherLinks);
+        } else {
+          try {
+            setOtherLinks(JSON.parse(user.otherLinks));
+          } catch (e) {
+            console.error('Error parsing otherLinks:', e);
+            setOtherLinks([]);
+          }
+        }
+      } else {
+        setOtherLinks([]);
+      }
+    }
+  }, [user]);
 
   // Password Visibility Toggle States
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -409,9 +439,9 @@ export default function ProfileSettings() {
                 </div>
 
                 {/* Render Links as Card Grid */}
-                {otherLinks.length > 0 && (
+                {otherLinks && otherLinks.filter(link => link && link.url && link.label).length > 0 && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                    {otherLinks.map((link, idx) => (
+                    {otherLinks.filter(link => link && link.url && link.label).map((link, idx) => (
                       <div
                         key={idx}
                         className="flex items-center justify-between p-3 rounded-lg border border-border-secondary bg-dominant-offset/30 text-xs shadow-sm"
@@ -449,16 +479,34 @@ export default function ProfileSettings() {
                       placeholder="e.g. Portfolio"
                       value={newLinkLabel}
                       onChange={(e) => setNewLinkLabel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (!newLinkLabel.trim() || !newLinkUrl.trim()) return;
+                          setOtherLinks(prev => [...prev, { label: newLinkLabel.trim(), url: newLinkUrl.trim() }]);
+                          setNewLinkLabel('');
+                          setNewLinkUrl('');
+                        }
+                      }}
                       className="block w-full px-3 py-2 text-xs rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
                     />
                   </div>
                   <div className="w-full sm:flex-grow-[2]">
                     <label className="block text-[10px] font-bold text-text-secondary mb-1 uppercase">URL</label>
                     <input
-                      type="url"
+                      type="text"
                       placeholder="https://..."
                       value={newLinkUrl}
                       onChange={(e) => setNewLinkUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (!newLinkLabel.trim() || !newLinkUrl.trim()) return;
+                          setOtherLinks(prev => [...prev, { label: newLinkLabel.trim(), url: newLinkUrl.trim() }]);
+                          setNewLinkLabel('');
+                          setNewLinkUrl('');
+                        }
+                      }}
                       className="block w-full px-3 py-2 text-xs rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
                     />
                   </div>
@@ -700,11 +748,11 @@ export default function ProfileSettings() {
               </div>
 
               {/* Dynamic Additional Links List in Preview Card */}
-              {otherLinks && otherLinks.length > 0 && (
+              {otherLinks && otherLinks.filter(link => link && link.url && link.label).length > 0 && (
                 <div className="w-full mt-4 pt-3 border-t border-border-secondary/40 text-left">
                   <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-2">Other Links</span>
                   <div className="grid grid-cols-1 gap-2">
-                    {otherLinks.map((link, idx) => (
+                    {otherLinks.filter(link => link && link.url && link.label).map((link, idx) => (
                       <a
                         key={idx}
                         href={link.url.startsWith('http') ? link.url : `https://${link.url}`}
