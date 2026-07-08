@@ -567,8 +567,27 @@ export const getUsers = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized.' });
     }
 
+    // Resolve the organization owner (inviter)
+    let teamOwnerId = null;
+    if (prisma.user && typeof prisma.user.findUnique === 'function') {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { teamOwnerId: true }
+      });
+      if (user) {
+        teamOwnerId = user.teamOwnerId;
+      }
+    }
+
+    const targetOwnerId = teamOwnerId || userId;
+
     const users = await prisma.user.findMany({
-      where: { teamOwnerId: userId },
+      where: {
+        OR: [
+          { id: targetOwnerId },
+          { teamOwnerId: targetOwnerId }
+        ]
+      },
       orderBy: { id: 'asc' }
     });
     
