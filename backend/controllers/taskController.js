@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
+import { addNotification } from './authController.js';
 
 const hasWorkspaceAccess = async (workspaceOwnerId, userId) => {
   if (!workspaceOwnerId) return true;
@@ -131,6 +132,8 @@ export const createTask = asyncHandler(async (req, res, next) => {
 
   console.log(`[TASK SERVICE] Created new task in database via Prisma: ${t.title}`);
 
+  addNotification(`New task "${title}" was created in workspace "${ws.name}".`, 'task');
+
   return res.status(201).json({ success: true, message: 'Task created successfully.', data: createdTask });
 });
 
@@ -218,6 +221,8 @@ export const updateTask = asyncHandler(async (req, res, next) => {
 
   console.log(`[TASK SERVICE] Updated task ${id} in database via Prisma.`);
 
+  addNotification(`Task "${t.title}" status updated to "${t.status}".`, 'task');
+
   return res.status(200).json({ success: true, message: 'Task updated successfully.', data: updatedTask });
 });
 
@@ -249,6 +254,8 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
   });
 
   console.log(`[TASK SERVICE] Deleted task ${id} from database via Prisma.`);
+
+  addNotification(`Task "${taskCheck.title}" was deleted.`, 'task');
 
   return res.status(200).json({ success: true, message: 'Task deleted successfully.' });
 });

@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
+import { addNotification } from './authController.js';
 
 const hasWorkspaceAccess = async (workspaceOwnerId, userId) => {
   if (!workspaceOwnerId) return true;
@@ -110,6 +111,8 @@ export const createEvent = asyncHandler(async (req, res, next) => {
     workspaceId: e.workspaceId ? e.workspaceId.toString() : null
   };
 
+  addNotification(`New event "${title}" was scheduled for ${eventDate}.`, 'calendar');
+
   return res.status(201).json({ success: true, message: 'Event created successfully.', data: mapped });
 });
 
@@ -139,6 +142,8 @@ export const deleteEvent = asyncHandler(async (req, res, next) => {
   await prisma.scheduleEvent.delete({
     where: { id: eventId }
   });
+
+  addNotification(`Event "${eventCheck.title}" was removed from the schedule.`, 'calendar');
 
   return res.status(200).json({ success: true, message: 'Event deleted successfully.' });
 });

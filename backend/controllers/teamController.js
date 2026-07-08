@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
+import { addNotification } from './authController.js';
 
 // Get all teams (scoped to user)
 export const getTeams = asyncHandler(async (req, res, next) => {
@@ -8,8 +9,25 @@ export const getTeams = asyncHandler(async (req, res, next) => {
     return next(new AppError('Unauthorized.', 401));
   }
 
+  // Get user details to check if they belong to a team
+  let teamOwnerId = null;
+  if (prisma.user && typeof prisma.user.findUnique === 'function') {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { teamOwnerId: true }
+    });
+    if (user) {
+      teamOwnerId = user.teamOwnerId;
+    }
+  }
+
+  const ownerIds = [userId];
+  if (teamOwnerId) {
+    ownerIds.push(teamOwnerId);
+  }
+
   const teams = await prisma.team.findMany({
-    where: { ownerId: userId },
+    where: { ownerId: { in: ownerIds } },
     orderBy: { id: 'desc' }
   });
 
@@ -63,6 +81,8 @@ export const createTeam = asyncHandler(async (req, res, next) => {
     members: resolvedMembers
   };
 
+  addNotification(`Custom team "${name.trim()}" was created.`, 'team');
+
   return res.status(201).json({ success: true, message: 'Team created successfully.', data: mapped });
 });
 
@@ -112,6 +132,8 @@ export const updateTeam = asyncHandler(async (req, res, next) => {
     members: resolvedMembers
   };
 
+  addNotification(`Custom team "${name ? name.trim() : teamCheck.name}" details were updated.`, 'team');
+
   return res.status(200).json({ success: true, message: 'Team updated successfully.', data: mapped });
 });
 
@@ -139,6 +161,8 @@ export const deleteTeam = asyncHandler(async (req, res, next) => {
   await prisma.team.delete({
     where: { id: teamId }
   });
+
+  addNotification(`Custom team "${teamCheck.name}" was deleted.`, 'team');
 
   return res.status(200).json({ success: true, message: 'Team deleted successfully.' });
 });

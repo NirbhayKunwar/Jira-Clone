@@ -5,7 +5,7 @@ import {
   Trash2, X, AlertTriangle, CheckCircle2, ChevronRight,
   Filter, UserCheck, Calendar, Activity, Info, User, Palette, ChevronDown,
   Target, Rocket, UserCircle, Clock, LayoutDashboard, List,
-  Settings, Menu, Copy, Check
+  Settings, Menu, Copy, Check, Bell
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -298,6 +298,10 @@ export default function Dashboard() {
   const pickerRef = useRef(null);
   const recentRef = useRef(null);
   const profileMenuRef = useRef(null);
+  const notificationsRef = useRef(null);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const createModalRef = useRef(null);
   const addMemberModalRef = useRef(null);
 
@@ -346,6 +350,9 @@ export default function Dashboard() {
       if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
         setShowProfileMenu(false);
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
+        setShowNotifications(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -355,6 +362,43 @@ export default function Dashboard() {
     const savedRecents = localStorage.getItem('jira_recent_visits');
     return savedRecents ? JSON.parse(savedRecents) : [];
   });
+
+  // Fetch activity log notifications from backend
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const token = localStorage.getItem('jira_token');
+        if (!token) return;
+        const res = await fetch(`${API_URL}/api/notifications`, {
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setNotifications(data.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching notifications:', err);
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 10000); // 10s poll
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const lastCheck = localStorage.getItem('jira_last_notification_check') || 0;
+    const unread = notifications.filter(n => new Date(n.createdAt).getTime() > Number(lastCheck)).length;
+    setUnreadNotifications(unread);
+  }, [notifications]);
+
+  const handleToggleNotifications = () => {
+    setShowNotifications(!showNotifications);
+    if (!showNotifications) {
+      localStorage.setItem('jira_last_notification_check', String(Date.now()));
+      setUnreadNotifications(0);
+    }
+  };
 
   // Track workspace visits
   useEffect(() => {
@@ -1300,21 +1344,72 @@ export default function Dashboard() {
               {activeWorkspace?.name || 'Jira Clone'}
             </div>
 
-            {/* Profile Avatar on Right */}
-            <div className="relative" ref={profileMenuRef}>
-              <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="w-9 h-9 rounded-full focus:outline-none border-none bg-transparent p-0 cursor-pointer flex items-center justify-center min-w-[44px] min-h-[44px]"
-                title="User Profile Menu"
-              >
-                {user?.picture ? (
-                  <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full border border-border-secondary/80" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-accent-light text-accent flex items-center justify-center font-bold text-xs border border-accent/20">
-                    {getUserInitials()}
+            {/* Right Side Icons */}
+            <div className="flex items-center space-x-2 ml-auto z-40">
+              {/* Notifications (Mobile) */}
+              <div className="relative" ref={notificationsRef}>
+                <button
+                  onClick={handleToggleNotifications}
+                  className={`p-2 rounded-full hover:bg-dominant-offset transition-colors cursor-pointer border-none bg-transparent min-w-[44px] min-h-[44px] flex items-center justify-center relative ${
+                    showNotifications ? 'text-accent bg-accent/10' : 'text-text-secondary-muted hover:text-accent'
+                  }`}
+                  title="Notifications"
+                >
+                  <Bell className="w-5 h-5" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-card-secondary animate-[pulse_2s_infinite]">
+                      {unreadNotifications}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-card-secondary border border-border-secondary rounded-xl shadow-xl p-3.5 z-50 animate-[fade-in_150ms_ease-out] text-left">
+                    <div className="flex items-center justify-between border-b border-border-secondary/40 pb-2 mb-2">
+                      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Activity Feed</h4>
+                      <span className="text-[9px] font-semibold text-accent bg-accent-light px-1.5 py-0.5 rounded">
+                        {notifications.length} Updates
+                      </span>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                      {notifications.length === 0 ? (
+                        <p className="text-[10px] text-text-secondary-muted italic text-center py-4">No recent activity logs.</p>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div key={notif.id} className="p-2 rounded-lg bg-dominant/30 border border-border-secondary/20 hover:border-accent/20 transition-all text-[10px] leading-relaxed flex items-start space-x-2">
+                            <span className="mt-0.5 select-none text-[12px]">
+                              {notif.type === 'task' ? '📋' : notif.type === 'member' ? '👥' : notif.type === 'team' ? '🛡️' : notif.type === 'goal' ? '🎯' : notif.type === 'calendar' ? '📅' : '🔔'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-text-secondary font-medium whitespace-pre-wrap">{notif.text}</p>
+                              <span className="text-[8px] text-text-secondary-muted block mt-1 font-mono">
+                                {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
                 )}
-              </button>
+              </div>
+
+              {/* Profile Avatar on Right (Mobile) */}
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                  className="w-9 h-9 rounded-full focus:outline-none border-none bg-transparent p-0 cursor-pointer flex items-center justify-center min-w-[44px] min-h-[44px]"
+                  title="User Profile Menu"
+                >
+                  {user?.picture ? (
+                    <img src={user.picture} alt={user.name} className="w-8 h-8 rounded-full border border-border-secondary/80" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-accent-light text-accent flex items-center justify-center font-bold text-xs border border-accent/20">
+                      {getUserInitials()}
+                    </div>
+                  )}
+                </button>
               
               {/* Profile Dropdown Menu */}
               {showProfileMenu && (
@@ -1349,6 +1444,7 @@ export default function Dashboard() {
               )}
             </div>
           </div>
+        </div>
 
           {/* Mobile Search & Filters Row (<768px) */}
           <div className="px-4 py-2 bg-dominant-offset/10 border-t border-border-secondary/30 flex md:hidden items-center justify-between gap-2.5 w-full">
@@ -1486,6 +1582,55 @@ export default function Dashboard() {
               >
                 {mode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
+
+              {/* Notifications Toggle */}
+              <div className="relative" ref={notificationsRef}>
+                <button
+                  onClick={handleToggleNotifications}
+                  className={`p-2 rounded-full hover:bg-dominant-offset transition-colors cursor-pointer border-none bg-transparent min-w-[44px] min-h-[44px] flex items-center justify-center relative ${
+                    showNotifications ? 'text-accent bg-accent/10' : 'text-text-secondary-muted hover:text-accent'
+                  }`}
+                  title="Notifications"
+                >
+                  <Bell className="w-4.5 h-4.5" />
+                  {unreadNotifications > 0 && (
+                    <span className="absolute top-1.5 right-1.5 bg-red-500 text-white text-[8px] font-bold rounded-full w-4 h-4 flex items-center justify-center ring-2 ring-card-secondary animate-[pulse_2s_infinite]">
+                      {unreadNotifications}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-card-secondary border border-border-secondary rounded-xl shadow-xl p-3.5 z-50 animate-[fade-in_150ms_ease-out] text-left">
+                    <div className="flex items-center justify-between border-b border-border-secondary/40 pb-2 mb-2">
+                      <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Activity Feed</h4>
+                      <span className="text-[9px] font-semibold text-accent bg-accent-light px-1.5 py-0.5 rounded">
+                        {notifications.length} Updates
+                      </span>
+                    </div>
+
+                    <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                      {notifications.length === 0 ? (
+                        <p className="text-[10px] text-text-secondary-muted italic text-center py-4">No recent activity logs.</p>
+                      ) : (
+                        notifications.map((notif) => (
+                          <div key={notif.id} className="p-2 rounded-lg bg-dominant/30 border border-border-secondary/20 hover:border-accent/20 transition-all text-[10px] leading-relaxed flex items-start space-x-2">
+                            <span className="mt-0.5 select-none text-[12px]">
+                              {notif.type === 'task' ? '📋' : notif.type === 'member' ? '👥' : notif.type === 'team' ? '🛡️' : notif.type === 'goal' ? '🎯' : notif.type === 'calendar' ? '📅' : '🔔'}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-text-secondary font-medium whitespace-pre-wrap">{notif.text}</p>
+                              <span className="text-[8px] text-text-secondary-muted block mt-1 font-mono">
+                                {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Settings Toggle */}
               <button

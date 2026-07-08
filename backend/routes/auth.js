@@ -1,5 +1,5 @@
 import express from 'express';
-import { signUp, signIn, signOut, refreshTokens, sendOtp, changePassword, updateProfile, getUsers, addTeamMember, deleteUser, googleSignIn } from '../controllers/authController.js';
+import { signUp, signIn, signOut, refreshTokens, sendOtp, changePassword, updateProfile, getUsers, addTeamMember, deleteUser, googleSignIn, getNotifications } from '../controllers/authController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { rateLimiter } from '../middleware/rateLimiter.js';
 
@@ -26,6 +26,9 @@ router.put('/profile', verifyToken, updateProfile);
 router.get('/users', verifyToken, getUsers);
 router.post('/users', verifyToken, addTeamMember);
 router.delete('/users/:id', verifyToken, deleteUser);
+
+// Notifications (Secured)
+router.get('/notifications', verifyToken, getNotifications);
 
 export default router;
 

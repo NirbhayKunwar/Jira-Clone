@@ -7,6 +7,31 @@ import prisma from '../config/prisma.js';
 // In-memory store for OTPs: { email: { code, expiresAt } }
 const otps = {};
 
+// In-memory notifications store
+if (!global.notifications) {
+  global.notifications = [
+    { id: 'init-1', text: 'Jira Workspace Initialized successfully.', createdAt: new Date().toISOString(), type: 'info' }
+  ];
+}
+
+export const addNotification = (text, type = 'info') => {
+  const newNotification = {
+    id: Math.random().toString(36).substring(2, 9),
+    text,
+    createdAt: new Date().toISOString(),
+    type
+  };
+  global.notifications = [newNotification, ...global.notifications].slice(0, 50);
+};
+
+export const getNotifications = async (req, res) => {
+  try {
+    return res.status(200).json({ success: true, data: global.notifications });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to fetch notifications.' });
+  }
+};
+
 // Periodically clean up expired OTPs every hour to prevent memory leaks
 setInterval(() => {
   const now = Date.now();
@@ -608,6 +633,8 @@ export const addTeamMember = async (req, res) => {
         return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
       }
 
+      addNotification(`Team member ${updatedMember.name} was added to the organization.`, 'member');
+
       return res.status(200).json({
         success: true,
         message: inviteResult.mock
@@ -664,6 +691,8 @@ export const addTeamMember = async (req, res) => {
       return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
     }
 
+    addNotification(`New team member ${newMember.name} was invited to the organization.`, 'member');
+
     return res.status(201).json({
       success: true,
       message: inviteResult.mock
@@ -719,6 +748,8 @@ export const deleteUser = async (req, res) => {
     await prisma.user.delete({
       where: { id: userId }
     });
+
+    addNotification(`Team member ${teamMember.name} was removed from the organization.`, 'member');
 
     return res.status(200).json({ success: true, message: 'Team member removed successfully.' });
   } catch (error) {

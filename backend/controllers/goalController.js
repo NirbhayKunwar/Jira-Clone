@@ -1,5 +1,6 @@
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
+import { addNotification } from './authController.js';
 
 // Get all goals (scoped to user)
 export const getGoals = asyncHandler(async (req, res, next) => {
@@ -74,6 +75,8 @@ export const createGoal = asyncHandler(async (req, res, next) => {
     status: g.status
   };
 
+  addNotification(`New epic/goal "${g.title}" was created.`, 'goal');
+
   return res.status(201).json({ success: true, message: 'Goal created successfully.', data: mapped });
 });
 
@@ -122,6 +125,8 @@ export const updateGoal = asyncHandler(async (req, res, next) => {
     status: g.status
   };
 
+  addNotification(`Epic/goal "${g.title}" progress updated to ${g.progress}%.`, 'goal');
+
   return res.status(200).json({ success: true, message: 'Goal updated successfully.', data: mapped });
 });
 
@@ -149,6 +154,8 @@ export const deleteGoal = asyncHandler(async (req, res, next) => {
   await prisma.goal.delete({
     where: { id: goalId }
   });
+
+  addNotification(`Epic/goal "${goalCheck.title}" was deleted.`, 'goal');
 
   return res.status(200).json({ success: true, message: 'Goal deleted successfully.' });
 });
