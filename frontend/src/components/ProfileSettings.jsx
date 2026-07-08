@@ -48,27 +48,30 @@ export default function ProfileSettings() {
   // Synchronize local states when the global user object changes (e.g. after async load or profile save)
   useEffect(() => {
     if (user) {
-      setName(user.name || '');
-      setRole(user.role || 'Full Stack Engineer');
-      setDept(user.dept || 'Core Engineering');
-      setLocation(user.location || '');
-      setGithubUrl(user.githubUrl || '');
-      setLinkedinUrl(user.linkedinUrl || '');
-      setEmail(user.email || '');
-      if (user.otherLinks) {
-        if (Array.isArray(user.otherLinks)) {
-          setOtherLinks(user.otherLinks);
-        } else {
-          try {
-            setOtherLinks(JSON.parse(user.otherLinks));
-          } catch (e) {
-            console.error('Error parsing otherLinks:', e);
-            setOtherLinks([]);
+      const timer = setTimeout(() => {
+        setName(user.name || '');
+        setRole(user.role || 'Full Stack Engineer');
+        setDept(user.dept || 'Core Engineering');
+        setLocation(user.location || '');
+        setGithubUrl(user.githubUrl || '');
+        setLinkedinUrl(user.linkedinUrl || '');
+        setEmail(user.email || '');
+        if (user.otherLinks) {
+          if (Array.isArray(user.otherLinks)) {
+            setOtherLinks(user.otherLinks);
+          } else {
+            try {
+              setOtherLinks(JSON.parse(user.otherLinks));
+            } catch (e) {
+              console.error('Error parsing otherLinks:', e);
+              setOtherLinks([]);
+            }
           }
+        } else {
+          setOtherLinks([]);
         }
-      } else {
-        setOtherLinks([]);
-      }
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [user]);
 

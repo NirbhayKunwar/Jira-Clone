@@ -301,7 +301,7 @@ export default function Dashboard() {
   const notificationsRef = useRef(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
   const createModalRef = useRef(null);
   const addMemberModalRef = useRef(null);
 
@@ -386,17 +386,17 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
+  const unreadNotifications = useMemo(() => {
+    // Reference showNotifications to trigger re-evaluation when dropdown is toggled
+    void showNotifications;
     const lastCheck = localStorage.getItem('jira_last_notification_check') || 0;
-    const unread = notifications.filter(n => new Date(n.createdAt).getTime() > Number(lastCheck)).length;
-    setUnreadNotifications(unread);
-  }, [notifications]);
+    return notifications.filter(n => new Date(n.createdAt).getTime() > Number(lastCheck)).length;
+  }, [notifications, showNotifications]);
 
   const handleToggleNotifications = () => {
     setShowNotifications(!showNotifications);
     if (!showNotifications) {
       localStorage.setItem('jira_last_notification_check', String(Date.now()));
-      setUnreadNotifications(0);
     }
   };
 
