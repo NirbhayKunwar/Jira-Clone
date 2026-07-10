@@ -267,7 +267,7 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
       />
 
       {/* Mobile Menu Panel */}
-      <div className={`fixed top-[60px] right-0 w-full max-w-sm h-[calc(100vh-60px)] bg-dominant shadow-xl z-40 border-l border-border-secondary transition-transform duration-300 transform lg:hidden flex flex-col justify-between ${
+      <div className={`fixed top-[60px] right-0 w-full max-w-sm h-[calc(100dvh-60px)] bg-dominant shadow-xl z-40 border-l border-border-secondary transition-transform duration-300 transform lg:hidden flex flex-col justify-between ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
         <div className="overflow-y-auto px-6 py-6 space-y-6 flex-1">

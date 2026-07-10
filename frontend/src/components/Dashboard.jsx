@@ -61,6 +61,142 @@ export default function Dashboard() {
   const [addedMemberCreds, setAddedMemberCreds] = useState(null);
   const [copiedCreds, setCopiedCreds] = useState(false);
 
+  // Touch Drag-and-Drop States
+  const [touchDragTaskId, setTouchDragTaskId] = useState(null);
+  const [touchDragActive, setTouchDragActive] = useState(false);
+  const [touchDragOffset, setTouchDragOffset] = useState({ x: 0, y: 0 });
+  const [touchDragPosition, setTouchDragPosition] = useState({ x: 0, y: 0 });
+  const [touchTargetColumnId, setTouchTargetColumnId] = useState(null);
+  const touchStartPosRef = useRef({ x: 0, y: 0 });
+  const touchTimeoutRef = useRef(null);
+  const touchLastCoordsRef = useRef({ x: 0, y: 0 });
+  const kanbanGridRef = useRef(null);
+
+  // Effect to handle window touchmove and touchend during touch drag
+  useEffect(() => {
+    if (!touchDragActive || !touchDragTaskId) return;
+
+    const handleWindowTouchMove = (e) => {
+      // Prevent browser from scrolling the body/page
+      if (e.cancelable) e.preventDefault();
+
+      const touch = e.touches[0];
+      touchLastCoordsRef.current = { x: touch.clientX, y: touch.clientY };
+
+      // Update the preview element's position relative to touch
+      setTouchDragPosition({
+        x: touch.clientX - touchDragOffset.x,
+        y: touch.clientY - touchDragOffset.y
+      });
+
+      // Find target column/status element under the touch coordinates
+      const element = document.elementFromPoint(touch.clientX, touch.clientY);
+      let current = element;
+      let foundColumnId = null;
+      while (current && current !== document.body) {
+        if (current.dataset && current.dataset.columnId) {
+          foundColumnId = current.dataset.columnId;
+          break;
+        }
+        current = current.parentElement;
+      }
+      if (foundColumnId) {
+        setTouchTargetColumnId(foundColumnId);
+      }
+    };
+
+    const handleWindowTouchEnd = (e) => {
+      // Trigger status update mutation if dropped inside a column
+      if (touchTargetColumnId) {
+        updateTaskStatusMutation.mutate({ taskId: touchDragTaskId, status: touchTargetColumnId });
+      }
+
+      // Cleanup drag states
+      setTouchDragTaskId(null);
+      setTouchDragActive(false);
+      setTouchTargetColumnId(null);
+    };
+
+    window.addEventListener('touchmove', handleWindowTouchMove, { passive: false });
+    window.addEventListener('touchend', handleWindowTouchEnd, { passive: false });
+    window.addEventListener('touchcancel', handleWindowTouchEnd, { passive: false });
+
+    return () => {
+      window.removeEventListener('touchmove', handleWindowTouchMove);
+      window.removeEventListener('touchend', handleWindowTouchEnd);
+      window.removeEventListener('touchcancel', handleWindowTouchEnd);
+    };
+  }, [touchDragActive, touchDragTaskId, touchDragOffset, touchTargetColumnId, updateTaskStatusMutation]);
+
+  // Effect to perform auto-scrolling horizontally and vertically when drag position is near viewport edges
+  useEffect(() => {
+    if (!touchDragActive) return;
+
+    const scrollInterval = setInterval(() => {
+      const coords = touchLastCoordsRef.current;
+      if (!coords) return;
+
+      // 1. Scroll the main kanban board columns horizontally
+      if (kanbanGridRef.current) {
+        const grid = kanbanGridRef.current;
+        const rect = grid.getBoundingClientRect();
+        const threshold = 60; // Pixels from outer edges
+        const speed = 12; // Pixels per frame
+
+        if (coords.x > rect.right - threshold) {
+          grid.scrollLeft += speed;
+        } else if (coords.x < rect.left + threshold) {
+          grid.scrollLeft -= speed;
+        }
+      }
+
+      // 2. Scroll overflowed column content lists vertically
+      const element = document.elementFromPoint(coords.x, coords.y);
+      let current = element;
+      while (current && current !== document.body) {
+        // Match scrollable card container inside columns
+        if (current.classList && (current.classList.contains('overflow-y-auto') || current.classList.contains('overflow-y-scroll'))) {
+          const colRect = current.getBoundingClientRect();
+          const threshold = 60;
+          const speed = 10;
+          if (coords.y > colRect.bottom - threshold) {
+            current.scrollTop += speed;
+          } else if (coords.y < colRect.top + threshold) {
+            current.scrollTop -= speed;
+          }
+          break;
+        }
+        current = current.parentElement;
+      }
+    }, 16); // ~60fps checking interval
+
+    return () => clearInterval(scrollInterval);
+  }, [touchDragActive]);
+
+  const handleTouchStart = (e, task) => {
+    if (touchDragActive) return;
+
+    const touch = e.touches[0];
+    const cardElement = e.currentTarget;
+    const rect = cardElement.getBoundingClientRect();
+    const offsetX = touch.clientX - rect.left;
+    const offsetY = touch.clientY - rect.top;
+
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    touchLastCoordsRef.current = { x: touch.clientX, y: touch.clientY };
+
+    if (touchTimeoutRef.current) clearTimeout(touchTimeoutRef.current);
+
+    touchTimeoutRef.current = setTimeout(() => {
+      setTouchDragTaskId(task.id);
+      setTouchDragActive(true);
+      setTouchDragOffset({ x: offsetX, y: offsetY });
+      setTouchDragPosition({ x: rect.left, y: rect.top });
+      setTouchTargetColumnId(task.status);
+      if (navigator.vibrate) navigator.vibrate(40);
+    }, 250);
+  };
+
   const activeTab = searchParams.get('tab') || 'board';
   const setActiveTab = (tab) => {
     setSearchParams((prev) => {
@@ -90,15 +226,28 @@ export default function Dashboard() {
         setNewAssignee('You');
         setShowCreateModal(false);
         setShowAddMemberModal(false);
+        setIsSidebarOpen(false);
       }
     };
-    if (showCreateModal || showAddMemberModal) {
+    if (showCreateModal || showAddMemberModal || isSidebarOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showCreateModal, showAddMemberModal, defaultStatus]);
+  }, [showCreateModal, showAddMemberModal, isSidebarOpen, defaultStatus]);
+
+  // Lock body scroll when modals or mobile menu sidebar are open
+  useEffect(() => {
+    if (showCreateModal || showAddMemberModal || isSidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [showCreateModal, showAddMemberModal, isSidebarOpen]);
 
   const isScrum = activeWorkspace?.template_type === 'scrum';
 
@@ -305,21 +454,30 @@ export default function Dashboard() {
 
   const createModalRef = useRef(null);
   const addMemberModalRef = useRef(null);
+  const sidebarRef = useRef(null);
 
   // Local storage save removed - now persisting dynamically to PostgreSQL database
 
   useEffect(() => {
     const activeModal = showCreateModal ? createModalRef.current : showAddMemberModal ? addMemberModalRef.current : null;
-    if (!activeModal) return;
+    const isMobileSidebar = isSidebarOpen && window.innerWidth < 1280;
+    const container = activeModal || (isMobileSidebar ? sidebarRef.current : null);
+    if (!container) return;
 
     const focusableSelector = 'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    const focusable = [...activeModal.querySelectorAll(focusableSelector)];
-    const preferredFocus = activeModal.querySelector('[data-autofocus]');
-    (preferredFocus || focusable[0])?.focus();
+    const focusable = [...container.querySelectorAll(focusableSelector)];
+    
+    if (activeModal) {
+      const preferredFocus = container.querySelector('[data-autofocus]');
+      (preferredFocus || focusable[0])?.focus();
+    }
 
     const trapFocus = (e) => {
       if (e.key !== 'Tab') return;
-      const currentFocusable = [...activeModal.querySelectorAll(focusableSelector)];
+      const currentFocusable = [...container.querySelectorAll(focusableSelector)].filter(el => {
+        const style = window.getComputedStyle(el);
+        return style.display !== 'none' && style.visibility !== 'hidden';
+      });
       if (currentFocusable.length === 0) {
         e.preventDefault();
         return;
@@ -336,9 +494,9 @@ export default function Dashboard() {
       }
     };
 
-    activeModal.addEventListener('keydown', trapFocus);
-    return () => activeModal.removeEventListener('keydown', trapFocus);
-  }, [showCreateModal, showAddMemberModal]);
+    container.addEventListener('keydown', trapFocus);
+    return () => container.removeEventListener('keydown', trapFocus);
+  }, [showCreateModal, showAddMemberModal, isSidebarOpen]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -816,7 +974,7 @@ export default function Dashboard() {
       )}
 
       {/* 1. Sidebar Navigation */}
-      <aside className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 ${
+      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full invisible pointer-events-none xl:visible xl:pointer-events-auto'
       }`} aria-label="Workspace navigation">
         <div>
@@ -1950,19 +2108,23 @@ export default function Dashboard() {
               )}
 
               {/* Kanban Grid */}
-              <div className="flex flex-col lg:flex-row lg:overflow-x-auto gap-6 flex-grow items-start pb-4 scrollbar-thin w-full min-w-0">
+              <div ref={kanbanGridRef} className="flex flex-row overflow-x-auto gap-4 md:gap-6 flex-grow items-start pb-4 scrollbar-thin w-full min-w-0 snap-x snap-mandatory">
                 {columns.map(col => {
                   const currentCount = processedTasks.filter(t => t.status === col.id).length;
                   const wipExceeded = col.hasWipLimit && currentCount > (activeWorkspace?.wip_limit || 5);
+                  const isHovered = touchDragActive && touchTargetColumnId === col.id;
                   
                   return (
                     <div 
                       key={col.id}
+                      data-column-id={col.id}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, col.id)}
-                      className={`bg-card-secondary/60 rounded-xl border p-4 flex flex-col w-full lg:w-[280px] xl:w-[320px] lg:flex-shrink-0 max-h-[500px] lg:max-h-[calc(100vh-280px)] overflow-hidden transition-all duration-300 ${
+                      className={`bg-card-secondary/60 rounded-xl border p-4 flex flex-col w-[85vw] xs:w-[280px] sm:w-[320px] shrink-0 max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-280px)] overflow-hidden transition-all duration-300 snap-center ${
                         wipExceeded 
                           ? 'border-red-500/40 bg-red-500/[0.02]' 
+                          : isHovered
+                          ? 'border-accent bg-accent-light/10 shadow-md scale-[1.01]'
                           : 'border-border-secondary/40'
                       }`}
                     >
@@ -1989,7 +2151,14 @@ export default function Dashboard() {
                       
                       <div className="space-y-3 overflow-y-auto pr-1 flex-grow scrollbar-thin">
                         {processedTasks.filter(t => t.status === col.id).map(task => (
-                          <Card key={task.id} task={task} onDragStart={handleDragStart} onDelete={handleDeleteIssue} />
+                          <Card 
+                            key={task.id} 
+                            task={task} 
+                            onDragStart={handleDragStart} 
+                            onDelete={handleDeleteIssue}
+                            onTouchStart={handleTouchStart}
+                            isDragging={touchDragTaskId === task.id}
+                          />
                         ))}
                         {processedTasks.filter(t => t.status === col.id).length === 0 && (
                           <EmptyPlaceholder text={`No tasks in ${col.name.toLowerCase()}`} />
@@ -3523,8 +3692,8 @@ export default function Dashboard() {
 
       {/* 3. Create Issue Dialog Modal */}
       {showCreateModal && (
-        <div ref={createModalRef} role="dialog" aria-modal="true" aria-labelledby="issue-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-[fade-in_150ms_ease-out]">
-          <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 overflow-hidden relative">
+        <div ref={createModalRef} role="dialog" aria-modal="true" aria-labelledby="issue-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 overflow-y-auto z-50 animate-[fade-in_150ms_ease-out]">
+          <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 overflow-hidden relative my-auto">
             {/* Accent border */}
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent to-accent-hover" />
             
@@ -3654,8 +3823,8 @@ export default function Dashboard() {
 
       {/* 4. Add Team Member Dialog Modal */}
       {showAddMemberModal && (
-        <div ref={addMemberModalRef} role="dialog" aria-modal="true" aria-labelledby="member-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-[fade-in_150ms_ease-out]">
-          <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 overflow-hidden relative">
+        <div ref={addMemberModalRef} role="dialog" aria-modal="true" aria-labelledby="member-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 overflow-y-auto z-50 animate-[fade-in_150ms_ease-out]">
+          <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 overflow-hidden relative my-auto">
             {/* Accent border */}
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent to-accent-hover" />
             
@@ -3866,13 +4035,61 @@ export default function Dashboard() {
       >
         <Plus className="w-7 h-7" />
       </button>
+
+      {/* Touch Drag Floating Preview */}
+      {touchDragActive && touchDragTaskId && (
+        <div
+          className="fixed pointer-events-none z-50 shadow-2xl scale-[1.03] rotate-1 transition-transform duration-75"
+          style={{
+            left: `${touchDragPosition.x}px`,
+            top: `${touchDragPosition.y}px`,
+            width: `280px`
+          }}
+        >
+          <Card 
+            task={tasks.find(t => t.id === touchDragTaskId)}
+            onDragStart={() => {}}
+            onDelete={() => {}}
+            onTouchStart={() => {}}
+            isDragging={false}
+            isPreview={true}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 // Kanban Card Item
-function Card({ task, onDragStart, onDelete }) {
-  // Get Priority Colors
+function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview }) {
+  const touchStartPos = useRef({ x: 0, y: 0 });
+  const touchTimeout = useRef(null);
+
+  const handleCardTouchStart = (e) => {
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+
+    if (touchTimeout.current) clearTimeout(touchTimeout.current);
+
+    touchTimeout.current = setTimeout(() => {
+      if (onTouchStart) onTouchStart(e, task);
+    }, 250);
+  };
+
+  const handleCardTouchMove = (e) => {
+    const touch = e.touches[0];
+    const diffX = Math.abs(touch.clientX - touchStartPos.current.x);
+    const diffY = Math.abs(touch.clientY - touchStartPos.current.y);
+
+    if (diffX > 8 || diffY > 8) {
+      clearTimeout(touchTimeout.current);
+    }
+  };
+
+  const handleCardTouchEnd = () => {
+    clearTimeout(touchTimeout.current);
+  };
+
   const getPriorityStyle = (p) => {
     switch(p) {
       case 'High': return 'text-red-500 bg-red-500/10 border-red-500/20';
@@ -3881,7 +4098,6 @@ function Card({ task, onDragStart, onDelete }) {
     }
   };
 
-  // Get Epic Colors
   const getEpicStyle = (epic) => {
     switch(epic) {
       case 'Design System': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/15';
@@ -3892,15 +4108,22 @@ function Card({ task, onDragStart, onDelete }) {
     }
   };
 
+  if (!task) return null;
+
   return (
     <div
-      draggable
+      draggable={!isPreview}
       onDragStart={(e) => onDragStart(e, task.id)}
-      className="bg-card-secondary p-4.5 rounded-xl border border-border-secondary/40 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-grab active:cursor-grabbing group relative overflow-hidden"
+      onTouchStart={!isPreview && onTouchStart ? handleCardTouchStart : undefined}
+      onTouchMove={!isPreview && onTouchStart ? handleCardTouchMove : undefined}
+      onTouchEnd={!isPreview && onTouchStart ? handleCardTouchEnd : undefined}
+      className={`bg-card-secondary p-4.5 rounded-xl border border-border-secondary/40 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-grab active:cursor-grabbing group relative overflow-hidden ${
+        isDragging ? 'opacity-40 scale-95 border-accent/40 bg-accent-light/5' : ''
+      } ${isPreview ? 'pointer-events-none shadow-2xl border-accent/60' : ''}`}
     >
       {/* Epic Badge */}
       <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded border mb-2.5 uppercase tracking-wider ${getEpicStyle(task.epic)}`}>
-        {task.epic}
+        {task.epic || 'Task'}
       </span>
 
       {/* Task Summary */}
@@ -3926,17 +4149,19 @@ function Card({ task, onDragStart, onDelete }) {
         {/* Assignee & Actions */}
         <div className="flex items-center space-x-2.5">
           {/* Delete (only visible on card hover) */}
-          <button
-            onClick={() => onDelete(task.id)}
-            className="text-text-secondary-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 rounded hover:bg-dominant-offset cursor-pointer"
-            title="Delete Issue"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {!isPreview && (
+            <button
+              onClick={() => onDelete(task.id)}
+              className="text-text-secondary-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 rounded hover:bg-dominant-offset cursor-pointer"
+              title="Delete Issue"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
           
           {/* Avatar */}
           <div className="w-6 h-6 rounded-full bg-dominant-offset text-[9px] font-bold flex items-center justify-center border border-border-secondary" title={`Assignee: ${task.assignee}`}>
-            {task.assignee.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+            {(task.assignee || 'You').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
           </div>
         </div>
 
@@ -3945,6 +4170,7 @@ function Card({ task, onDragStart, onDelete }) {
     </div>
   );
 }
+
 
 // Column Empty State
 function EmptyPlaceholder({ text }) {
