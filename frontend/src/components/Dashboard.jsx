@@ -1096,7 +1096,7 @@ export default function Dashboard() {
       )}
 
       {/* 1. Sidebar Navigation */}
-      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 ${
+      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 overflow-y-auto custom-scrollbar ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full invisible pointer-events-none xl:visible xl:pointer-events-auto'
       }`} aria-label="Workspace navigation">
         <div>
