@@ -5,7 +5,18 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+      'Cross-Origin-Embedder-Policy': 'unsafe-none',
+    }
+  },
   build: {
+    rollupOptions: {
+      output: {
+        strictExecutionOrder: true,
+      },
+    },
     rolldownOptions: {
       output: {
         // Fix: Rolldown (Vite 8's bundler) can generate code where const/let
