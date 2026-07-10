@@ -1096,7 +1096,7 @@ export default function Dashboard() {
       )}
 
       {/* 1. Sidebar Navigation */}
-      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 overflow-y-auto custom-scrollbar ${
+      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 overflow-y-auto xl:overflow-visible custom-scrollbar ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full invisible pointer-events-none xl:visible xl:pointer-events-auto'
       }`} aria-label="Workspace navigation">
         <div>
@@ -1207,9 +1207,9 @@ export default function Dashboard() {
                 <ChevronRight className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${showRecentDropdown ? 'rotate-90' : ''}`} />
               </button>
 
-              {/* Floating Dropdown */}
+              {/* Floating Dropdown (responsive positioning to avoid overflow clipping on mobile/tablet drawer) */}
               {showRecentDropdown && (
-                <div className="absolute left-[242px] top-0 w-80 bg-card-secondary border border-border-secondary rounded-xl shadow-xl z-50 p-4 animate-[fade-in_150ms_ease-out] text-text-secondary">
+                <div className="xl:absolute xl:left-[242px] xl:top-0 xl:w-80 relative left-0 w-full mt-1 bg-card-secondary border border-border-secondary rounded-xl shadow-xl z-50 p-4 animate-[fade-in_150ms_ease-out] text-text-secondary">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-bold text-text-secondary">Recent</span>
                     <button 
