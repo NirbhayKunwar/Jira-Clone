@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { API_URL } from '../config/api';
+import { useAuthStore } from './authStore';
 
 export const useWorkspaceStore = create((set, get) => {
   const getInitialActiveWorkspace = () => {
@@ -37,6 +38,12 @@ export const useWorkspaceStore = create((set, get) => {
             'Authorization': token ? `Bearer ${token}` : ''
           }
         });
+        if (response.status === 401 || response.status === 403) {
+          useAuthStore.getState().logout();
+          if (onViewChange) onViewChange('/auth');
+          set({ isLoadingWorkspaces: false });
+          return;
+        }
         if (response.ok) {
           const resJson = await response.json();
           const workspacesList = Array.isArray(resJson.data) ? resJson.data : (Array.isArray(resJson) ? resJson : []);

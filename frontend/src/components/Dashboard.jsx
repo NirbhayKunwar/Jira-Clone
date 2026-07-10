@@ -27,6 +27,126 @@ const THEMES = [
 ];
 const ROADMAP_COLORS = ['#0052cc', '#ff5630', '#36b37e', '#ffab00', '#6554c0'];
 
+// Kanban Card Item
+function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview }) {
+  const touchStartPos = useRef({ x: 0, y: 0 });
+  const touchTimeout = useRef(null);
+
+  const handleCardTouchStart = (e) => {
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+
+    if (touchTimeout.current) clearTimeout(touchTimeout.current);
+
+    touchTimeout.current = setTimeout(() => {
+      if (onTouchStart) onTouchStart(e, task);
+    }, 250);
+  };
+
+  const handleCardTouchMove = (e) => {
+    const touch = e.touches[0];
+    const diffX = Math.abs(touch.clientX - touchStartPos.current.x);
+    const diffY = Math.abs(touch.clientY - touchStartPos.current.y);
+
+    if (diffX > 8 || diffY > 8) {
+      clearTimeout(touchTimeout.current);
+    }
+  };
+
+  const handleCardTouchEnd = () => {
+    clearTimeout(touchTimeout.current);
+  };
+
+  const getPriorityStyle = (p) => {
+    switch(p) {
+      case 'High': return 'text-red-500 bg-red-500/10 border-red-500/20';
+      case 'Medium': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+      default: return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
+    }
+  };
+
+  const getEpicStyle = (epic) => {
+    switch(epic) {
+      case 'Design System': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/15';
+      case 'DevOps & Security': return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/15';
+      case 'Integrations': return 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/15';
+      case 'Tech Stack Upgrade': return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/15';
+      default: return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/15';
+    }
+  };
+
+  if (!task) return null;
+
+  return (
+    <div
+      draggable={!isPreview}
+      onDragStart={(e) => onDragStart(e, task.id)}
+      onTouchStart={!isPreview && onTouchStart ? handleCardTouchStart : undefined}
+      onTouchMove={!isPreview && onTouchStart ? handleCardTouchMove : undefined}
+      onTouchEnd={!isPreview && onTouchStart ? handleCardTouchEnd : undefined}
+      className={`bg-card-secondary p-4.5 rounded-xl border border-border-secondary/40 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-grab active:cursor-grabbing group relative overflow-hidden ${
+        isDragging ? 'opacity-40 scale-95 border-accent/40 bg-accent-light/5' : ''
+      } ${isPreview ? 'pointer-events-none shadow-2xl border-accent/60' : ''}`}
+    >
+      {/* Epic Badge */}
+      <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded border mb-2.5 uppercase tracking-wider ${getEpicStyle(task.epic)}`}>
+        {task.epic || 'Task'}
+      </span>
+
+      {/* Task Summary */}
+      <h4 className="text-xs font-bold text-text-secondary leading-normal group-hover:text-accent transition-colors">
+        {task.title}
+      </h4>
+
+      {/* Task Description */}
+      {task.desc && (
+        <p className="text-[10px] text-text-secondary-muted mt-1.5 leading-relaxed line-clamp-2">
+          {task.desc}
+        </p>
+      )}
+
+      {/* Card Footer Info */}
+      <div className="mt-4 pt-3 border-t border-border-secondary/30 flex items-center justify-between">
+        
+        {/* Priority */}
+        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${getPriorityStyle(task.priority)}`}>
+          {task.priority === 'High' ? '🔴' : task.priority === 'Medium' ? '🟡' : '🔵'} {task.priority}
+        </span>
+
+        {/* Assignee & Actions */}
+        <div className="flex items-center space-x-2.5">
+          {/* Delete (only visible on card hover) */}
+          {!isPreview && (
+            <button
+              onClick={() => onDelete(task.id)}
+              className="text-text-secondary-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 rounded hover:bg-dominant-offset cursor-pointer"
+              title="Delete Issue"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          
+          {/* Avatar */}
+          <div className="w-6 h-6 rounded-full bg-dominant-offset text-[9px] font-bold flex items-center justify-center border border-border-secondary" title={`Assignee: ${task.assignee}`}>
+            {(task.assignee || 'You').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  );
+}
+
+// Column Empty State
+function EmptyPlaceholder({ text }) {
+  return (
+    <div className="py-8 px-4 rounded-xl border border-dashed border-border-secondary/50 flex flex-col items-center justify-center text-center text-[10px] text-text-secondary-muted">
+      <span>{text}</span>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -4060,123 +4180,4 @@ export default function Dashboard() {
   );
 }
 
-// Kanban Card Item
-function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview }) {
-  const touchStartPos = useRef({ x: 0, y: 0 });
-  const touchTimeout = useRef(null);
-
-  const handleCardTouchStart = (e) => {
-    const touch = e.touches[0];
-    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
-
-    if (touchTimeout.current) clearTimeout(touchTimeout.current);
-
-    touchTimeout.current = setTimeout(() => {
-      if (onTouchStart) onTouchStart(e, task);
-    }, 250);
-  };
-
-  const handleCardTouchMove = (e) => {
-    const touch = e.touches[0];
-    const diffX = Math.abs(touch.clientX - touchStartPos.current.x);
-    const diffY = Math.abs(touch.clientY - touchStartPos.current.y);
-
-    if (diffX > 8 || diffY > 8) {
-      clearTimeout(touchTimeout.current);
-    }
-  };
-
-  const handleCardTouchEnd = () => {
-    clearTimeout(touchTimeout.current);
-  };
-
-  const getPriorityStyle = (p) => {
-    switch(p) {
-      case 'High': return 'text-red-500 bg-red-500/10 border-red-500/20';
-      case 'Medium': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-      default: return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-    }
-  };
-
-  const getEpicStyle = (epic) => {
-    switch(epic) {
-      case 'Design System': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/15';
-      case 'DevOps & Security': return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/15';
-      case 'Integrations': return 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/15';
-      case 'Tech Stack Upgrade': return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/15';
-      default: return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/15';
-    }
-  };
-
-  if (!task) return null;
-
-  return (
-    <div
-      draggable={!isPreview}
-      onDragStart={(e) => onDragStart(e, task.id)}
-      onTouchStart={!isPreview && onTouchStart ? handleCardTouchStart : undefined}
-      onTouchMove={!isPreview && onTouchStart ? handleCardTouchMove : undefined}
-      onTouchEnd={!isPreview && onTouchStart ? handleCardTouchEnd : undefined}
-      className={`bg-card-secondary p-4.5 rounded-xl border border-border-secondary/40 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-grab active:cursor-grabbing group relative overflow-hidden ${
-        isDragging ? 'opacity-40 scale-95 border-accent/40 bg-accent-light/5' : ''
-      } ${isPreview ? 'pointer-events-none shadow-2xl border-accent/60' : ''}`}
-    >
-      {/* Epic Badge */}
-      <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded border mb-2.5 uppercase tracking-wider ${getEpicStyle(task.epic)}`}>
-        {task.epic || 'Task'}
-      </span>
-
-      {/* Task Summary */}
-      <h4 className="text-xs font-bold text-text-secondary leading-normal group-hover:text-accent transition-colors">
-        {task.title}
-      </h4>
-
-      {/* Task Description */}
-      {task.desc && (
-        <p className="text-[10px] text-text-secondary-muted mt-1.5 leading-relaxed line-clamp-2">
-          {task.desc}
-        </p>
-      )}
-
-      {/* Card Footer Info */}
-      <div className="mt-4 pt-3 border-t border-border-secondary/30 flex items-center justify-between">
-        
-        {/* Priority */}
-        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${getPriorityStyle(task.priority)}`}>
-          {task.priority === 'High' ? '🔴' : task.priority === 'Medium' ? '🟡' : '🔵'} {task.priority}
-        </span>
-
-        {/* Assignee & Actions */}
-        <div className="flex items-center space-x-2.5">
-          {/* Delete (only visible on card hover) */}
-          {!isPreview && (
-            <button
-              onClick={() => onDelete(task.id)}
-              className="text-text-secondary-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 rounded hover:bg-dominant-offset cursor-pointer"
-              title="Delete Issue"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          )}
-          
-          {/* Avatar */}
-          <div className="w-6 h-6 rounded-full bg-dominant-offset text-[9px] font-bold flex items-center justify-center border border-border-secondary" title={`Assignee: ${task.assignee}`}>
-            {(task.assignee || 'You').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-          </div>
-        </div>
-
-      </div>
-
-    </div>
-  );
-}
-
-
-// Column Empty State
-function EmptyPlaceholder({ text }) {
-  return (
-    <div className="py-8 px-4 rounded-xl border border-dashed border-border-secondary/50 flex flex-col items-center justify-center text-center text-[10px] text-text-secondary-muted">
-      <span>{text}</span>
-    </div>
-  );
-}
+// Kanban helper components hoisted above Dashboard to prevent bundler initialization ReferenceError
