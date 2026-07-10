@@ -154,7 +154,7 @@ export default function Dashboard() {
 
 
   const { user, theme, setTheme, mode, toggleMode, logout: onLogout } = useAuthStore();
-  const { activeWorkspace, workspaces, setActiveWorkspace: onSwitchWorkspace, deleteWorkspace } = useWorkspaceStore();
+  const { activeWorkspace, workspaces, setActiveWorkspace: onSwitchWorkspace, deleteWorkspace, workspaceError } = useWorkspaceStore();
 
   const onTriggerCreateWorkspace = () => navigate('/workspace-setup');
 
@@ -192,6 +192,16 @@ export default function Dashboard() {
   const touchLastCoordsRef = useRef({ x: 0, y: 0 });
   const kanbanGridRef = useRef(null);
 
+  // TanStack Query Hooks (Hoisted to prevent TDZ ReferenceErrors in effects)
+  const { data: tasks = [] } = useTasks(activeWorkspace?.id);
+  const { data: dbUsers = [], refetch: refetchUsers } = useUsers();
+
+  const createTaskMutation = useCreateTask(activeWorkspace?.id);
+  const updateTaskStatusMutation = useUpdateTaskStatus(activeWorkspace?.id);
+  const deleteTaskMutation = useDeleteTask(activeWorkspace?.id);
+  const addUserMutation = useAddUser();
+  const removeUserMutation = useRemoveUser();
+
   // Effect to handle window touchmove and touchend during touch drag
   useEffect(() => {
     if (!touchDragActive || !touchDragTaskId) return;
@@ -225,7 +235,7 @@ export default function Dashboard() {
       }
     };
 
-    const handleWindowTouchEnd = (e) => {
+    const handleWindowTouchEnd = () => {
       // Trigger status update mutation if dropped inside a column
       if (touchTargetColumnId) {
         updateTaskStatusMutation.mutate({ taskId: touchDragTaskId, status: touchTargetColumnId });
@@ -371,15 +381,7 @@ export default function Dashboard() {
 
   const isScrum = activeWorkspace?.template_type === 'scrum';
 
-  // TanStack Query Hooks
-  const { data: tasks = [] } = useTasks(activeWorkspace?.id);
-  const { data: dbUsers = [], refetch: refetchUsers } = useUsers();
-
-  const createTaskMutation = useCreateTask(activeWorkspace?.id);
-  const updateTaskStatusMutation = useUpdateTaskStatus(activeWorkspace?.id);
-  const deleteTaskMutation = useDeleteTask(activeWorkspace?.id);
-  const addUserMutation = useAddUser();
-  const removeUserMutation = useRemoveUser();
+  // TanStack Query Hooks moved to top to satisfy module execution order and rules of hooks
 
   // Reset newStatus when workspace template changes (deferred to avoid cascading renders)
   const prevWorkspaceIdRef = useRef(activeWorkspace?.id);
@@ -2026,8 +2028,42 @@ export default function Dashboard() {
 
         </header>
 
-        {/* sticky Global Filter Bar */}
-        {(activeTab === 'board' || activeTab === 'foryou' || activeTab === 'roadmap') && (
+        {workspaceError ? (
+          <main className="flex-grow min-w-0 p-4 sm:p-6 lg:p-8 flex items-center justify-center bg-dominant-offset/10">
+            <div className="max-w-md w-full bg-card-secondary border border-red-500/20 p-8 rounded-xl shadow-xl text-center space-y-6">
+              <div className="w-16 h-16 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m0-8v6m0 5h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-text-secondary">Workspace Access Denied</h3>
+                <p className="text-xs text-text-secondary-muted leading-relaxed">
+                  {workspaceError}
+                </p>
+              </div>
+              <div className="p-4 bg-dominant rounded-lg text-left text-xs text-text-secondary-muted border border-border-secondary/40 space-y-2">
+                <p className="font-semibold text-text-secondary">What can you do?</p>
+                <ul className="list-disc pl-4 space-y-1">
+                  <li>Use the active workspace switcher in the sidebar to load another project.</li>
+                  <li>Ask the project administrator to adjust your permissions or membership roles.</li>
+                  <li>Or sign out and sign in using a different account.</li>
+                </ul>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={onLogout}
+                  className="w-full py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg text-xs font-bold transition-all cursor-pointer border-none"
+                >
+                  Sign Out of Account
+                </button>
+              </div>
+            </div>
+          </main>
+        ) : (
+          <>
+            {/* sticky Global Filter Bar */}
+            {(activeTab === 'board' || activeTab === 'foryou' || activeTab === 'roadmap') && (
           <div className="sticky top-[104px] lg:top-[64px] z-20 bg-card-secondary border-b border-border-secondary/40 px-4 sm:px-6 lg:px-8 py-2 flex flex-col transition-colors duration-300 w-full">
             
             {/* Desktop / Laptop Inline Filter Panel (>=1024px) */}
@@ -3808,6 +3844,8 @@ export default function Dashboard() {
           )}
 
         </main>
+        </>
+        )}
       </div>
 
       {/* 3. Create Issue Dialog Modal */}

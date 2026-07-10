@@ -16,6 +16,7 @@ export const useWorkspaceStore = create((set, get) => {
     workspaces: [],
     activeWorkspace: getInitialActiveWorkspace(),
     isLoadingWorkspaces: false,
+    workspaceError: null,
 
     setWorkspaces: (workspaces) => set({ workspaces }),
     
@@ -38,16 +39,27 @@ export const useWorkspaceStore = create((set, get) => {
             'Authorization': token ? `Bearer ${token}` : ''
           }
         });
-        if (response.status === 401 || response.status === 403) {
+        if (response.status === 401) {
           useAuthStore.getState().logout();
           if (onViewChange) onViewChange('/auth');
-          set({ isLoadingWorkspaces: false });
+          set({ isLoadingWorkspaces: false, workspaceError: null });
+          return;
+        }
+        if (response.status === 403) {
+          const resJson = await response.json();
+          const message = resJson.message || '';
+          if (message.toLowerCase().includes('token') || message.toLowerCase().includes('expired') || message.toLowerCase().includes('session')) {
+            useAuthStore.getState().logout();
+            if (onViewChange) onViewChange('/auth');
+          } else {
+            set({ workspaceError: message || 'Forbidden. Access to this workspace is denied.', isLoadingWorkspaces: false });
+          }
           return;
         }
         if (response.ok) {
           const resJson = await response.json();
           const workspacesList = Array.isArray(resJson.data) ? resJson.data : (Array.isArray(resJson) ? resJson : []);
-          set({ workspaces: workspacesList, isLoadingWorkspaces: false });
+          set({ workspaces: workspacesList, isLoadingWorkspaces: false, workspaceError: null });
 
           if (!currentUser.hasConfiguredWorkspace) {
             if (onViewChange) onViewChange('/workspace-setup');
