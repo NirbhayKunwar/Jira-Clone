@@ -248,6 +248,8 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         if (btnElement) {
           const isDark = document.documentElement.classList.contains('dark') || 
                          document.documentElement.getAttribute('data-theme')?.includes('dark');
+          // Constraint width to prevent layout overflow on narrow mobile screens (e.g. 320px)
+          const targetWidth = Math.min(btnElement.offsetWidth || 380, window.innerWidth - 32);
           window.google.accounts.id.renderButton(
             btnElement,
             { 
@@ -255,7 +257,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
               size: "large",
               text: "signin_with",
               shape: "rectangular",
-              width: btnElement.offsetWidth || 380
+              width: targetWidth >= 200 ? targetWidth : 280
             }
           );
         }
@@ -279,7 +281,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
   }, [view, handleCredentialResponse]);
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-dominant transition-colors duration-300 overflow-hidden">
+    <div className="min-h-[100dvh] relative flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8 bg-dominant transition-colors duration-300 overflow-y-auto">
       <div className="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none -z-20" />
 
       {/* Floating Header Actions (Back button) */}
@@ -294,7 +296,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       </div>
 
       {/* Auth Main Card */}
-      <div className="w-full max-w-md z-10 transition-all duration-300 transform scale-100 opacity-100">
+      <div className="w-full max-w-md z-10 transition-all duration-300 transform scale-100 opacity-100 my-auto py-8">
         <div className="bg-card-secondary p-8 rounded-2xl border border-border-secondary/60 shadow-xl relative overflow-hidden">
           
           {/* Top Decorative accent border */}
@@ -364,7 +366,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@company.com"
                       disabled={loading}
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
                     />
                   </div>
                 </div>
@@ -376,13 +378,15 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                     <input
                       id="otp-code"
                       type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       required
                       maxLength="6"
                       value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
                       placeholder="Enter 6-digit code"
                       disabled={loading}
-                      className="block w-full px-3 py-2.5 text-center text-sm font-mono tracking-widest font-bold rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                      className="block w-full px-3 py-2.5 text-center text-sm font-mono tracking-widest font-bold rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
                     />
                   </div>
 
@@ -400,7 +404,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Configure new password"
                         disabled={loading}
-                        className="block w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                        className="block w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
                       />
                       <button
                         type="button"
@@ -431,7 +435,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                         placeholder="John Doe"
                         autoComplete="name"
                         disabled={loading || googleLoading}
-                        className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                        className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
                       />
                     </div>
                   </div>
@@ -452,7 +456,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                       placeholder="you@company.com"
                       autoComplete="username"
                       disabled={loading || googleLoading}
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
                     />
                   </div>
                 </div>
@@ -490,7 +494,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                       placeholder="••••••••"
                       autoComplete={view === 'login' ? 'current-password' : 'new-password'}
                       disabled={loading || googleLoading}
-                      className="block w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
+                      className="block w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
                     />
                     <button
                       type="button"
@@ -569,7 +573,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent shadow-sm disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                  className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent shadow-sm disabled:opacity-50 disabled:pointer-events-none cursor-pointer min-h-[44px]"
                 >
                   {loading ? (
                     <>
@@ -605,7 +609,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
               <button
                 type="submit"
                 disabled={loading || googleLoading}
-                className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent shadow-sm disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent shadow-sm disabled:opacity-50 disabled:pointer-events-none cursor-pointer min-h-[44px]"
               >
                 {loading ? (
                   <>
