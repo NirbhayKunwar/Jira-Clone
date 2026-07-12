@@ -1,5 +1,18 @@
+import { z } from 'zod';
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
+import logger from '../config/logger.js';
+
+// Request Validation Schemas
+const createWorkspaceSchema = z.object({
+  name: z.string().min(1, 'Workspace name is required'),
+  key: z.string().regex(/^[A-Z][A-Z0-9]{1,9}$/, 'Project key must start with a letter and consist of 2 to 10 alphanumeric characters'),
+  template_type: z.enum(['scrum', 'kanban']),
+  board_name: z.string().optional(),
+  description: z.string().optional(),
+  sprint_duration: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseInt(val) : val).optional(),
+  wip_limit: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseInt(val) : val).optional()
+});
 
 // Get all workspaces (scoped to user ownership or team membership)
 export const getWorkspaces = asyncHandler(async (req, res, next) => {
@@ -8,14 +21,12 @@ export const getWorkspaces = asyncHandler(async (req, res, next) => {
     return next(new AppError('Unauthorized. Session user not found.', 401));
   }
 
-  // Get user details to check if they belong to a team - check token cache first!
   let teamOwnerId = req.user ? req.user.teamOwnerId : null;
   if (teamOwnerId === undefined) {
     teamOwnerId = null;
   }
 
-  // Database fallback if token does not have teamOwnerId cached
-  if (teamOwnerId === null && prisma.user && typeof prisma.user.findUnique === 'function') {
+  if (teamOwnerId === null) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { teamOwnerId: true }
@@ -66,17 +77,14 @@ export const getWorkspaceById = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  // BOLA authorization check (allow owner and team members of owner)
   if (w.ownerId && w.ownerId !== req.user.id) {
     let authorized = false;
-    if (prisma.user && typeof prisma.user.findUnique === 'function') {
-      const user = await prisma.user.findUnique({
-        where: { id: req.user.id },
-        select: { teamOwnerId: true }
-      });
-      if (user && user.teamOwnerId === w.ownerId) {
-        authorized = true;
-      }
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { teamOwnerId: true }
+    });
+    if (user && user.teamOwnerId === w.ownerId) {
+      authorized = true;
     }
     if (!authorized) {
       return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
@@ -100,20 +108,10 @@ export const getWorkspaceById = asyncHandler(async (req, res, next) => {
 
 // Create a new workspace (linked to owner)
 export const createWorkspace = asyncHandler(async (req, res, next) => {
-  const { name, key, template_type, board_name, description, sprint_duration, wip_limit } = req.body;
-
-  if (!name || !name.trim()) {
-    return next(new AppError('Workspace name is required.', 400));
-  }
+  const body = createWorkspaceSchema.parse(req.body);
+  const { name, key, template_type, board_name, description, sprint_duration, wip_limit } = body;
   const normalizedKey = key.toUpperCase().trim();
-  if (!/^[A-Z][A-Z0-9]{1,9}$/.test(normalizedKey)) {
-    return next(new AppError('Project key must start with a letter and consist of 2 to 10 alphanumeric characters.', 400));
-  }
-  if (!template_type) {
-    return next(new AppError('Workspace template type (scrum or kanban) is required.', 400));
-  }
 
-  // Create workspace with owner ID
   try {
     const w = await prisma.workspace.create({
       data: {
@@ -128,7 +126,7 @@ export const createWorkspace = asyncHandler(async (req, res, next) => {
       }
     });
 
-    console.log(`[WORKSPACE SERVICE] Created workspace via Prisma: ${w.name} (${w.key})`);
+    logger.info(`[WORKSPACE SERVICE] Created workspace via Prisma: ${w.name} (${w.key})`);
 
     const mapped = {
       id: w.id.toString(),
@@ -167,7 +165,6 @@ export const deleteWorkspace = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  // BOLA authorization check
   if (w.ownerId && w.ownerId !== req.user.id) {
     return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
   }
@@ -176,6 +173,7 @@ export const deleteWorkspace = asyncHandler(async (req, res, next) => {
     where: { id: workspaceId }
   });
 
-  console.log(`[WORKSPACE SERVICE] Deleted workspace ${id} and all cascading tasks via Prisma.`);
-  return res.status(200).json({ success: true, message: 'Workspace and its tasks deleted successfully.' });
+  logger.info(`[WORKSPACE SERVICE] Deleted workspace ${id} and all cascading tasks via Prisma.`);
+  return res.status(200).json({ success: true, message: 'Workspace and its tasks deleted successfully.', data: null });
 });
+

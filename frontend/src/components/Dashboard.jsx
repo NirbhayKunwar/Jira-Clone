@@ -127,8 +127,10 @@ function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview
           )}
           
           {/* Avatar */}
-          <div className="w-6 h-6 rounded-full bg-dominant-offset text-[9px] font-bold flex items-center justify-center border border-border-secondary" title={`Assignee: ${task.assignee}`}>
-            {(task.assignee || 'You').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+          <div className={`w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center border border-border-secondary ${task.assignee ? 'bg-dominant-offset text-text-secondary' : 'bg-red-50/10 text-text-secondary-muted'}`} title={`Assignee: ${task.assignee || 'Unassigned'}`}>
+            {task.assignee 
+              ? task.assignee.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+              : 'U'}
           </div>
         </div>
 
@@ -3918,8 +3920,10 @@ export default function Dashboard() {
                     onChange={(e) => setNewAssignee(e.target.value)}
                     className="block w-full px-3 py-2 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
                   >
+                    <option value="You">You (Default)</option>
+                    <option value="">Unassigned</option>
                     {teamMembers.map(member => (
-                      <option key={member.email} value={member.name}>
+                      <option key={member.id} value={member.id}>
                         {member.name} (@{member.email ? member.email.split('@')[0] : 'user'}) ({member.role})
                       </option>
                     ))}

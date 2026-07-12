@@ -1,19 +1,14 @@
-import winston from 'winston';
+import pino from 'pino';
 
-const logger = winston.createLogger({
-  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console({
-      format: winston.format.combine(
-        winston.format.colorize(),
-        winston.format.simple()
-      )
-    })
-  ]
+const logger = pino({
+  level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+  formatters: {
+    level: (label) => {
+      return { level: label.toUpperCase() };
+    },
+  },
+  timestamp: pino.stdTimeFunctions.isoTime,
 });
 
 export default logger;
+

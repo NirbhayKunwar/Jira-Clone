@@ -1,6 +1,27 @@
+import { z } from 'zod';
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 import { addNotification } from './authController.js';
+import logger from '../config/logger.js';
+
+// Request Validation Schemas
+const createGoalSchema = z.object({
+  title: z.string().min(1, 'Goal title is required'),
+  desc: z.string().optional(),
+  owner: z.string().optional(),
+  targetDate: z.string().optional(),
+  progress: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseInt(val) : val).optional(),
+  status: z.string().optional()
+});
+
+const updateGoalSchema = z.object({
+  title: z.string().min(1).optional(),
+  desc: z.string().optional(),
+  owner: z.string().optional(),
+  targetDate: z.string().optional(),
+  progress: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseInt(val) : val).optional(),
+  status: z.string().optional()
+});
 
 // Get all goals (scoped to user)
 export const getGoals = asyncHandler(async (req, res, next) => {
@@ -9,13 +30,11 @@ export const getGoals = asyncHandler(async (req, res, next) => {
     return next(new AppError('Unauthorized.', 401));
   }
 
-  // Get user details to check if they belong to a team - check token cache first!
   let teamOwnerId = req.user ? req.user.teamOwnerId : null;
   if (teamOwnerId === undefined) {
     teamOwnerId = null;
   }
 
-  // Database fallback if token does not have teamOwnerId cached
   if (teamOwnerId === null && prisma.user && typeof prisma.user.findUnique === 'function') {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -51,12 +70,9 @@ export const getGoals = asyncHandler(async (req, res, next) => {
 
 // Create a goal (linked to user)
 export const createGoal = asyncHandler(async (req, res, next) => {
-  const { title, desc, owner, targetDate, progress, status } = req.body;
+  const body = createGoalSchema.parse(req.body);
+  const { title, desc, owner, targetDate, progress, status } = body;
   const userId = req.user ? req.user.id : null;
-
-  if (!title || !title.trim()) {
-    return next(new AppError('Goal title is required.', 400));
-  }
 
   const g = await prisma.goal.create({
     data: {
@@ -64,7 +80,7 @@ export const createGoal = asyncHandler(async (req, res, next) => {
       descText: desc || '',
       owner: owner || 'You',
       targetDate: targetDate || '',
-      progress: progress !== undefined ? parseInt(progress) : 0,
+      progress: progress || 0,
       status: status || 'on_track',
       ownerId: userId
     }
@@ -80,7 +96,9 @@ export const createGoal = asyncHandler(async (req, res, next) => {
     status: g.status
   };
 
-  addNotification(`New epic/goal "${g.title}" was created.`, 'goal');
+  logger.info(`[GOAL SERVICE] Created new goal: ${g.title}`);
+
+  await addNotification(`New epic/goal "${g.title}" was created.`, 'goal', req.user.id);
 
   return res.status(201).json({ success: true, message: 'Goal created successfully.', data: mapped });
 });
@@ -88,7 +106,8 @@ export const createGoal = asyncHandler(async (req, res, next) => {
 // Update a goal (verify ownership)
 export const updateGoal = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { progress, status, title, desc, owner, targetDate } = req.body;
+  const body = updateGoalSchema.parse(req.body);
+  const { progress, status, title, desc, owner, targetDate } = body;
 
   if (!/^[0-9a-fA-F]{24}$/.test(id)) {
     return next(new AppError('Invalid goal ID format.', 400));
@@ -108,7 +127,7 @@ export const updateGoal = asyncHandler(async (req, res, next) => {
   }
 
   const updateData = {};
-  if (progress !== undefined) updateData.progress = parseInt(progress);
+  if (progress !== undefined) updateData.progress = progress;
   if (status !== undefined) updateData.status = status;
   if (title !== undefined) updateData.title = title;
   if (desc !== undefined) updateData.descText = desc;
@@ -130,7 +149,9 @@ export const updateGoal = asyncHandler(async (req, res, next) => {
     status: g.status
   };
 
-  addNotification(`Epic/goal "${g.title}" progress updated to ${g.progress}%.`, 'goal');
+  logger.info(`[GOAL SERVICE] Updated goal progress for: ${g.title}`);
+
+  await addNotification(`Epic/goal "${g.title}" progress updated to ${g.progress}%.`, 'goal', req.user.id);
 
   return res.status(200).json({ success: true, message: 'Goal updated successfully.', data: mapped });
 });
@@ -160,7 +181,11 @@ export const deleteGoal = asyncHandler(async (req, res, next) => {
     where: { id: goalId }
   });
 
-  addNotification(`Epic/goal "${goalCheck.title}" was deleted.`, 'goal');
+  logger.info(`[GOAL SERVICE] Deleted goal: ${goalCheck.title}`);
 
-  return res.status(200).json({ success: true, message: 'Goal deleted successfully.' });
+  await addNotification(`Epic/goal "${goalCheck.title}" was deleted.`, 'goal', req.user.id);
+
+  return res.status(200).json({ success: true, message: 'Goal deleted successfully.', data: null });
 });
+
+

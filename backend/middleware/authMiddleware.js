@@ -12,7 +12,7 @@ const getJwtSecret = () => {
   return secret;
 };
 
-export const verifyToken = (req, res, next) => {
+export const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   // Read token from secure HttpOnly cookies or Authorization header
   const token = req.cookies?.jira_token || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null);
@@ -24,6 +24,16 @@ export const verifyToken = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, getJwtSecret());
     req.user = decoded;
+    
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { tokenVersion: true }
+    });
+
+    if (!user || user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ success: false, message: 'Session expired or password changed. Please log in again.' });
+    }
+
     next();
   } catch (error) {
     return res.status(403).json({ success: false, message: 'Invalid or expired token.' });

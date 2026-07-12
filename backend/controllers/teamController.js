@@ -1,6 +1,21 @@
+import { z } from 'zod';
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 import { addNotification } from './authController.js';
+import logger from '../config/logger.js';
+
+// Request Validation Schemas
+const createTeamSchema = z.object({
+  name: z.string().min(1, 'Team name is required'),
+  desc: z.string().optional(),
+  members: z.array(z.string()).optional()
+});
+
+const updateTeamSchema = z.object({
+  name: z.string().min(1).optional(),
+  desc: z.string().optional(),
+  members: z.array(z.string()).optional()
+});
 
 // Get all teams (scoped to user)
 export const getTeams = asyncHandler(async (req, res, next) => {
@@ -9,13 +24,11 @@ export const getTeams = asyncHandler(async (req, res, next) => {
     return next(new AppError('Unauthorized.', 401));
   }
 
-  // Get user details to check if they belong to a team - check token cache first!
   let teamOwnerId = req.user ? req.user.teamOwnerId : null;
   if (teamOwnerId === undefined) {
     teamOwnerId = null;
   }
 
-  // Database fallback if token does not have teamOwnerId cached
   if (teamOwnerId === null && prisma.user && typeof prisma.user.findUnique === 'function') {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -56,12 +69,9 @@ export const getTeams = asyncHandler(async (req, res, next) => {
 
 // Create a team (linked to owner)
 export const createTeam = asyncHandler(async (req, res, next) => {
-  const { name, desc, members } = req.body;
+  const body = createTeamSchema.parse(req.body);
+  const { name, desc, members } = body;
   const userId = req.user ? req.user.id : null;
-
-  if (!name || !name.trim()) {
-    return next(new AppError('Team name is required.', 400));
-  }
 
   const t = await prisma.team.create({
     data: {
@@ -86,7 +96,9 @@ export const createTeam = asyncHandler(async (req, res, next) => {
     members: resolvedMembers
   };
 
-  addNotification(`Custom team "${name.trim()}" was created.`, 'team');
+  logger.info(`[TEAM SERVICE] Created new team: ${t.name}`);
+
+  await addNotification(`Custom team "${name.trim()}" was created.`, 'team', req.user.id);
 
   return res.status(201).json({ success: true, message: 'Team created successfully.', data: mapped });
 });
@@ -94,7 +106,8 @@ export const createTeam = asyncHandler(async (req, res, next) => {
 // Update a team (verify ownership)
 export const updateTeam = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { name, desc, members } = req.body;
+  const body = updateTeamSchema.parse(req.body);
+  const { name, desc, members } = body;
 
   if (!/^[0-9a-fA-F]{24}$/.test(id)) {
     return next(new AppError('Invalid team ID format.', 400));
@@ -137,7 +150,9 @@ export const updateTeam = asyncHandler(async (req, res, next) => {
     members: resolvedMembers
   };
 
-  addNotification(`Custom team "${name ? name.trim() : teamCheck.name}" details were updated.`, 'team');
+  logger.info(`[TEAM SERVICE] Updated team details for: ${t.name}`);
+
+  await addNotification(`Custom team "${name ? name.trim() : teamCheck.name}" details were updated.`, 'team', req.user.id);
 
   return res.status(200).json({ success: true, message: 'Team updated successfully.', data: mapped });
 });
@@ -167,7 +182,11 @@ export const deleteTeam = asyncHandler(async (req, res, next) => {
     where: { id: teamId }
   });
 
-  addNotification(`Custom team "${teamCheck.name}" was deleted.`, 'team');
+  logger.info(`[TEAM SERVICE] Deleted team: ${teamCheck.name}`);
 
-  return res.status(200).json({ success: true, message: 'Team deleted successfully.' });
+  await addNotification(`Custom team "${teamCheck.name}" was deleted.`, 'team', req.user.id);
+
+  return res.status(200).json({ success: true, message: 'Team deleted successfully.', data: null });
 });
+
+

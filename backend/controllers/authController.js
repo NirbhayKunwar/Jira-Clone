@@ -2,45 +2,125 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import { z } from 'zod';
 import prisma from '../config/prisma.js';
+import logger from '../config/logger.js';
 
-// In-memory store for OTPs: { email: { code, expiresAt } }
-const otps = {};
+// Request Validation Schemas
+const signUpSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters long'),
+  invitedBy: z.string().optional()
+});
 
-// In-memory notifications store
-if (!global.notifications) {
-  global.notifications = [
-    { id: 'init-1', text: 'Jira Workspace Initialized successfully.', createdAt: new Date().toISOString(), type: 'info' }
-  ];
-}
+const signInSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string()
+});
 
-export const addNotification = (text, type = 'info') => {
-  const newNotification = {
-    id: Math.random().toString(36).substring(2, 9),
-    text,
-    createdAt: new Date().toISOString(),
-    type
-  };
-  global.notifications = [newNotification, ...global.notifications].slice(0, 50);
+const sendOtpSchema = z.object({
+  email: z.string().email('Invalid email address')
+});
+
+const changePasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  otp: z.string(),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters long')
+});
+
+const googleSignInSchema = z.object({
+  credential: z.string()
+});
+
+const updateProfileSchema = z.object({
+  name: z.string().min(1, 'Name cannot be empty'),
+  role: z.string().optional(),
+  dept: z.string().optional(),
+  location: z.string().optional(),
+  githubUrl: z.string().optional(),
+  linkedinUrl: z.string().optional(),
+  websiteUrl: z.string().optional(),
+  otherLinks: z.string().optional(),
+  hasConfiguredWorkspace: z.boolean().optional()
+});
+
+export const addNotification = async (text, type = 'info', userId = null) => {
+  try {
+    const notif = await prisma.notification.create({
+      data: {
+        message: text,
+        type,
+        userId
+      }
+    });
+    logger.info(`[NOTIFICATION] Notification created: ${text}`);
+    return notif;
+  } catch (error) {
+    logger.error('[NOTIFICATION ERROR] Failed to create notification:', error);
+    return null;
+  }
 };
 
 export const getNotifications = async (req, res) => {
   try {
-    return res.status(200).json({ success: true, data: global.notifications });
+    const userId = req.user ? req.user.id : null;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+
+    const notifications = await prisma.notification.findMany({
+      where: {
+        deleted: false,
+        OR: [
+          { userId },
+          { userId: null }
+        ]
+      },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: limit
+    });
+
+    return res.status(200).json({ success: true, data: notifications });
   } catch (error) {
-    return res.status(500).json({ success: false, message: 'Failed to fetch notifications.' });
+    logger.error('Failed to fetch notifications:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch notifications.', data: null });
   }
 };
 
-// Periodically clean up expired OTPs every hour to prevent memory leaks
-setInterval(() => {
-  const now = Date.now();
-  for (const email in otps) {
-    if (otps[email] && otps[email].expiresAt < now) {
-      delete otps[email];
+export const deleteNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid notification ID format.', data: null });
     }
+
+    const notif = await prisma.notification.findUnique({
+      where: { id }
+    });
+
+    if (!notif) {
+      return res.status(404).json({ success: false, message: 'Notification not found.', data: null });
+    }
+
+    if (notif.userId && notif.userId !== req.user.id) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Access to this notification is denied.', data: null });
+    }
+
+    await prisma.notification.update({
+      where: { id },
+      data: {
+        deleted: true,
+        deletedAt: new Date()
+      }
+    });
+
+    return res.status(200).json({ success: true, message: 'Notification deleted successfully.', data: null });
+  } catch (error) {
+    logger.error('Failed to delete notification:', error);
+    return res.status(500).json({ success: false, message: 'Failed to delete notification.', data: null });
   }
-}, 60 * 60 * 1000);
+};
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
@@ -100,13 +180,7 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword,
   };
 
   if (isMockMode) {
-    console.log(`\n==================================================`);
-    console.log(`[INVITE SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)`);
-    console.log(`TEAM INVITE FOR ${to}`);
-    console.log(`Invited by: ${invitedByName || 'Your team admin'}`);
-    console.log(`Profile/Signup URL: ${inviteUrl}`);
-    if (temporaryPassword) console.log(`Temporary password: ${temporaryPassword}`);
-    console.log(`==================================================\n`);
+    logger.info(`\n==================================================\n[INVITE SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)\nTEAM INVITE FOR ${to}\nInvited by: ${invitedByName || 'Your team admin'}\nProfile/Signup URL: ${inviteUrl}\n${temporaryPassword ? `Temporary password: ${temporaryPassword}` : ''}\n==================================================\n`);
     return inviteData;
   }
 
@@ -162,46 +236,43 @@ const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword,
   };
 
   await transporter.sendMail(mailOptions);
-  console.log(`[INVITE SERVICE] Invite successfully sent via email to: ${to}`);
+  logger.info(`[INVITE SERVICE] Invite successfully sent via email to: ${to}`);
   return inviteData;
 };
 
-// Helper to generate access and refresh tokens, set cookies, and send response
 const sendTokens = (res, user, statusCode, message) => {
   const accessToken = jwt.sign(
-    { id: user.id, email: user.email, teamOwnerId: user.teamOwnerId },
+    { id: user.id, email: user.email, teamOwnerId: user.teamOwnerId, tokenVersion: user.tokenVersion },
     getJwtSecret(),
-    { expiresIn: '15m' } // 15 minutes access token
+    { expiresIn: '15m' }
   );
 
   const refreshToken = jwt.sign(
-    { id: user.id, email: user.email, teamOwnerId: user.teamOwnerId },
+    { id: user.id, email: user.email, teamOwnerId: user.teamOwnerId, tokenVersion: user.tokenVersion },
     getJwtRefreshSecret(),
-    { expiresIn: '7d' } // 7 days refresh token
+    { expiresIn: '7d' }
   );
 
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // Set access token cookie
   res.cookie('jira_token', accessToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 15 * 60 * 1000 // 15 mins
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 15 * 60 * 1000
   });
 
-  // Set refresh token cookie
   res.cookie('jira_refresh_token', refreshToken, {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'strict' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
   return res.status(statusCode).json({
     success: true,
     message,
-    token: accessToken, // Backward compatibility for headers-based clients
+    token: accessToken,
     user: {
       id: user.id.toString(),
       name: user.name,
@@ -221,12 +292,8 @@ const sendTokens = (res, user, statusCode, message) => {
 
 export const signUp = async (req, res) => {
   try {
-    const { name, email, password, invitedBy } = req.body;
-
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'All fields (name, email, password) are required.' });
-    }
-
+    const body = signUpSchema.parse(req.body);
+    const { name, email, password, invitedBy } = body;
     const normalizedEmail = email.toLowerCase();
 
     const userCheck = await prisma.user.findUnique({
@@ -243,13 +310,15 @@ export const signUp = async (req, res) => {
           data: {
             name: name,
             password: hashedPassword,
-            otherLinks: ''
+            otherLinks: '',
+            authProvider: 'LOCAL'
           }
         });
         
+        await addNotification(`Team member ${updatedUser.name} registered and activated their profile.`, 'member', updatedUser.id);
         return sendTokens(res, updatedUser, 201, 'User registered successfully.');
       }
-      return res.status(400).json({ success: false, message: 'A user with this email address already exists.' });
+      return res.status(400).json({ success: false, message: 'A user with this email address already exists.', data: null });
     }
 
     let teamOwnerId = null;
@@ -274,25 +343,26 @@ export const signUp = async (req, res) => {
         name,
         email: normalizedEmail,
         password: hashedPassword,
-        teamOwnerId
+        teamOwnerId,
+        authProvider: 'LOCAL'
       }
     });
 
+    await addNotification(`User ${newUser.name} registered successfully.`, 'member', newUser.id);
     return sendTokens(res, newUser, 201, 'User registered successfully.');
   } catch (error) {
-    console.error('Sign Up Error:', error);
-    return res.status(500).json({ success: false, message: 'Internal Server Error during registration.' });
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: error.issues?.[0]?.message || 'Validation error', data: null });
+    }
+    logger.error('Sign Up Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error during registration.', data: null });
   }
 };
 
 export const signIn = async (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required.' });
-    }
-
+    const body = signInSchema.parse(req.body);
+    const { email, password } = body;
     const normalizedEmail = email.toLowerCase();
 
     const user = await prisma.user.findUnique({
@@ -300,18 +370,25 @@ export const signIn = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+      return res.status(401).json({ success: false, message: 'Invalid email or password.', data: null });
+    }
+
+    if (user.authProvider !== 'LOCAL' || !user.password) {
+      return res.status(403).json({ success: false, message: 'This account uses Google SSO. Please sign in via Google.', data: null });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+      return res.status(401).json({ success: false, message: 'Invalid email or password.', data: null });
     }
 
     return sendTokens(res, user, 200, 'Logged in successfully.');
   } catch (error) {
-    console.error('Sign In Error:', error);
-    return res.status(500).json({ success: false, message: 'Internal Server Error during authentication.' });
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: error.issues?.[0]?.message || 'Validation error', data: null });
+    }
+    logger.error('Sign In Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error during authentication.', data: null });
   }
 };
 
@@ -321,11 +398,12 @@ export const signOut = async (req, res) => {
     res.clearCookie('jira_refresh_token');
     return res.status(200).json({
       success: true,
-      message: 'Signed out successfully.'
+      message: 'Signed out successfully.',
+      data: null
     });
   } catch (error) {
-    console.error('Sign Out Error:', error);
-    return res.status(500).json({ success: false, message: 'Internal Server Error during sign out.' });
+    logger.error('Sign Out Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error during sign out.', data: null });
   }
 };
 
@@ -333,7 +411,7 @@ export const refreshTokens = async (req, res) => {
   const refreshToken = req.cookies?.jira_refresh_token;
 
   if (!refreshToken) {
-    return res.status(401).json({ success: false, message: 'Refresh token not provided.' });
+    return res.status(401).json({ success: false, message: 'Refresh token not provided.', data: null });
   }
 
   try {
@@ -344,73 +422,109 @@ export const refreshTokens = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'User does not exist.' });
+      return res.status(401).json({ success: false, message: 'User does not exist.', data: null });
     }
 
+    if (user.tokenVersion !== decoded.tokenVersion) {
+      return res.status(401).json({ success: false, message: 'Session expired. Please sign in again.', data: null });
+    }
+
+    // Refresh Token Rotation (RTR): Increment tokenVersion on every rotation
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        tokenVersion: { increment: 1 }
+      }
+    });
+
     const newAccessToken = jwt.sign(
-      { id: user.id, email: user.email },
+      { id: updatedUser.id, email: updatedUser.email, teamOwnerId: updatedUser.teamOwnerId, tokenVersion: updatedUser.tokenVersion },
       getJwtSecret(),
       { expiresIn: '15m' }
+    );
+
+    const newRefreshToken = jwt.sign(
+      { id: updatedUser.id, email: updatedUser.email, teamOwnerId: updatedUser.teamOwnerId, tokenVersion: updatedUser.tokenVersion },
+      getJwtRefreshSecret(),
+      { expiresIn: '7d' }
     );
 
     const isProduction = process.env.NODE_ENV === 'production';
     res.cookie('jira_token', newAccessToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: isProduction ? 'strict' : 'lax',
-      maxAge: 15 * 60 * 1000 // 15 mins
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000
+    });
+
+    res.cookie('jira_refresh_token', newRefreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
     return res.status(200).json({
       success: true,
       message: 'Token refreshed successfully.',
-      token: newAccessToken
+      token: newAccessToken,
+      data: {
+        token: newAccessToken
+      }
     });
   } catch (error) {
-    return res.status(403).json({ success: false, message: 'Invalid or expired refresh token.' });
+    logger.warn('[RTR] Refresh token rotated or invalidated.');
+    return res.status(403).json({ success: false, message: 'Invalid or expired refresh token.', data: null });
   }
 };
 
 export const sendOtp = async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Email is required.' });
-    }
-
+    const body = sendOtpSchema.parse(req.body);
+    const { email } = body;
     const normalizedEmail = email.toLowerCase();
     
-    const { emailUser, emailPass, isMockMode } = getEmailConfig();
+    // Automatically remove expired records
+    await prisma.otpCode.deleteMany({
+      where: { expiresAt: { lt: new Date() } }
+    });
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
     
-    otps[normalizedEmail] = {
-      code: hashedCode,
-      expiresAt: Date.now() + 5 * 60 * 1000 // 5 minutes
-    };
+    await prisma.otpCode.upsert({
+      where: { email: normalizedEmail },
+      update: {
+        code: hashedCode,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+      },
+      create: {
+        email: normalizedEmail,
+        code: hashedCode,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+      }
+    });
 
     const userCheck = await prisma.user.findUnique({
       where: { email: normalizedEmail }
     });
 
     if (!userCheck) {
-      return res.status(404).json({ success: false, message: 'No account registered with this email address.' });
+      return res.status(404).json({ success: false, message: 'No account registered with this email address.', data: null });
     }
 
+    const { emailUser, emailPass, isMockMode } = getEmailConfig();
+
     if (isMockMode) {
-      console.log(`\n==================================================`);
-      console.log(`[OTP SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)`);
-      console.log(`RESET PASSWORD OTP FOR ${normalizedEmail}: ${code}`);
-      console.log(`==================================================\n`);
+      logger.info(`\n==================================================\n[OTP SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)\nRESET PASSWORD OTP FOR ${normalizedEmail}: ${code}\n==================================================\n`);
       return res.status(200).json({ 
         success: true,
-        message: 'OTP generated in mock mode. Please check backend server console.'
+        message: 'OTP generated in mock mode. Please check backend server console.',
+        data: null
       });
     }
 
     const transporter = createGmailTransporter(emailUser, emailPass);
-
     const mailOptions = {
       from: emailUser,
       to: normalizedEmail,
@@ -432,42 +546,40 @@ export const sendOtp = async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(`[OTP SERVICE] OTP successfully sent via email to: ${normalizedEmail}`);
+    logger.info(`[OTP SERVICE] OTP successfully sent via email to: ${normalizedEmail}`);
 
-    return res.status(200).json({ success: true, message: 'OTP sent successfully.' });
+    return res.status(200).json({ success: true, message: 'OTP sent successfully.', data: null });
   } catch (error) {
-    console.error('Send OTP Error:', error);
-    return res.status(500).json({ success: false, message: 'Internal Server Error while sending OTP.' });
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: error.issues?.[0]?.message || 'Validation error', data: null });
+    }
+    logger.error('Send OTP Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error while sending OTP.', data: null });
   }
 };
 
 export const changePassword = async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body;
-
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Email, OTP, and new password are required.' });
-    }
-
+    const body = changePasswordSchema.parse(req.body);
+    const { email, otp, newPassword } = body;
     const normalizedEmail = email.toLowerCase();
-    const otpData = otps[normalizedEmail];
+
+    // Clean up expired OTPs first
+    await prisma.otpCode.deleteMany({
+      where: { expiresAt: { lt: new Date() } }
+    });
+
+    const otpData = await prisma.otpCode.findUnique({
+      where: { email: normalizedEmail }
+    });
 
     if (!otpData) {
-      return res.status(400).json({ success: false, message: 'No OTP requested for this email. Please request a new code.' });
-    }
-
-    if (Date.now() > otpData.expiresAt) {
-      delete otps[normalizedEmail];
-      return res.status(400).json({ success: false, message: 'OTP has expired. Please request a new code.' });
+      return res.status(400).json({ success: false, message: 'No OTP requested for this email. Please request a new code.', data: null });
     }
 
     const inputHashed = crypto.createHash('sha256').update(otp).digest('hex');
     if (otpData.code !== inputHashed) {
-      return res.status(400).json({ success: false, message: 'Invalid OTP code.' });
-    }
-
-    if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: 'New Password must be at least 6 characters long.' });
+      return res.status(400).json({ success: false, message: 'Invalid OTP code.', data: null });
     }
 
     const userCheck = await prisma.user.findUnique({
@@ -475,25 +587,34 @@ export const changePassword = async (req, res) => {
     });
     
     if (!userCheck) {
-      return res.status(404).json({ success: false, message: 'User profile not found.' });
+      return res.status(404).json({ success: false, message: 'User profile not found.', data: null });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-    await prisma.user.update({
-      where: { email: normalizedEmail },
-      data: { password: hashedPassword }
-    });
+    // Prisma Transaction wrapping database updates
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { email: normalizedEmail },
+        data: {
+          password: hashedPassword,
+          tokenVersion: { increment: 1 }
+        }
+      }),
+      prisma.otpCode.delete({
+        where: { email: normalizedEmail }
+      })
+    ]);
 
-    delete otps[normalizedEmail];
-
-    console.log(`[OTP SERVICE] Password successfully changed for ${normalizedEmail}`);
-
-    return res.status(200).json({ success: true, message: 'Password updated successfully.' });
+    logger.info(`[OTP SERVICE] Password successfully changed and tokens invalidated for ${normalizedEmail}`);
+    return res.status(200).json({ success: true, message: 'Password updated successfully.', data: null });
   } catch (error) {
-    console.error('Change Password Error:', error);
-    return res.status(500).json({ success: false, message: 'Internal Server Error while changing password.' });
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: error.issues?.[0]?.message || 'Validation error', data: null });
+    }
+    logger.error('Change Password Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error while changing password.', data: null });
   }
 };
 
@@ -502,10 +623,12 @@ export const updateProfile = async (req, res) => {
     const { name, role, dept, location, hasConfiguredWorkspace, githubUrl, linkedinUrl, websiteUrl, otherLinks } = req.body;
 
     if (!req.user || !req.user.email) {
-      return res.status(401).json({ success: false, message: 'Unauthorized. Invalid session.' });
+      return res.status(401).json({ success: false, message: 'Unauthorized. Invalid session.', data: null });
     }
-    if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, message: 'Name cannot be empty.' });
+
+    // Keep name empty check explicitly for tests
+    if (name !== undefined && (!name || !name.trim())) {
+      return res.status(400).json({ success: false, message: 'Name cannot be empty.', data: null });
     }
 
     const normalizedEmail = req.user.email.toLowerCase();
@@ -529,33 +652,34 @@ export const updateProfile = async (req, res) => {
       data: updateData
     });
 
-    console.log(`[USER SERVICE] Profile updated successfully for ${normalizedEmail}`);
+    logger.info(`[USER SERVICE] Profile updated successfully for ${normalizedEmail}`);
 
     return res.status(200).json({
       success: true,
       message: 'Profile details updated successfully.',
-      user: {
-        id: updatedUser.id.toString(),
-        name: updatedUser.name,
-        email: updatedUser.email,
-        username: `@${updatedUser.email.split('@')[0]}`,
-        role: updatedUser.role,
-        dept: updatedUser.dept,
-        location: updatedUser.location,
-        githubUrl: updatedUser.githubUrl || '',
-        linkedinUrl: updatedUser.linkedinUrl || '',
-        websiteUrl: updatedUser.websiteUrl || '',
-        otherLinks: updatedUser.otherLinks || '',
-        hasConfiguredWorkspace: updatedUser.hasConfiguredWorkspace
+      data: {
+        user: {
+          id: updatedUser.id.toString(),
+          name: updatedUser.name,
+          email: updatedUser.email,
+          username: `@${updatedUser.email.split('@')[0]}`,
+          role: updatedUser.role,
+          dept: updatedUser.dept,
+          location: updatedUser.location,
+          githubUrl: updatedUser.githubUrl || '',
+          linkedinUrl: updatedUser.linkedinUrl || '',
+          websiteUrl: updatedUser.websiteUrl || '',
+          otherLinks: updatedUser.otherLinks || '',
+          hasConfiguredWorkspace: updatedUser.hasConfiguredWorkspace
+        }
       }
     });
-
   } catch (error) {
-    console.error('Update Profile Error:', error);
+    logger.error('Update Profile Error:', error);
     if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, message: 'User profile not found.' });
+      return res.status(404).json({ success: false, message: 'User profile not found.', data: null });
     }
-    return res.status(500).json({ success: false, message: 'Internal Server Error while updating profile.' });
+    return res.status(500).json({ success: false, message: 'Internal Server Error while updating profile.', data: null });
   }
 };
 
@@ -563,16 +687,14 @@ export const getUsers = async (req, res) => {
   try {
     const userId = req.user ? req.user.id : null;
     if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+      return res.status(401).json({ success: false, message: 'Unauthorized.', data: null });
     }
 
-    // Resolve the organization owner (inviter) - check token cache first!
     let teamOwnerId = req.user ? req.user.teamOwnerId : null;
     if (teamOwnerId === undefined) {
       teamOwnerId = null;
     }
 
-    // Database fallback if token does not have teamOwnerId cached
     if (teamOwnerId === null && prisma.user && typeof prisma.user.findUnique === 'function') {
       const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -612,8 +734,8 @@ export const getUsers = async (req, res) => {
 
     return res.status(200).json(mappedUsers);
   } catch (error) {
-    console.error('Get Users Error:', error);
-    return res.status(500).json({ success: false, message: 'Internal Server Error while fetching users.' });
+    logger.error('Get Users Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error while fetching users.', data: null });
   }
 };
 
@@ -623,11 +745,11 @@ export const addTeamMember = async (req, res) => {
     const userId = req.user ? req.user.id : null;
 
     if (!userId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+      return res.status(401).json({ success: false, message: 'Unauthorized.', data: null });
     }
 
     if (!name || !email) {
-      return res.status(400).json({ success: false, message: 'Name and Email are required.' });
+      return res.status(400).json({ success: false, message: 'Name and Email are required.', data: null });
     }
 
     const normalizedEmail = email.toLowerCase();
@@ -636,7 +758,6 @@ export const addTeamMember = async (req, res) => {
       where: { email: normalizedEmail }
     });
     if (existingUser) {
-      // Update existing user to belong to this team
       const updatedMember = await prisma.user.update({
         where: { id: existingUser.id },
         data: {
@@ -653,36 +774,37 @@ export const addTeamMember = async (req, res) => {
           to: updatedMember.email,
           name: updatedMember.name,
           invitedByName: req.user.email,
-          temporaryPassword: null // Null signifies they already have an account/password
+          temporaryPassword: null
         });
       } catch (inviteError) {
-        console.error('Team Invite Email Error for Existing User:', inviteError);
-        return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
+        logger.error('Team Invite Email Error for Existing User:', inviteError);
+        return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.', data: null });
       }
 
-      addNotification(`Team member ${updatedMember.name} was added to the organization.`, 'member');
+      await addNotification(`Team member ${updatedMember.name} was added to the organization.`, 'member', updatedMember.id);
 
       return res.status(200).json({
         success: true,
         message: inviteResult.mock
           ? 'Existing user added to your team. Invite generated in mock mode; check backend console.'
           : 'Existing user added to your team and notification sent successfully.',
-        invite: inviteResult,
-        user: {
-          id: updatedMember.id.toString(),
-          name: updatedMember.name,
-          email: updatedMember.email,
-          role: updatedMember.role,
-          dept: updatedMember.dept,
-          location: updatedMember.location,
-          githubUrl: updatedMember.githubUrl || '',
-          linkedinUrl: updatedMember.linkedinUrl || '',
-          websiteUrl: updatedMember.websiteUrl || ''
+        data: {
+          invite: inviteResult,
+          user: {
+            id: updatedMember.id.toString(),
+            name: updatedMember.name,
+            email: updatedMember.email,
+            role: updatedMember.role,
+            dept: updatedMember.dept,
+            location: updatedMember.location,
+            githubUrl: updatedMember.githubUrl || '',
+            linkedinUrl: updatedMember.linkedinUrl || '',
+            websiteUrl: updatedMember.websiteUrl || ''
+          }
         }
       });
     }
 
-    // If user does not exist:
     const temporaryPassword = crypto.randomBytes(6).toString('hex') + '!';
     const salt = await bcrypt.genSalt(10);
     const defaultHashedPassword = await bcrypt.hash(temporaryPassword, salt);
@@ -699,7 +821,8 @@ export const addTeamMember = async (req, res) => {
         linkedinUrl: linkedinUrl || '',
         websiteUrl: websiteUrl || '',
         teamOwnerId: userId,
-        otherLinks: 'PENDING_INVITE'
+        otherLinks: 'PENDING_INVITE',
+        authProvider: 'LOCAL'
       }
     });
 
@@ -713,35 +836,39 @@ export const addTeamMember = async (req, res) => {
         isSignup: true
       });
     } catch (inviteError) {
-      await prisma.user.delete({ where: { id: newMember.id } });
-      console.error('Team Invite Email Error:', inviteError);
-      return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.' });
+      if (prisma.user && typeof prisma.user.delete === 'function') {
+        await prisma.user.delete({ where: { id: newMember.id } });
+      }
+      logger.error('Team Invite Email Error:', inviteError);
+      return res.status(500).json({ success: false, message: 'Team member was not added because the invite email could not be sent.', data: null });
     }
 
-    addNotification(`New team member ${newMember.name} was invited to the organization.`, 'member');
+    await addNotification(`New team member ${newMember.name} was invited to the organization.`, 'member', newMember.id);
 
     return res.status(201).json({
       success: true,
       message: inviteResult.mock
         ? 'Invitation link generated. Send the link to the user so they can sign up.'
         : 'Team member added and invite sent successfully.',
-      invite: inviteResult,
-      user: {
-        id: newMember.id.toString(),
-        name: newMember.name,
-        email: newMember.email,
-        username: `@${newMember.email.split('@')[0]}`,
-        role: newMember.role,
-        dept: newMember.dept,
-        location: newMember.location,
-        githubUrl: newMember.githubUrl || '',
-        linkedinUrl: newMember.linkedinUrl || '',
-        websiteUrl: newMember.websiteUrl || ''
+      data: {
+        invite: inviteResult,
+        user: {
+          id: newMember.id.toString(),
+          name: newMember.name,
+          email: newMember.email,
+          username: `@${newMember.email.split('@')[0]}`,
+          role: newMember.role,
+          dept: newMember.dept,
+          location: newMember.location,
+          githubUrl: newMember.githubUrl || '',
+          linkedinUrl: newMember.linkedinUrl || '',
+          websiteUrl: newMember.websiteUrl || ''
+        }
       }
     });
   } catch (error) {
-    console.error('Add Team Member Error:', error);
-    return res.status(500).json({ success: false, message: 'Internal Server Error while adding team member.' });
+    logger.error('Add Team Member Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error while adding team member.', data: null });
   }
 };
 
@@ -750,16 +877,16 @@ export const deleteUser = async (req, res) => {
     const { id } = req.params;
     const currentUserId = req.user ? req.user.id : null;
     if (!currentUserId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+      return res.status(401).json({ success: false, message: 'Unauthorized.', data: null });
     }
 
     if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-      return res.status(400).json({ success: false, message: 'Invalid user ID format.' });
+      return res.status(400).json({ success: false, message: 'Invalid user ID format.', data: null });
     }
     const userId = id;
 
     if (userId === currentUserId) {
-      return res.status(400).json({ success: false, message: 'Self-deletion is not permitted. You cannot delete your own active account.' });
+      return res.status(400).json({ success: false, message: 'Self-deletion is not permitted. You cannot delete your own active account.', data: null });
     }
 
     const teamMember = await prisma.user.findFirst({
@@ -770,51 +897,54 @@ export const deleteUser = async (req, res) => {
     });
 
     if (!teamMember) {
-      return res.status(404).json({ success: false, message: 'Team member not found.' });
+      return res.status(404).json({ success: false, message: 'Team member not found.', data: null });
     }
 
-    await prisma.user.delete({
-      where: { id: userId }
-    });
+    // Wrap tasks unassignment and user deletion inside a Prisma transaction
+    await prisma.$transaction([
+      prisma.task.updateMany({
+        where: { assigneeId: userId },
+        data: { assigneeId: null }
+      }),
+      prisma.user.delete({
+        where: { id: userId }
+      })
+    ]);
 
-    addNotification(`Team member ${teamMember.name} was removed from the organization.`, 'member');
+    await addNotification(`Team member ${teamMember.name} was removed from the organization.`, 'member', currentUserId);
 
-    return res.status(200).json({ success: true, message: 'Team member removed successfully.' });
+    return res.status(200).json({ success: true, message: 'Team member removed successfully.', data: null });
   } catch (error) {
-    console.error('Delete Team Member Error:', error);
+    logger.error('Delete Team Member Error:', error);
     if (error.code === 'P2025') {
-      return res.status(404).json({ success: false, message: 'User not found.' });
+      return res.status(404).json({ success: false, message: 'User not found.', data: null });
     }
-    return res.status(500).json({ success: false, message: 'Internal Server Error while removing team member.' });
+    return res.status(500).json({ success: false, message: 'Internal Server Error while removing team member.', data: null });
   }
 };
 
 export const googleSignIn = async (req, res) => {
   try {
-    const { credential } = req.body;
-
-    if (!credential) {
-      return res.status(400).json({ success: false, message: 'Google credential token is required.' });
-    }
+    const body = googleSignInSchema.parse(req.body);
+    const { credential } = body;
 
     const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
     if (!verifyRes.ok) {
-      return res.status(401).json({ success: false, message: 'Google SSO token verification failed.' });
+      return res.status(401).json({ success: false, message: 'Google SSO token verification failed.', data: null });
     }
 
     const payload = await verifyRes.json();
     
     const expectedClientId = process.env.GOOGLE_CLIENT_ID || "304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com";
     if (payload.aud !== expectedClientId) {
-      return res.status(401).json({ success: false, message: 'Invalid token audience.' });
+      return res.status(401).json({ success: false, message: 'Invalid token audience.', data: null });
     }
 
     const email = payload.email;
     const name = payload.name || email.split('@')[0];
-    const picture = payload.picture;
 
     if (!email) {
-      return res.status(400).json({ success: false, message: 'Could not extract email from Google token.' });
+      return res.status(400).json({ success: false, message: 'Could not extract email from Google token.', data: null });
     }
 
     const normalizedEmail = email.toLowerCase();
@@ -824,23 +954,25 @@ export const googleSignIn = async (req, res) => {
     });
     
     if (!user) {
-      const salt = await bcrypt.genSalt(10);
-      const defaultHashedPassword = await bcrypt.hash('google_sso_default_password_123!', salt);
-      const namePlaceholder = name || email.split('@')[0];
-      
+      // Create user with Nullable password and GOOGLE AuthProvider
       user = await prisma.user.create({
         data: {
-          name: namePlaceholder,
+          name,
           email: normalizedEmail,
-          password: defaultHashedPassword
+          password: null,
+          authProvider: 'GOOGLE'
         }
       });
-      console.log(`[GOOGLE AUTH] Auto-registered Google user: ${normalizedEmail}`);
+      logger.info(`[GOOGLE AUTH] Auto-registered Google user: ${normalizedEmail}`);
     }
 
+    await addNotification(`User ${user.name} logged in using Google SSO.`, 'member', user.id);
     return sendTokens(res, user, 200, 'Logged in successfully with Google.');
   } catch (error) {
-    console.error('Google Sign In Error:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: error.issues?.[0]?.message || 'Validation error', data: null });
+    }
+    logger.error('Google Sign In Error:', error);
     const isDatabaseUnavailable =
       error?.name === 'PrismaClientInitializationError' || error?.code === 'P1001';
 
@@ -848,7 +980,8 @@ export const googleSignIn = async (req, res) => {
       success: false,
       message: isDatabaseUnavailable
         ? 'Authentication is temporarily unavailable. Please try again.'
-        : 'Internal Server Error during Google Sign-In.'
+        : 'Internal Server Error during Google Sign-In.',
+      data: null
     });
   }
 };
@@ -860,15 +993,14 @@ export const updateTeamMemberRole = async (req, res) => {
     const currentUserId = req.user ? req.user.id : null;
     
     if (!currentUserId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized.' });
+      return res.status(401).json({ success: false, message: 'Unauthorized.', data: null });
     }
 
     if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-      return res.status(400).json({ success: false, message: 'Invalid member ID.' });
+      return res.status(400).json({ success: false, message: 'Invalid member ID.', data: null });
     }
     const memberId = id;
 
-    // Verify current user is indeed the owner of this member
     const member = await prisma.user.findFirst({
       where: {
         id: memberId,
@@ -877,7 +1009,7 @@ export const updateTeamMemberRole = async (req, res) => {
     });
 
     if (!member) {
-      return res.status(403).json({ success: false, message: 'Forbidden. You do not have permissions to manage this member.' });
+      return res.status(403).json({ success: false, message: 'Forbidden. Access denied.', data: null });
     }
 
     const updated = await prisma.user.update({
@@ -885,11 +1017,12 @@ export const updateTeamMemberRole = async (req, res) => {
       data: { role }
     });
 
-    addNotification(`Role for team member ${updated.name} updated to "${role}".`, 'member');
+    await addNotification(`Role for team member ${updated.name} updated to "${role}".`, 'member', currentUserId);
 
     return res.status(200).json({ success: true, message: 'Member role updated successfully.', data: updated });
   } catch (error) {
-    console.error('Update Member Role Error:', error);
-    return res.status(500).json({ success: false, message: 'Internal Server Error while updating role.' });
+    logger.error('Update Member Role Error:', error);
+    return res.status(500).json({ success: false, message: 'Internal Server Error while updating role.', data: null });
   }
 };
+
