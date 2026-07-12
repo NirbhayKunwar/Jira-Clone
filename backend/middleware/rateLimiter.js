@@ -7,59 +7,79 @@ import rateLimit from 'express-rate-limit';
  * While this means the rate limits are per-instance and not globally synchronized, this is 
  * acceptable for this project's serverless architecture as it completely avoids external 
  * database lookups or Redis dependencies, ensuring optimal latency, stability, and zero setup costs.
+ * 
+ * Future Scaling/Migration Path:
+ * If traffic requires global synchronization, express-rate-limit can be easily switched to a 
+ * distributed store by passing the 'store' property (e.g. rate-limit-redis) without modifying 
+ * the route files.
  */
 
-// Helper to construct rate limit message
-const limitMessage = {
-  success: false,
-  message: 'Too many requests. Please try again later.'
+// Parse environment variables once at module startup for optimal performance
+const authWindowMs = process.env.RATE_LIMIT_AUTH_WINDOW_MS
+  ? parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MS, 10)
+  : 15 * 60 * 1000; // 15 minutes
+
+const authMax = process.env.RATE_LIMIT_AUTH_MAX
+  ? parseInt(process.env.RATE_LIMIT_AUTH_MAX, 10)
+  : 15;
+
+const otpWindowMs = process.env.RATE_LIMIT_OTP_WINDOW_MS
+  ? parseInt(process.env.RATE_LIMIT_OTP_WINDOW_MS, 10)
+  : 15 * 60 * 1000; // 15 minutes
+
+const otpMax = process.env.RATE_LIMIT_OTP_MAX
+  ? parseInt(process.env.RATE_LIMIT_OTP_MAX, 10)
+  : 5;
+
+const apiWindowMs = process.env.RATE_LIMIT_API_WINDOW_MS
+  ? parseInt(process.env.RATE_LIMIT_API_WINDOW_MS, 10)
+  : 15 * 60 * 1000; // 15 minutes
+
+const apiMax = process.env.RATE_LIMIT_API_MAX
+  ? parseInt(process.env.RATE_LIMIT_API_MAX, 10)
+  : 150;
+
+// Reusable single error handler to avoid object allocation per request
+const rateLimitHandler = (req, res, next, options) => {
+  res.status(429).json({
+    success: false,
+    message: 'Too many requests. Please try again later.'
+  });
 };
 
 // authLimiter: Auth endpoints (Login, Register, Google Signin, Password changes)
 export const authLimiter = rateLimit({
-  windowMs: process.env.RATE_LIMIT_AUTH_WINDOW_MS
-    ? parseInt(process.env.RATE_LIMIT_AUTH_WINDOW_MS)
-    : 15 * 60 * 1000, // 15 minutes
-  max: process.env.RATE_LIMIT_AUTH_MAX
-    ? parseInt(process.env.RATE_LIMIT_AUTH_MAX)
-    : 15,
-  message: limitMessage,
+  windowMs: authWindowMs,
+  max: authMax,
+  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 // otpLimiter: Strict limits for Otp code delivery endpoint to prevent email spamming
 export const otpLimiter = rateLimit({
-  windowMs: process.env.RATE_LIMIT_OTP_WINDOW_MS
-    ? parseInt(process.env.RATE_LIMIT_OTP_WINDOW_MS)
-    : 15 * 60 * 1000, // 15 minutes
-  max: process.env.RATE_LIMIT_OTP_MAX
-    ? parseInt(process.env.RATE_LIMIT_OTP_MAX)
-    : 5,
-  message: limitMessage,
+  windowMs: otpWindowMs,
+  max: otpMax,
+  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// apiLimiter: General API CRUD endpoints (Workspaces, Tasks, Goals, Teams, Sprints)
+// apiLimiter: General API CRUD endpoints (Workspaces, Tasks, Goals, Teams, Sprints, Notifications)
 export const apiLimiter = rateLimit({
-  windowMs: process.env.RATE_LIMIT_API_WINDOW_MS
-    ? parseInt(process.env.RATE_LIMIT_API_WINDOW_MS)
-    : 15 * 60 * 1000, // 15 minutes
-  max: process.env.RATE_LIMIT_API_MAX
-    ? parseInt(process.env.RATE_LIMIT_API_MAX)
-    : 150,
-  message: limitMessage,
+  windowMs: apiWindowMs,
+  max: apiMax,
+  handler: rateLimitHandler,
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-// rateLimiter: Backward compatible fallback function
+// rateLimiter: Backward compatible fallback function generator
 export const rateLimiter = (windowMs = 15 * 60 * 1000, maxRequests = 100) => {
   return rateLimit({
     windowMs,
     max: maxRequests,
-    message: limitMessage,
+    handler: rateLimitHandler,
     standardHeaders: true,
     legacyHeaders: false,
   });

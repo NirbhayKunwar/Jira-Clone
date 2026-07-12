@@ -382,6 +382,10 @@ export const signIn = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password.', data: null });
     }
 
+    if (req.rateLimit && typeof req.rateLimit.resetKey === 'function') {
+      req.rateLimit.resetKey();
+    }
+
     return sendTokens(res, user, 200, 'Logged in successfully.');
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -967,6 +971,11 @@ export const googleSignIn = async (req, res) => {
     }
 
     await addNotification(`User ${user.name} logged in using Google SSO.`, 'member', user.id);
+
+    if (req.rateLimit && typeof req.rateLimit.resetKey === 'function') {
+      req.rateLimit.resetKey();
+    }
+
     return sendTokens(res, user, 200, 'Logged in successfully with Google.');
   } catch (error) {
     if (error instanceof z.ZodError) {
