@@ -9,6 +9,7 @@ import workspaceRoutes from './routes/workspaces.js';
 import goalRoutes from './routes/goals.js';
 import teamRoutes from './routes/teams.js';
 import scheduleEventRoutes from './routes/scheduleEvents.js';
+import notificationsRoutes from './routes/notifications.js';
 import { initializeDatabase } from './config/db.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import prisma from './config/prisma.js';
@@ -101,6 +102,7 @@ const registerRoutes = (routerPath) => {
   app.use(`${routerPath}/goals`, goalRoutes);
   app.use(`${routerPath}/teams`, teamRoutes);
   app.use(`${routerPath}/schedule-events`, scheduleEventRoutes);
+  app.use(`${routerPath}/notifications`, notificationsRoutes);
 };
 
 registerRoutes('/api');

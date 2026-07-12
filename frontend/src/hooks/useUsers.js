@@ -1,8 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_URL, getAuthHeaders } from '../config/api';
 import { getApiList } from '../config/apiResponse';
+import { useAuthStore } from '../store/authStore';
 
 export function useUsers() {
+  const { user } = useAuthStore();
+  
   return useQuery({
     queryKey: ['users'],
     queryFn: async () => {
@@ -14,6 +17,7 @@ export function useUsers() {
       }
       return getApiList(await response.json(), 'Users');
     },
+    enabled: !!user,
     staleTime: 30000 // 30 seconds stale time to cache team members
   });
 }

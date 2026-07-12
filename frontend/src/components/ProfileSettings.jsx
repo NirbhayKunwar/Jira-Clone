@@ -191,17 +191,21 @@ export default function ProfileSettings() {
       }
 
       // Update global user state (Zustand authStore)
-      updateProfile({
-        ...user,
-        name: data.user.name,
-        role: data.user.role,
-        dept: data.user.dept,
-        location: data.user.location,
-        githubUrl: data.user.githubUrl,
-        linkedinUrl: data.user.linkedinUrl,
-        otherLinks: data.user.otherLinks,
-        hasConfiguredWorkspace: data.user.hasConfiguredWorkspace
-      });
+      if (data?.data?.user) {
+        updateProfile({
+          ...user,
+          name: data.data.user.name,
+          role: data.data.user.role,
+          dept: data.data.user.dept,
+          location: data.data.user.location,
+          githubUrl: data.data.user.githubUrl,
+          linkedinUrl: data.data.user.linkedinUrl,
+          otherLinks: data.data.user.otherLinks,
+          hasConfiguredWorkspace: data.data.user.hasConfiguredWorkspace
+        });
+      } else {
+        throw new Error('Profile update returned invalid user payload.');
+      }
 
       setProfileSuccess('Profile details updated successfully in database.');
     } catch (error) {
@@ -298,6 +302,15 @@ export default function ProfileSettings() {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-text-secondary-muted text-xs space-y-4">
+        <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin"></div>
+        <span>Loading profile settings...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-[fade-in_200ms_ease-out]">

@@ -1,8 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_URL, getAuthHeaders } from '../config/api';
 import { getApiList } from '../config/apiResponse';
+import { useAuthStore } from '../store/authStore';
 
 export function useTasks(workspaceId) {
+  const { user } = useAuthStore();
+
   return useQuery({
     queryKey: ['tasks', workspaceId],
     queryFn: async () => {
@@ -15,7 +18,7 @@ export function useTasks(workspaceId) {
       }
       return getApiList(await response.json(), 'Tasks');
     },
-    enabled: !!workspaceId,
+    enabled: !!workspaceId && !!user,
     staleTime: 5000 // 5 seconds stale time for dynamic board sync
   });
 }
