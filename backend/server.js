@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
-import { apiLimiter, authLimiter } from './middleware/rateLimiter.js';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js';
 import taskRoutes from './routes/tasks.js';
@@ -81,10 +80,7 @@ app.use(cookieParser());
 // Parse JSON request bodies
 app.use(express.json());
 
-// API Rate Limiting protection
-app.use('/api', apiLimiter);
-app.use('/api/auth', authLimiter);
-app.use('/api/v1/auth', authLimiter);
+// API Rate Limiting protection is handled at the router-level to prevent duplicate execution.
 
 // Health check endpoints
 app.get('/health', (req, res) => {
