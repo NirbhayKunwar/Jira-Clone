@@ -35,7 +35,7 @@ describe('Auth Controller Profile updates tests', () => {
     process.env.EMAIL_PASS = 'app-password';
     req = {
       body: { name: 'Audit User' },
-      user: { id: 1, email: 'test@example.com' }
+      user: { id: '60c72b2f9b1d8e001c888881', email: 'test@example.com' }
     };
     res = {
       status: vi.fn().mockReturnThis(),
@@ -46,7 +46,7 @@ describe('Auth Controller Profile updates tests', () => {
 
   it('should update profile successfully and return formatted payload', async () => {
     prisma.user.update.mockResolvedValue({
-      id: 1,
+      id: '60c72b2f9b1d8e001c888881',
       name: 'Audit User',
       email: 'test@example.com',
       role: 'QA Engineer',
@@ -91,7 +91,7 @@ describe('Auth Controller Profile updates tests', () => {
 
     prisma.user.findUnique.mockResolvedValue(null);
     prisma.user.create.mockResolvedValue({
-      id: 2,
+      id: '60c72b2f9b1d8e001c888882',
       name: 'New Member',
       email: 'new@example.com',
       role: 'Designer',
@@ -123,7 +123,7 @@ describe('Auth Controller Profile updates tests', () => {
 
     prisma.user.findUnique.mockResolvedValue(null);
     prisma.user.create.mockResolvedValue({
-      id: 2,
+      id: '60c72b2f9b1d8e001c888882',
       name: 'New Member',
       email: 'new@example.com',
       role: 'Full Stack Engineer',
@@ -134,7 +134,7 @@ describe('Auth Controller Profile updates tests', () => {
 
     await addTeamMember(req, res, next);
 
-    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 2 } });
+    expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: '60c72b2f9b1d8e001c888882' } });
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       success: false,
@@ -142,3 +142,4 @@ describe('Auth Controller Profile updates tests', () => {
     }));
   });
 });
+

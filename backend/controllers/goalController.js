@@ -90,10 +90,10 @@ export const updateGoal = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { progress, status, title, desc, owner, targetDate } = req.body;
 
-  const goalId = parseInt(id);
-  if (isNaN(goalId)) {
-    return next(new AppError('Invalid goal ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return next(new AppError('Invalid goal ID format.', 400));
   }
+  const goalId = id;
 
   const goalCheck = await prisma.goal.findUnique({
     where: { id: goalId }
@@ -139,10 +139,10 @@ export const updateGoal = asyncHandler(async (req, res, next) => {
 export const deleteGoal = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const goalId = parseInt(id);
-  if (isNaN(goalId)) {
-    return next(new AppError('Invalid goal ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return next(new AppError('Invalid goal ID format.', 400));
   }
+  const goalId = id;
 
   const goalCheck = await prisma.goal.findUnique({
     where: { id: goalId }

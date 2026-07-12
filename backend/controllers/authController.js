@@ -254,9 +254,8 @@ export const signUp = async (req, res) => {
 
     let teamOwnerId = null;
     if (invitedBy) {
-      const parsedId = parseInt(invitedBy);
-      if (!isNaN(parsedId)) {
-        teamOwnerId = parsedId;
+      if (/^[0-9a-fA-F]{24}$/.test(invitedBy)) {
+        teamOwnerId = invitedBy;
       } else {
         const inviter = await prisma.user.findUnique({
           where: { email: invitedBy.toLowerCase() }
@@ -754,10 +753,10 @@ export const deleteUser = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized.' });
     }
 
-    const userId = parseInt(id);
-    if (isNaN(userId)) {
-      return res.status(400).json({ success: false, message: 'Invalid user ID format. Must be an integer.' });
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID format.' });
     }
+    const userId = id;
 
     if (userId === currentUserId) {
       return res.status(400).json({ success: false, message: 'Self-deletion is not permitted. You cannot delete your own active account.' });
@@ -864,10 +863,10 @@ export const updateTeamMemberRole = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized.' });
     }
 
-    const memberId = parseInt(id);
-    if (isNaN(memberId)) {
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
       return res.status(400).json({ success: false, message: 'Invalid member ID.' });
     }
+    const memberId = id;
 
     // Verify current user is indeed the owner of this member
     const member = await prisma.user.findFirst({

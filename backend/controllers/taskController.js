@@ -21,10 +21,10 @@ export const getTasks = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace ID is required.', 400));
   }
   
-  const parsedWorkspaceId = parseInt(workspaceId);
-  if (isNaN(parsedWorkspaceId)) {
-    return next(new AppError('Invalid workspace ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) {
+    return next(new AppError('Invalid workspace ID format.', 400));
   }
+  const parsedWorkspaceId = workspaceId;
 
   // BOLA Authorization Check
   const ws = await prisma.workspace.findUnique({
@@ -73,10 +73,10 @@ export const createTask = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace ID is required.', 400));
   }
 
-  const parsedWorkspaceId = parseInt(workspaceId);
-  if (isNaN(parsedWorkspaceId)) {
-    return next(new AppError('Invalid workspace ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) {
+    return next(new AppError('Invalid workspace ID format.', 400));
   }
+  const parsedWorkspaceId = workspaceId;
 
   // BOLA Authorization Check
   const ws = await prisma.workspace.findUnique({
@@ -142,10 +142,10 @@ export const updateTask = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { title, desc, status, priority, epic, assignee, workspaceId } = req.body;
 
-  const taskId = parseInt(id);
-  if (isNaN(taskId)) {
-    return next(new AppError('Invalid task ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return next(new AppError('Invalid task ID format.', 400));
   }
+  const taskId = id;
 
   // Retrieve current task to verify workspace owner
   const taskCheck = await prisma.task.findUnique({
@@ -172,10 +172,10 @@ export const updateTask = asyncHandler(async (req, res, next) => {
   if (epic !== undefined) updateData.epic = epic;
   if (workspaceId !== undefined) {
     if (workspaceId) {
-      const parsedWorkspaceId = parseInt(workspaceId);
-      if (isNaN(parsedWorkspaceId)) {
-        return next(new AppError('Invalid workspace ID format. Must be an integer.', 400));
+      if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) {
+        return next(new AppError('Invalid workspace ID format.', 400));
       }
+      const parsedWorkspaceId = workspaceId;
       // Verify new workspace owner as well
       const wsCheck = await prisma.workspace.findUnique({ where: { id: parsedWorkspaceId } });
       if (!wsCheck || !(await hasWorkspaceAccess(wsCheck.ownerId, req.user.id))) {
@@ -230,10 +230,10 @@ export const updateTask = asyncHandler(async (req, res, next) => {
 export const deleteTask = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const taskId = parseInt(id);
-  if (isNaN(taskId)) {
-    return next(new AppError('Invalid task ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return next(new AppError('Invalid task ID format.', 400));
   }
+  const taskId = id;
 
   // Retrieve current task to verify workspace owner
   const taskCheck = await prisma.task.findUnique({

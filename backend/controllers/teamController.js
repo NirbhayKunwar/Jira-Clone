@@ -96,10 +96,10 @@ export const updateTeam = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { name, desc, members } = req.body;
 
-  const teamId = parseInt(id);
-  if (isNaN(teamId)) {
-    return next(new AppError('Invalid team ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return next(new AppError('Invalid team ID format.', 400));
   }
+  const teamId = id;
 
   const teamCheck = await prisma.team.findUnique({
     where: { id: teamId }
@@ -146,10 +146,10 @@ export const updateTeam = asyncHandler(async (req, res, next) => {
 export const deleteTeam = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const teamId = parseInt(id);
-  if (isNaN(teamId)) {
-    return next(new AppError('Invalid team ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return next(new AppError('Invalid team ID format.', 400));
   }
+  const teamId = id;
 
   const teamCheck = await prisma.team.findUnique({
     where: { id: teamId }

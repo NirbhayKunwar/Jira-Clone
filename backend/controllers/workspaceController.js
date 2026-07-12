@@ -53,10 +53,10 @@ export const getWorkspaces = asyncHandler(async (req, res, next) => {
 // Get workspace by ID (with ownership/membership verification)
 export const getWorkspaceById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const workspaceId = parseInt(id);
-  if (isNaN(workspaceId)) {
-    return next(new AppError('Invalid workspace ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return next(new AppError('Invalid workspace ID format.', 400));
   }
+  const workspaceId = id;
 
   const w = await prisma.workspace.findUnique({
     where: { id: workspaceId }
@@ -154,10 +154,10 @@ export const createWorkspace = asyncHandler(async (req, res, next) => {
 // Delete workspace
 export const deleteWorkspace = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const workspaceId = parseInt(id);
-  if (isNaN(workspaceId)) {
-    return next(new AppError('Invalid workspace ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return next(new AppError('Invalid workspace ID format.', 400));
   }
+  const workspaceId = id;
   
   const w = await prisma.workspace.findUnique({
     where: { id: workspaceId }

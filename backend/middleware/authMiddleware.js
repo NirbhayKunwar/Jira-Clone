@@ -2,6 +2,8 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/prisma.js';
 import { AppError } from './errorHandler.js';
 
+export const isValidObjectId = (id) => typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
+
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -46,13 +48,12 @@ export const verifyWorkspaceAccess = async (req, res, next) => {
       return next();
     }
 
-    const parsedId = parseInt(rawId);
-    if (isNaN(parsedId)) {
+    if (!isValidObjectId(rawId)) {
       return next(new AppError('Invalid workspace ID format.', 400));
     }
 
     const ws = await prisma.workspace.findUnique({
-      where: { id: parsedId }
+      where: { id: rawId }
     });
 
     if (!ws) {
@@ -75,13 +76,12 @@ export const verifyGoalAccess = async (req, res, next) => {
     const { id } = req.params;
     if (!id) return next();
 
-    const parsedId = parseInt(id);
-    if (isNaN(parsedId)) {
+    if (!isValidObjectId(id)) {
       return next(new AppError('Invalid goal ID format.', 400));
     }
 
     const goal = await prisma.goal.findUnique({
-      where: { id: parsedId }
+      where: { id }
     });
 
     if (!goal) {
@@ -104,13 +104,12 @@ export const verifyTeamAccess = async (req, res, next) => {
     const { id } = req.params;
     if (!id) return next();
 
-    const parsedId = parseInt(id);
-    if (isNaN(parsedId)) {
+    if (!isValidObjectId(id)) {
       return next(new AppError('Invalid team ID format.', 400));
     }
 
     const team = await prisma.team.findUnique({
-      where: { id: parsedId }
+      where: { id }
     });
 
     if (!team) {
@@ -126,3 +125,4 @@ export const verifyTeamAccess = async (req, res, next) => {
     next(error);
   }
 };
+

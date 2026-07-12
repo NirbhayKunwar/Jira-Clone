@@ -40,7 +40,7 @@ describe('ScheduleEvent Controller BOLA and CRUD tests', () => {
       query: {},
       body: {},
       params: {},
-      user: { id: 1, email: 'test@example.com' }
+      user: { id: '60c72b2f9b1d8e001c888881', email: 'test@example.com' }
     };
     res = {
       status: vi.fn().mockReturnThis(),
@@ -53,15 +53,15 @@ describe('ScheduleEvent Controller BOLA and CRUD tests', () => {
     req.body = {
       title: 'Sprint Demo Meeting',
       eventDate: '2026-07-06',
-      workspaceId: '1'
+      workspaceId: '60c72b2f9b1d8e001c888882'
     };
 
-    prisma.workspace.findUnique.mockResolvedValue({ id: 1, ownerId: 1 });
+    prisma.workspace.findUnique.mockResolvedValue({ id: '60c72b2f9b1d8e001c888882', ownerId: '60c72b2f9b1d8e001c888881' });
     prisma.scheduleEvent.create.mockResolvedValue({
-      id: 5,
+      id: '60c72b2f9b1d8e001c888883',
       title: 'Sprint Demo Meeting',
       eventDate: '2026-07-06',
-      workspaceId: 1,
+      workspaceId: '60c72b2f9b1d8e001c888882',
       createdAt: new Date()
     });
 
@@ -75,11 +75,11 @@ describe('ScheduleEvent Controller BOLA and CRUD tests', () => {
   });
 
   it('should return 403 on event deletion if workspace is owned by someone else', async () => {
-    req.params.id = '5';
+    req.params.id = '60c72b2f9b1d8e001c888883';
 
     prisma.scheduleEvent.findUnique.mockResolvedValue({
-      id: 5,
-      workspace: { ownerId: 2 }
+      id: '60c72b2f9b1d8e001c888883',
+      workspace: { ownerId: '60c72b2f9b1d8e001c888884' }
     });
 
     await deleteEvent(req, res, next);
@@ -90,3 +90,4 @@ describe('ScheduleEvent Controller BOLA and CRUD tests', () => {
     }));
   });
 });
+

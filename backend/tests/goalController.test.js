@@ -36,7 +36,7 @@ describe('Goal Controller BOLA and CRUD tests', () => {
     req = {
       body: {},
       params: {},
-      user: { id: 1, email: 'test@example.com' }
+      user: { id: '60c72b2f9b1d8e001c888881', email: 'test@example.com' }
     };
     res = {
       status: vi.fn().mockReturnThis(),
@@ -47,7 +47,7 @@ describe('Goal Controller BOLA and CRUD tests', () => {
 
   it('should get all goals successfully', async () => {
     prisma.goal.findMany.mockResolvedValue([
-      { id: 1, title: 'Learn Vitest', descText: '', owner: 'You', targetDate: '', progress: 50, status: 'on_track', ownerId: 1 }
+      { id: '60c72b2f9b1d8e001c888882', title: 'Learn Vitest', descText: '', owner: 'You', targetDate: '', progress: 50, status: 'on_track', ownerId: '60c72b2f9b1d8e001c888881' }
     ]);
 
     await getGoals(req, res, next);
@@ -61,14 +61,14 @@ describe('Goal Controller BOLA and CRUD tests', () => {
   it('should create goal successfully', async () => {
     req.body = { title: 'Release Version 1.0' };
     prisma.goal.create.mockResolvedValue({
-      id: 2,
+      id: '60c72b2f9b1d8e001c888883',
       title: 'Release Version 1.0',
       descText: '',
       owner: 'You',
       targetDate: '',
       progress: 0,
       status: 'on_track',
-      ownerId: 1
+      ownerId: '60c72b2f9b1d8e001c888881'
     });
 
     await createGoal(req, res, next);
@@ -81,10 +81,10 @@ describe('Goal Controller BOLA and CRUD tests', () => {
   });
 
   it('should return 403 on goal deletion if owned by another user', async () => {
-    req.params.id = '2';
+    req.params.id = '60c72b2f9b1d8e001c888883';
     prisma.goal.findUnique.mockResolvedValue({
-      id: 2,
-      ownerId: 2
+      id: '60c72b2f9b1d8e001c888883',
+      ownerId: '60c72b2f9b1d8e001c888884'
     });
 
     await deleteGoal(req, res, next);
@@ -95,3 +95,4 @@ describe('Goal Controller BOLA and CRUD tests', () => {
     }));
   });
 });
+

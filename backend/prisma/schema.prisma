@@ -1,7 +1,7 @@
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider     = "mongodb"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
 }
 
 generator client {
@@ -9,44 +9,44 @@ generator client {
 }
 
 model Workspace {
-  id              Int      @id @default(autoincrement())
-  name            String   @db.VarChar(255)
-  key             String   @unique @db.VarChar(50)
-  templateType    String   @map("template_type") @db.VarChar(50)
-  boardName       String   @map("board_name") @db.VarChar(255)
-  description     String?  @db.Text
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  key             String   @unique
+  templateType    String   @map("template_type")
+  boardName       String   @map("board_name")
+  description     String?
   sprintDuration  Int?     @default(2) @map("sprint_duration")
   wipLimit        Int?     @default(5) @map("wip_limit")
   createdAt       DateTime @default(now()) @map("created_at")
   tasks           Task[]
   scheduleEvents  ScheduleEvent[]
-  ownerId         Int?     @map("owner_id")
-  owner           User?    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId         String?  @map("owner_id") @db.ObjectId
+  owner           User?    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([ownerId])
   @@map("workspaces")
 }
 
 model User {
-  id                     Int      @id @default(autoincrement())
-  name                   String   @db.VarChar(255)
-  email                  String   @unique @db.VarChar(255)
-  password               String   @db.VarChar(255)
-  role                   String?  @default("Full Stack Engineer") @db.VarChar(255)
-  dept                   String?  @default("Core Engineering") @db.VarChar(255)
-  location               String?  @db.VarChar(255)
-  githubUrl              String?  @map("github_url") @db.VarChar(255)
-  linkedinUrl            String?  @map("linkedin_url") @db.VarChar(255)
-  websiteUrl             String?  @map("website_url") @db.VarChar(255)
-  otherLinks             String?  @map("other_links") @db.Text
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  name                   String
+  email                  String   @unique
+  password               String
+  role                   String?  @default("Full Stack Engineer")
+  dept                   String?  @default("Core Engineering")
+  location               String?
+  githubUrl              String?  @map("github_url")
+  linkedinUrl            String?  @map("linkedin_url")
+  websiteUrl             String?  @map("website_url")
+  otherLinks             String?  @map("other_links")
   hasConfiguredWorkspace Boolean? @default(false) @map("has_configured_workspace")
   createdAt              DateTime @default(now()) @map("created_at")
   tasks                  Task[]
   ownedWorkspaces        Workspace[] @relation("WorkspaceOwner")
   ownedGoals             Goal[]      @relation("GoalOwner")
   ownedTeams             Team[]      @relation("TeamOwner")
-  teamOwnerId            Int?        @map("team_owner_id")
-  teamOwner              User?       @relation("TeamMembershipOwner", fields: [teamOwnerId], references: [id], onDelete: SetNull)
+  teamOwnerId            String?     @map("team_owner_id") @db.ObjectId
+  teamOwner              User?       @relation("TeamMembershipOwner", fields: [teamOwnerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   teamMembers            User[]      @relation("TeamMembershipOwner")
 
   @@index([teamOwnerId])
@@ -54,16 +54,16 @@ model User {
 }
 
 model Task {
-  id          Int        @id @default(autoincrement())
-  title       String     @db.VarChar(255)
-  descText    String?    @map("desc_text") @db.Text
-  status      String?    @default("todo") @db.VarChar(50)
-  priority    String?    @default("Medium") @db.VarChar(50)
-  epic        String?    @db.VarChar(100)
-  assigneeId  Int?       @map("assignee_id")
-  assignee    User?      @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
-  workspaceId Int?       @map("workspace_id")
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  descText    String?    @map("desc_text")
+  status      String?    @default("todo")
+  priority    String?    @default("Medium")
+  epic        String?
+  assigneeId  String?    @map("assignee_id") @db.ObjectId
+  assignee    User?      @relation(fields: [assigneeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workspaceId String?    @map("workspace_id") @db.ObjectId
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdAt   DateTime   @default(now()) @map("created_at")
   completedAt DateTime?  @map("completed_at")
 
@@ -75,42 +75,42 @@ model Task {
 }
 
 model Goal {
-  id          Int      @id @default(autoincrement())
-  title       String   @db.VarChar(255)
-  descText    String?  @map("desc_text") @db.Text
-  owner       String   @default("You") @db.VarChar(255)
-  targetDate  String?  @map("target_date") @db.VarChar(50)
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  descText    String?  @map("desc_text")
+  owner       String   @default("You")
+  targetDate  String?  @map("target_date")
   progress    Int      @default(0)
-  status      String   @default("on_track") @db.VarChar(50)
+  status      String   @default("on_track")
   createdAt   DateTime @default(now()) @map("created_at")
-  ownerId     Int?     @map("owner_id")
-  ownerUser   User?    @relation("GoalOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  ownerId     String?  @map("owner_id") @db.ObjectId
+  ownerUser   User?    @relation("GoalOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([ownerId])
   @@map("goals")
 }
 
 model Team {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.VarChar(255)
-  descText    String?  @map("desc_text") @db.Text
-  membersText String   @map("members_text") @db.Text
-  ownerId     Int?     @map("owner_id")
-  owner       User?    @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  descText    String?  @map("desc_text")
+  membersText String   @map("members_text")
+  ownerId     String?  @map("owner_id") @db.ObjectId
+  owner       User?    @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([ownerId])
   @@map("teams")
 }
 
 model ScheduleEvent {
-  id          Int        @id @default(autoincrement())
-  title       String     @db.VarChar(255)
-  descText    String?    @map("desc_text") @db.Text
-  eventDate   String     @map("event_date") @db.VarChar(50)
-  startTime   String?    @map("start_time") @db.VarChar(50)
-  endTime     String?    @map("end_time") @db.VarChar(50)
-  workspaceId Int?       @map("workspace_id")
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  descText    String?    @map("desc_text")
+  eventDate   String     @map("event_date")
+  startTime   String?    @map("start_time")
+  endTime     String?    @map("end_time")
+  workspaceId String?    @map("workspace_id") @db.ObjectId
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdAt   DateTime   @default(now()) @map("created_at")
 
   @@index([workspaceId])

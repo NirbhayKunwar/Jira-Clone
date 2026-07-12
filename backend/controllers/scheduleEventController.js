@@ -21,10 +21,10 @@ export const getEvents = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace ID is required.', 400));
   }
   
-  const parsedWorkspaceId = parseInt(workspaceId);
-  if (isNaN(parsedWorkspaceId)) {
-    return next(new AppError('Invalid workspace ID format. Must be an integer.', 400));
+  if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) {
+    return next(new AppError('Invalid workspace ID format.', 400));
   }
+  const parsedWorkspaceId = workspaceId;
 
   // BOLA Authorization Check
   const ws = await prisma.workspace.findUnique({
@@ -72,10 +72,10 @@ export const createEvent = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace ID is required.', 400));
   }
 
-  const parsedWorkspaceId = parseInt(workspaceId);
-  if (isNaN(parsedWorkspaceId)) {
+  if (!/^[0-9a-fA-F]{24}$/.test(workspaceId)) {
     return next(new AppError('Invalid workspace ID format.', 400));
   }
+  const parsedWorkspaceId = workspaceId;
 
   // BOLA Authorization Check
   const ws = await prisma.workspace.findUnique({
@@ -120,10 +120,10 @@ export const createEvent = asyncHandler(async (req, res, next) => {
 export const deleteEvent = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const eventId = parseInt(id);
-  if (isNaN(eventId)) {
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
     return next(new AppError('Invalid event ID format.', 400));
   }
+  const eventId = id;
 
   // Retrieve current event to verify workspace owner
   const eventCheck = await prisma.scheduleEvent.findUnique({

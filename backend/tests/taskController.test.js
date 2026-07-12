@@ -45,7 +45,7 @@ describe('Task Controller BOLA and CRUD tests', () => {
       query: {},
       body: {},
       params: {},
-      user: { id: 1, email: 'test@example.com' }
+      user: { id: '60c72b2f9b1d8e001c888881', email: 'test@example.com' }
     };
     res = {
       status: vi.fn().mockReturnThis(),
@@ -63,11 +63,11 @@ describe('Task Controller BOLA and CRUD tests', () => {
   });
 
   it('should get all tasks successfully if workspace exists and user has access', async () => {
-    req.query.workspaceId = '1';
+    req.query.workspaceId = '60c72b2f9b1d8e001c888882';
     
-    prisma.workspace.findUnique.mockResolvedValue({ id: 1, ownerId: 1 });
+    prisma.workspace.findUnique.mockResolvedValue({ id: '60c72b2f9b1d8e001c888882', ownerId: '60c72b2f9b1d8e001c888881' });
     prisma.task.findMany.mockResolvedValue([
-      { id: 10, title: 'Task 1', descText: 'Desc', status: 'todo', priority: 'High', epic: 'General', assigneeId: 1, workspaceId: 1, createdAt: new Date(), completedAt: null }
+      { id: '60c72b2f9b1d8e001c888883', title: 'Task 1', descText: 'Desc', status: 'todo', priority: 'High', epic: 'General', assigneeId: '60c72b2f9b1d8e001c888881', workspaceId: '60c72b2f9b1d8e001c888882', createdAt: new Date(), completedAt: null }
     ]);
 
     await getTasks(req, res, next);
@@ -79,9 +79,9 @@ describe('Task Controller BOLA and CRUD tests', () => {
   });
 
   it('should return 403 if user does not own the workspace in getTasks', async () => {
-    req.query.workspaceId = '1';
+    req.query.workspaceId = '60c72b2f9b1d8e001c888882';
     
-    prisma.workspace.findUnique.mockResolvedValue({ id: 1, ownerId: 2 });
+    prisma.workspace.findUnique.mockResolvedValue({ id: '60c72b2f9b1d8e001c888882', ownerId: '60c72b2f9b1d8e001c888884' });
 
     await getTasks(req, res, next);
     
@@ -92,12 +92,12 @@ describe('Task Controller BOLA and CRUD tests', () => {
   });
 
   it('should return 403 if user updates a task inside a workspace they do not own', async () => {
-    req.params.id = '10';
+    req.params.id = '60c72b2f9b1d8e001c888883';
     req.body = { status: 'done' };
 
     prisma.task.findUnique.mockResolvedValue({
-      id: 10,
-      workspace: { ownerId: 2 }
+      id: '60c72b2f9b1d8e001c888883',
+      workspace: { ownerId: '60c72b2f9b1d8e001c888884' }
     });
 
     await updateTask(req, res, next);
@@ -108,3 +108,4 @@ describe('Task Controller BOLA and CRUD tests', () => {
     }));
   });
 });
+

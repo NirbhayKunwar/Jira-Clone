@@ -36,7 +36,7 @@ describe('Team Controller BOLA and CRUD tests', () => {
     req = {
       body: {},
       params: {},
-      user: { id: 1, email: 'test@example.com' }
+      user: { id: '60c72b2f9b1d8e001c888881', email: 'test@example.com' }
     };
     res = {
       status: vi.fn().mockReturnThis(),
@@ -47,7 +47,7 @@ describe('Team Controller BOLA and CRUD tests', () => {
 
   it('should get all teams successfully', async () => {
     prisma.team.findMany.mockResolvedValue([
-      { id: 1, name: 'QA Team', descText: '', membersText: '[]', ownerId: 1 }
+      { id: '60c72b2f9b1d8e001c888882', name: 'QA Team', descText: '', membersText: '[]', ownerId: '60c72b2f9b1d8e001c888881' }
     ]);
 
     await getTeams(req, res, next);
@@ -61,11 +61,11 @@ describe('Team Controller BOLA and CRUD tests', () => {
   it('should create team successfully', async () => {
     req.body = { name: 'DevOps Team' };
     prisma.team.create.mockResolvedValue({
-      id: 2,
+      id: '60c72b2f9b1d8e001c888883',
       name: 'DevOps Team',
       descText: '',
       membersText: '[]',
-      ownerId: 1
+      ownerId: '60c72b2f9b1d8e001c888881'
     });
 
     await createTeam(req, res, next);
@@ -78,10 +78,10 @@ describe('Team Controller BOLA and CRUD tests', () => {
   });
 
   it('should return 403 on team deletion if owned by another user', async () => {
-    req.params.id = '2';
+    req.params.id = '60c72b2f9b1d8e001c888883';
     prisma.team.findUnique.mockResolvedValue({
-      id: 2,
-      ownerId: 2
+      id: '60c72b2f9b1d8e001c888883',
+      ownerId: '60c72b2f9b1d8e001c888884'
     });
 
     await deleteTeam(req, res, next);
@@ -92,3 +92,4 @@ describe('Team Controller BOLA and CRUD tests', () => {
     }));
   });
 });
+
