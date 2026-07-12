@@ -27,12 +27,18 @@ export const verifyToken = async (req, res, next) => {
     
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: { tokenVersion: true }
+      select: { tokenVersion: true, rbacRole: true, teamOwnerId: true }
     });
 
     if (!user || user.tokenVersion !== decoded.tokenVersion) {
       return res.status(401).json({ success: false, message: 'Session expired or password changed. Please log in again.' });
     }
+
+    req.user = {
+      ...decoded,
+      rbacRole: user.rbacRole,
+      teamOwnerId: user.teamOwnerId
+    };
 
     next();
   } catch (error) {
@@ -130,6 +136,96 @@ export const verifyTeamAccess = async (req, res, next) => {
       return next(new AppError('Forbidden. You do not have access to this team.', 403));
     }
 
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// RBAC Middleware: Require Admin or Team Leader
+export const requireAdminOrLeader = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized. No user information.' });
+  }
+  if (!req.user.rbacRole) {
+    return res.status(401).json({ success: false, message: 'Missing role information.' });
+  }
+  if (req.user.rbacRole !== 'ADMIN' && req.user.rbacRole !== 'LEADER') {
+    return res.status(403).json({ success: false, message: 'You do not have permission to perform this action.' });
+  }
+  next();
+};
+
+// RBAC Middleware: Require Workspace Membership
+export const requireWorkspaceMember = async (req, res, next) => {
+  try {
+    const { workspaceId } = req.query;
+    const bodyWorkspaceId = req.body.workspaceId;
+    const paramWorkspaceId = req.params.workspaceId || req.params.id;
+    const rawId = workspaceId || bodyWorkspaceId || paramWorkspaceId;
+
+    if (!rawId) {
+      return res.status(400).json({ success: false, message: 'Workspace ID is required.' });
+    }
+
+    if (!isValidObjectId(rawId)) {
+      return res.status(400).json({ success: false, message: 'Invalid workspace ID format.' });
+    }
+
+    const ws = await prisma.workspace.findUnique({ where: { id: rawId } });
+    if (!ws) {
+      return res.status(404).json({ success: false, message: 'Workspace not found.' });
+    }
+
+    const isOwner = ws.ownerId === req.user.id;
+    const isTeamMember = req.user.teamOwnerId && ws.ownerId === req.user.teamOwnerId;
+
+    if (!isOwner && !isTeamMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to perform this action.'
+      });
+    }
+
+    req.workspace = ws;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// RBAC Middleware: Require Task Owner or Admin/Leader
+export const requireTaskOwnerOrAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ success: false, message: 'Task ID is required.' });
+    }
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid task ID format.' });
+    }
+
+    const task = await prisma.task.findUnique({
+      where: { id },
+      include: { workspace: true }
+    });
+
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Task not found.' });
+    }
+
+    const isAdminOrLeader = req.user.rbacRole === 'ADMIN' || req.user.rbacRole === 'LEADER';
+    const isAssignedToMe = task.assigneeId === req.user.id;
+
+    if (!isAdminOrLeader && !isAssignedToMe) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to perform this action.'
+      });
+    }
+
+    req.task = task;
     next();
   } catch (error) {
     next(error);

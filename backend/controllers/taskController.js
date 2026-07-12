@@ -185,6 +185,18 @@ export const updateTask = asyncHandler(async (req, res, next) => {
     return next(new AppError('Forbidden. You do not have access to this task.', 403));
   }
 
+  // Enforce member assignment restrictions
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized. No user information.', data: null });
+  }
+  if (!req.user.rbacRole) {
+    return res.status(401).json({ success: false, message: 'Missing role information.', data: null });
+  }
+  const isAdminOrLeader = req.user.rbacRole === 'ADMIN' || req.user.rbacRole === 'LEADER';
+  if (!isAdminOrLeader && (assigneeId !== undefined || assignee !== undefined)) {
+    return next(new AppError('You do not have permission to assign tasks.', 403));
+  }
+
   const updateData = {};
   if (title !== undefined) updateData.title = title;
   if (desc !== undefined) updateData.descText = desc;
@@ -299,6 +311,76 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
   await addNotification(`Task "${taskCheck.title}" was deleted.`, 'task', req.user.id);
 
   return res.status(200).json({ success: true, message: 'Task deleted successfully.', data: null });
+});
+
+// Claim an unassigned task (Members only)
+export const claimTask = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    return next(new AppError('Invalid task ID format.', 400));
+  }
+
+  // Atomically claim task inside a transaction to prevent race conditions
+  const result = await prisma.$transaction(async (tx) => {
+    const task = await tx.task.findUnique({
+      where: { id },
+      include: { workspace: true }
+    });
+
+    if (!task) {
+      throw new AppError('Task not found.', 404);
+    }
+
+    const ws = task.workspace;
+    if (!ws) {
+      throw new AppError('Workspace not found.', 404);
+    }
+
+    const hasAccess = await hasWorkspaceAccess(ws.ownerId, userId);
+    if (!hasAccess) {
+      throw new AppError('Forbidden. You do not belong to this workspace.', 403);
+    }
+
+    if (!req.user.rbacRole) {
+      throw new AppError('Missing role information.', 401);
+    }
+    if (req.user.rbacRole !== 'MEMBER') {
+      throw new AppError('Only Team Members can claim tasks.', 403);
+    }
+
+    if (task.assigneeId !== null) {
+      throw new AppError('Task already claimed.', 409);
+    }
+
+    const updatedTask = await tx.task.update({
+      where: { id },
+      data: { assigneeId: userId },
+      include: { assignee: true }
+    });
+
+    return updatedTask;
+  });
+
+  const mappedTask = {
+    id: result.id.toString(),
+    title: result.title,
+    desc: result.descText,
+    status: result.status,
+    priority: result.priority,
+    epic: result.epic,
+    assignee: result.assignee ? result.assignee.name : null,
+    workspaceId: result.workspaceId ? result.workspaceId.toString() : null,
+    createdAt: result.createdAt.toISOString(),
+    completedAt: result.completedAt ? result.completedAt.toISOString() : null
+  };
+
+  logger.info(`[TASK SERVICE] Task ${id} claimed successfully by member ${userId}.`);
+
+  await addNotification(`Task "${result.title}" claimed by member ${req.user.name}.`, 'task', req.user.id);
+
+  return res.status(200).json({ success: true, message: 'Task claimed successfully.', data: mappedTask });
 });
 
 

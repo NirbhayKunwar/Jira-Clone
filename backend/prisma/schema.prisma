@@ -32,6 +32,12 @@ enum AuthProvider {
   GOOGLE
 }
 
+enum RbacRole {
+  ADMIN
+  LEADER
+  MEMBER
+}
+
 model User {
   id                     String   @id @default(auto()) @map("_id") @db.ObjectId
   name                   String
@@ -46,6 +52,7 @@ model User {
   otherLinks             String?  @map("other_links")
   hasConfiguredWorkspace Boolean? @default(false) @map("has_configured_workspace")
   authProvider           AuthProvider @default(LOCAL) @map("auth_provider")
+  rbacRole               RbacRole @default(MEMBER) @map("rbac_role")
   tokenVersion           Int      @default(1) @map("token_version")
   createdAt              DateTime @default(now()) @map("created_at")
   tasks                  Task[]

@@ -1,25 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { getTasks, createTask, updateTask, deleteTask } from '../controllers/taskController.js';
+import { getTasks, createTask, updateTask, deleteTask, claimTask } from '../controllers/taskController.js';
 import prisma from '../config/prisma.js';
 
 // Mock the prisma config module
 vi.mock('../config/prisma.js', () => {
+  const mockPrisma = {
+    workspace: {
+      findUnique: vi.fn(),
+    },
+    task: {
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    user: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+    },
+    $transaction: vi.fn()
+  };
+  mockPrisma.$transaction.mockImplementation((cb) => cb(mockPrisma));
   return {
-    default: {
-      workspace: {
-        findUnique: vi.fn(),
-      },
-      task: {
-        findMany: vi.fn(),
-        create: vi.fn(),
-        update: vi.fn(),
-        delete: vi.fn(),
-        findUnique: vi.fn(),
-      },
-      user: {
-        findFirst: vi.fn(),
-      }
-    }
+    default: mockPrisma
   };
 });
 

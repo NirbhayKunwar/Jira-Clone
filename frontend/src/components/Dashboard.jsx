@@ -8,6 +8,7 @@ import {
   Settings, Menu, Copy, Check, Bell
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask } from '../hooks/useTasks';
 import { useUsers, useAddUser, useRemoveUser } from '../hooks/useUsers';
@@ -28,7 +29,10 @@ const THEMES = [
 const ROADMAP_COLORS = ['#0052cc', '#ff5630', '#36b37e', '#ffab00', '#6554c0'];
 
 // Kanban Card Item
-function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview }) {
+function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview, onClaim }) {
+  const { user } = useAuthStore();
+  const canDeleteOrEdit = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || (task.assignee && task.assignee === user?.name);
+
   const touchStartPos = useRef({ x: 0, y: 0 });
   const touchTimeout = useRef(null);
 
@@ -98,6 +102,25 @@ function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview
         {task.title}
       </h4>
 
+      {!task.assignee && (
+        <div className="mt-2.5 flex items-center space-x-2">
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20 uppercase tracking-wider">
+            Unassigned
+          </span>
+          {user?.rbacRole === 'MEMBER' && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onClaim) onClaim(task.id);
+              }}
+              className="text-[9px] font-bold px-2 py-0.5 rounded bg-accent hover:bg-accent-hover text-white cursor-pointer border-none shadow-sm transition-all"
+            >
+              Claim Task
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Task Description */}
       {task.desc && (
         <p className="text-[10px] text-text-secondary-muted mt-1.5 leading-relaxed line-clamp-2">
@@ -116,9 +139,12 @@ function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview
         {/* Assignee & Actions */}
         <div className="flex items-center space-x-2.5">
           {/* Delete (only visible on card hover) */}
-          {!isPreview && (
+          {!isPreview && canDeleteOrEdit && (
             <button
-              onClick={() => onDelete(task.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(task.id);
+              }}
               className="text-text-secondary-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all p-1 rounded hover:bg-dominant-offset cursor-pointer"
               title="Delete Issue"
             >
@@ -127,7 +153,7 @@ function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview
           )}
           
           {/* Avatar */}
-          <div className={`w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center border border-border-secondary ${task.assignee ? 'bg-dominant-offset text-text-secondary' : 'bg-red-50/10 text-text-secondary-muted'}`} title={`Assignee: ${task.assignee || 'Unassigned'}`}>
+          <div className={`w-6 h-6 rounded-full text-[9px] font-bold flex items-center justify-center border border-border-secondary ${task.assignee ? 'bg-dominant-offset text-text-secondary' : 'bg-red-500/10 text-red-500 font-bold border-red-500/20'}`} title={`Assignee: ${task.assignee || 'Unassigned'}`}>
             {task.assignee 
               ? task.assignee.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
               : 'U'}
@@ -157,6 +183,7 @@ export default function Dashboard() {
 
   const { user, theme, setTheme, mode, toggleMode, logout: onLogout } = useAuthStore();
   const { activeWorkspace, workspaces, setActiveWorkspace: onSwitchWorkspace, deleteWorkspace, workspaceError } = useWorkspaceStore();
+  const queryClient = useQueryClient();
 
   const onTriggerCreateWorkspace = () => navigate('/workspace-setup');
 
@@ -240,7 +267,17 @@ export default function Dashboard() {
     const handleWindowTouchEnd = () => {
       // Trigger status update mutation if dropped inside a column
       if (touchTargetColumnId) {
-        updateTaskStatusMutation.mutate({ taskId: touchDragTaskId, status: touchTargetColumnId });
+        const task = tasks.find(t => t.id === touchDragTaskId);
+        if (task) {
+          const isAdminOrLeader = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER';
+          const isAssignedToMe = task.assignee && task.assignee === user?.name;
+
+          if (!isAdminOrLeader && !isAssignedToMe) {
+            alert('You do not have permission to perform this action.');
+          } else {
+            updateTaskStatusMutation.mutate({ taskId: touchDragTaskId, status: touchTargetColumnId });
+          }
+        }
       }
 
       // Cleanup drag states
@@ -258,7 +295,7 @@ export default function Dashboard() {
       window.removeEventListener('touchend', handleWindowTouchEnd);
       window.removeEventListener('touchcancel', handleWindowTouchEnd);
     };
-  }, [touchDragActive, touchDragTaskId, touchDragOffset, touchTargetColumnId, updateTaskStatusMutation]);
+  }, [touchDragActive, touchDragTaskId, touchDragOffset, touchTargetColumnId, updateTaskStatusMutation, tasks, user]);
 
   // Effect to perform auto-scrolling horizontally and vertically when drag position is near viewport edges
   useEffect(() => {
@@ -839,6 +876,16 @@ export default function Dashboard() {
     e.preventDefault();
     const taskId = e.dataTransfer.getData('text/plain');
     if (taskId) {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        const isAdminOrLeader = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER';
+        const isAssignedToMe = task.assignee && task.assignee === user?.name;
+
+        if (!isAdminOrLeader && !isAssignedToMe) {
+          alert('You do not have permission to perform this action.');
+          return;
+        }
+      }
       updateTaskStatusMutation.mutate({ taskId, status: targetStatus });
     }
   };
@@ -959,6 +1006,46 @@ export default function Dashboard() {
     } catch (err) {
       console.error('Error updating member role:', err);
       alert('Error updating member role.');
+    }
+  };
+
+  const handleUpdateMemberRbacRole = async (memberId, newRbacRole) => {
+    if (!memberId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/auth/users/${memberId}/role`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ rbacRole: newRbacRole })
+      });
+      if (res.ok) {
+        refetchUsers();
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to update member RBAC role.');
+      }
+    } catch (err) {
+      console.error('Error updating member RBAC role:', err);
+      alert('Error updating member RBAC role.');
+    }
+  };
+
+  const handleClaimTask = async (taskId) => {
+    if (!taskId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/tasks/${taskId}/claim`, {
+        method: 'PUT',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        // Immediately invalidate React Query cache to refresh board
+        queryClient.invalidateQueries({ queryKey: ['tasks', activeWorkspace?.id] });
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Failed to claim task.');
+      }
+    } catch (err) {
+      console.error('Error claiming task:', err);
+      alert('Error claiming task.');
     }
   };
 
@@ -1143,7 +1230,9 @@ export default function Dashboard() {
                     {ws.name} ({ws.key})
                   </option>
                 ))}
-                <option value="__new__">+ Create Workspace...</option>
+                {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
+                  <option value="__new__">+ Create Workspace...</option>
+                )}
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-text-secondary-muted">
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -2316,6 +2405,7 @@ export default function Dashboard() {
                             onDelete={handleDeleteIssue}
                             onTouchStart={handleTouchStart}
                             isDragging={touchDragTaskId === task.id}
+                            onClaim={handleClaimTask}
                           />
                         ))}
                         {processedTasks.filter(t => t.status === col.id).length === 0 && (
@@ -3001,26 +3091,28 @@ export default function Dashboard() {
                             {goal.status.replace('_', ' ')}
                           </span>
 
-                          <button
-                            onClick={() => {
-                              if (window.confirm('Delete this goal?')) {
-                                fetch(`${API_URL}/api/goals/${goal.id}`, {
-                                  method: 'DELETE',
-                                  headers: getAuthHeaders()
-                                })
-                                  .then(res => {
-                                    if (res.ok) {
-                                      setGoalsList(prev => prev.filter(g => String(g.id) !== String(goal.id)));
-                                    }
+                          {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Delete this goal?')) {
+                                  fetch(`${API_URL}/api/goals/${goal.id}`, {
+                                    method: 'DELETE',
+                                    headers: getAuthHeaders()
                                   })
-                                  .catch(err => console.error('Error deleting goal:', err));
-                              }
-                            }}
-                            className="text-text-secondary-muted hover:text-red-500 transition-colors opacity-0 group-hover/card:opacity-100 p-1 rounded hover:bg-red-500/5 cursor-pointer border-none bg-transparent"
-                            title="Delete Goal"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                                    .then(res => {
+                                      if (res.ok) {
+                                        setGoalsList(prev => prev.filter(g => String(g.id) !== String(goal.id)));
+                                      }
+                                    })
+                                    .catch(err => console.error('Error deleting goal:', err));
+                                }
+                              }}
+                              className="text-text-secondary-muted hover:text-red-500 transition-colors opacity-0 group-hover/card:opacity-100 p-1 rounded hover:bg-red-500/5 cursor-pointer border-none bg-transparent"
+                              title="Delete Goal"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -3040,6 +3132,7 @@ export default function Dashboard() {
                           min="0"
                           max="100"
                           value={goal.progress}
+                          disabled={user?.rbacRole === 'MEMBER'}
                           onChange={(e) => {
                             const val = parseInt(e.target.value);
                             setGoalsList(prev => prev.map(g => String(g.id) === String(goal.id) ? { ...g, progress: val } : g));
@@ -3582,13 +3675,15 @@ export default function Dashboard() {
                   <span className="text-xs font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
                     {workspaces.length} Active Projects
                   </span>
-                  <button
-                    onClick={onTriggerCreateWorkspace}
-                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Create Project</span>
-                  </button>
+                  {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
+                    <button
+                      onClick={onTriggerCreateWorkspace}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Create Project</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -3600,12 +3695,14 @@ export default function Dashboard() {
                     <h4 className="text-sm font-bold text-text-secondary">No projects found</h4>
                     <p className="text-xs text-text-secondary-muted mt-1 max-w-sm mx-auto">Get started by setting up a project workspace using Kanban or Scrum templates.</p>
                   </div>
-                  <button
-                    onClick={onTriggerCreateWorkspace}
-                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-lg cursor-pointer border-none shadow-sm"
-                  >
-                    + Create your first project
-                  </button>
+                  {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
+                    <button
+                      onClick={onTriggerCreateWorkspace}
+                      className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-lg cursor-pointer border-none shadow-sm"
+                    >
+                      + Create your first project
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="bg-card-secondary rounded-xl border border-border-secondary/60 shadow-sm overflow-hidden">
@@ -3686,17 +3783,19 @@ export default function Dashboard() {
                                   >
                                     Open Board
                                   </button>
-                                  <button
-                                    onClick={() => {
-                                      if (window.confirm(`Are you sure you want to delete the project "${ws.name}"? This will also delete all tasks associated with it.`)) {
-                                        onDeleteWorkspace(ws.id);
-                                      }
-                                    }}
-                                    className="p-1.5 hover:bg-red-500/10 text-text-secondary-muted hover:text-red-500 rounded transition-all cursor-pointer border-none bg-transparent"
-                                    title="Delete Project"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
+                                  {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm(`Are you sure you want to delete the project "${ws.name}"? This will also delete all tasks associated with it.`)) {
+                                          onDeleteWorkspace(ws.id);
+                                        }
+                                      }}
+                                      className="p-1.5 hover:bg-red-500/10 text-text-secondary-muted hover:text-red-500 rounded transition-all cursor-pointer border-none bg-transparent"
+                                      title="Delete Project"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
                                 </div>
                               </td>
                             </tr>
@@ -3722,13 +3821,15 @@ export default function Dashboard() {
                   <span className="text-xs font-bold text-accent bg-accent-light px-2.5 py-1 rounded-full uppercase tracking-wider">
                     {teamMembers.length} Active Members
                   </span>
-                  <button
-                    onClick={() => setShowAddMemberModal(true)}
-                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Member</span>
-                  </button>
+                  {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
+                    <button
+                      onClick={() => setShowAddMemberModal(true)}
+                      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Member</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -3759,24 +3860,39 @@ export default function Dashboard() {
                               <span className="ml-2 px-1.5 py-0.5 text-[8px] bg-accent/15 text-accent font-bold rounded-full uppercase tracking-wider">You</span>
                             )}
                           </h4>
-                          {(!user?.teamOwnerId && member.name !== 'You') ? (
-                            <select
-                              aria-label={`Assign role for ${displayName}`}
-                              value={member.role || 'Full Stack Engineer'}
-                              onChange={(e) => handleUpdateMemberRole(member.id, e.target.value)}
-                              className="text-[10px] font-semibold bg-dominant border border-border-secondary rounded px-2 py-1 text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer mt-1"
-                            >
-                              <option value="Full Stack Engineer">Full Stack Engineer</option>
-                              <option value="Frontend Developer">Frontend Developer</option>
-                              <option value="Backend Developer">Backend Developer</option>
-                              <option value="Project Manager">Project Manager</option>
-                              <option value="QA Engineer">QA Engineer</option>
-                              <option value="UI/UX Designer">UI/UX Designer</option>
-                              <option value="DevOps Engineer">DevOps Engineer</option>
-                            </select>
-                          ) : (
-                            <p className="text-xs text-text-secondary-muted mt-0.5">{member.role}</p>
-                          )}
+                          {((user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && member.name !== 'You') ? (
+                             <div className="flex flex-col space-y-1.5 mt-1">
+                               <select
+                                 aria-label={`Assign job title for ${displayName}`}
+                                 value={member.role || 'Full Stack Engineer'}
+                                 onChange={(e) => handleUpdateMemberRole(member.id, e.target.value)}
+                                 className="text-[10px] font-semibold bg-dominant border border-border-secondary rounded px-2 py-1 text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer w-full"
+                               >
+                                 <option value="Full Stack Engineer">Full Stack Engineer</option>
+                                 <option value="Frontend Developer">Frontend Developer</option>
+                                 <option value="Backend Developer">Backend Developer</option>
+                                 <option value="Project Manager">Project Manager</option>
+                                 <option value="QA Engineer">QA Engineer</option>
+                                 <option value="UI/UX Designer">UI/UX Designer</option>
+                                 <option value="DevOps Engineer">DevOps Engineer</option>
+                               </select>
+
+                               <select
+                                 aria-label={`Assign access level for ${displayName}`}
+                                 value={member.rbacRole || 'MEMBER'}
+                                 onChange={(e) => handleUpdateMemberRbacRole(member.id, e.target.value)}
+                                 className="text-[10px] font-bold bg-dominant border border-border-secondary rounded px-2 py-1 text-accent focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer w-full uppercase"
+                               >
+                                 <option value="ADMIN">Admin</option>
+                                 <option value="LEADER">Team Leader</option>
+                                 <option value="MEMBER">Team Member</option>
+                               </select>
+                             </div>
+                           ) : (
+                             <p className="text-xs text-text-secondary-muted mt-0.5">
+                               {member.role} • <span className="font-bold text-accent uppercase">{member.rbacRole || 'MEMBER'}</span>
+                             </p>
+                           )}
                         </div>
                       </div>
 
@@ -3814,7 +3930,7 @@ export default function Dashboard() {
 
                       {/* Action */}
                       <div className="flex items-center justify-end">
-                        {member.name !== 'You' ? (
+                        {((user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && member.name !== 'You') ? (
                           <button
                             onClick={() => handleRemoveMember(member.id, displayName)}
                             className="text-text-secondary-muted hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-500/10 cursor-pointer border-none bg-transparent"

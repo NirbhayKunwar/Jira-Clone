@@ -1,6 +1,6 @@
 import express from 'express';
 import { signUp, signIn, signOut, refreshTokens, sendOtp, changePassword, updateProfile, getUsers, addTeamMember, deleteUser, googleSignIn, getNotifications, deleteNotification, updateTeamMemberRole } from '../controllers/authController.js';
-import { verifyToken } from '../middleware/authMiddleware.js';
+import { verifyToken, requireAdminOrLeader } from '../middleware/authMiddleware.js';
 import { authLimiter, otpLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
@@ -21,9 +21,9 @@ router.put('/profile', verifyToken, apiLimiter, updateProfile);
 
 // Registered Users Endpoints (Secured)
 router.get('/users', verifyToken, apiLimiter, getUsers);
-router.post('/users', verifyToken, apiLimiter, addTeamMember);
-router.delete('/users/:id', verifyToken, apiLimiter, deleteUser);
-router.put('/users/:id/role', verifyToken, apiLimiter, updateTeamMemberRole);
+router.post('/users', verifyToken, requireAdminOrLeader, apiLimiter, addTeamMember);
+router.delete('/users/:id', verifyToken, requireAdminOrLeader, apiLimiter, deleteUser);
+router.put('/users/:id/role', verifyToken, requireAdminOrLeader, apiLimiter, updateTeamMemberRole);
 
 // Notifications (Secured)
 router.get('/notifications', verifyToken, apiLimiter, getNotifications);
