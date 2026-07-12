@@ -18,7 +18,10 @@ export function useUsers() {
       return getApiList(await response.json(), 'Users');
     },
     enabled: !!user,
-    staleTime: 30000 // 30 seconds stale time to cache team members
+    // Team membership changes infrequently — keep stale for 60 s,
+    // hold in cache 5 min so sidebar/members panel feels instant.
+    staleTime: 60_000,
+    gcTime: 5 * 60_000
   });
 }
 

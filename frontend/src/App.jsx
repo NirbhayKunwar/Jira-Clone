@@ -1,19 +1,45 @@
 import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import InteractiveShowcase from './components/InteractiveShowcase';
-import TeamTabs from './components/TeamTabs';
-import FeaturesGrid from './components/FeaturesGrid';
-import Integrations from './components/Integrations';
-import Testimonials from './components/Testimonials';
-import FAQ from './components/FAQ';
-import Footer from './components/Footer';
-import Auth from './components/Auth';
-const Dashboard = lazy(() => import('./components/Dashboard'));
-const WorkspaceSetup = lazy(() => import('./components/WorkspaceSetup'));
 import { useAuthStore } from './store/authStore';
 import { useWorkspaceStore } from './store/workspaceStore';
+
+// ─── Eager (always needed, tiny) ────────────────────────────────────────────
+// Nothing from the landing page is eager-loaded anymore. The spinner and route
+// guards below are the only synchronously-loaded UI.
+
+// ─── Lazy Route-level Bundles ─────────────────────────────────────────────
+// Each page is a separate async chunk so authenticated users never download
+// landing-page code, and anonymous users never download Dashboard code.
+
+// Landing page sections — grouped in one chunk so a single network request
+// fetches the whole landing page after the first paint.
+const Navbar              = lazy(() => import('./components/Navbar'));
+const Hero                = lazy(() => import('./components/Hero'));
+const InteractiveShowcase = lazy(() => import('./components/InteractiveShowcase'));
+const TeamTabs            = lazy(() => import('./components/TeamTabs'));
+const FeaturesGrid        = lazy(() => import('./components/FeaturesGrid'));
+const Integrations        = lazy(() => import('./components/Integrations'));
+const Testimonials        = lazy(() => import('./components/Testimonials'));
+const FAQ                 = lazy(() => import('./components/FAQ'));
+const Footer              = lazy(() => import('./components/Footer'));
+
+// Auth — separate chunk, loaded only on /auth /login /signup
+const Auth = lazy(() => import('./components/Auth'));
+
+// Protected app pages
+const Dashboard      = lazy(() => import('./components/Dashboard'));
+const WorkspaceSetup = lazy(() => import('./components/WorkspaceSetup'));
+
+// ─── Shared Loading Fallback ──────────────────────────────────────────────
+function PageSpinner() {
+  return (
+    <div className="min-h-screen bg-dominant flex items-center justify-center">
+      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+// ─── Route Guards ─────────────────────────────────────────────────────────
 
 // Protected Route Guard Component
 function ProtectedRoute({ children }) {
@@ -48,6 +74,8 @@ function AuthRoute({ children }) {
 
   return children;
 }
+
+// ─── App ──────────────────────────────────────────────────────────────────
 
 function App() {
   const navigate = useNavigate();
@@ -96,21 +124,23 @@ function App() {
   return (
     <div className="min-h-screen bg-dominant text-text-secondary selection:bg-accent-light selection:text-accent transition-colors duration-300">
       <Routes>
-        {/* Landing Page */}
+        {/* Landing Page — entire section loads as one lazy chunk */}
         <Route
           path="/"
           element={
-            <>
-              <Navbar theme={theme} setTheme={setTheme} mode={mode} toggleMode={toggleMode} onNavigate={(view) => navigate(view === 'landing' ? '/' : `/${view}`)} />
-              <Hero onGetStarted={(email) => navigate('/auth', { state: { email, isSignUp: true } })} />
-              <InteractiveShowcase />
-              <TeamTabs />
-              <FeaturesGrid />
-              <Integrations />
-              <Testimonials />
-              <FAQ />
-              <Footer onGetStarted={() => navigate('/auth', { state: { isSignUp: true } })} />
-            </>
+            <Suspense fallback={<PageSpinner />}>
+              <>
+                <Navbar theme={theme} setTheme={setTheme} mode={mode} toggleMode={toggleMode} onNavigate={(view) => navigate(view === 'landing' ? '/' : `/${view}`)} />
+                <Hero onGetStarted={(email) => navigate('/auth', { state: { email, isSignUp: true } })} />
+                <InteractiveShowcase />
+                <TeamTabs />
+                <FeaturesGrid />
+                <Integrations />
+                <Testimonials />
+                <FAQ />
+                <Footer onGetStarted={() => navigate('/auth', { state: { isSignUp: true } })} />
+              </>
+            </Suspense>
           }
         />
 
@@ -119,7 +149,9 @@ function App() {
           path="/login"
           element={
             <AuthRoute>
-              <Auth initialView="login" onClose={() => navigate('/')} />
+              <Suspense fallback={<PageSpinner />}>
+                <Auth initialView="login" onClose={() => navigate('/')} />
+              </Suspense>
             </AuthRoute>
           }
         />
@@ -127,7 +159,9 @@ function App() {
           path="/signup"
           element={
             <AuthRoute>
-              <Auth initialView="signup" onClose={() => navigate('/')} />
+              <Suspense fallback={<PageSpinner />}>
+                <Auth initialView="signup" onClose={() => navigate('/')} />
+              </Suspense>
             </AuthRoute>
           }
         />
@@ -135,7 +169,9 @@ function App() {
           path="/auth"
           element={
             <AuthRoute>
-              <Auth initialView="login" onClose={() => navigate('/')} />
+              <Suspense fallback={<PageSpinner />}>
+                <Auth initialView="login" onClose={() => navigate('/')} />
+              </Suspense>
             </AuthRoute>
           }
         />
@@ -145,7 +181,7 @@ function App() {
           path="/workspace-setup"
           element={
             <ProtectedRoute>
-              <Suspense fallback={<div className="min-h-screen bg-dominant flex items-center justify-center"><div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>}>
+              <Suspense fallback={<PageSpinner />}>
                 <WorkspaceSetup />
               </Suspense>
             </ProtectedRoute>
@@ -157,7 +193,7 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <Suspense fallback={<div className="min-h-screen bg-dominant flex items-center justify-center"><div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" /></div>}>
+              <Suspense fallback={<PageSpinner />}>
                 <Dashboard />
               </Suspense>
             </ProtectedRoute>

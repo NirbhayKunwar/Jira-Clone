@@ -6,6 +6,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Manage projects, log work, view Roadmaps, and track sprint goals in this high-fidelity interactive Jira landing page clone built with React and Tailwind CSS v4." />
     <title>Jira Clone - Track Sprints, Manage Roadmaps &amp; Build Better</title>
+
+    <!--
+      Performance: DNS pre-resolution + TCP pre-connection to the backend API.
+      Eliminates the ~100-300 ms DNS + TLS handshake cost on first API call.
+      The href is left empty here and is filled by the inline script below so
+      the value can come from the runtime environment (VITE_API_URL) without
+      hard-coding a domain in the static HTML.
+    -->
+    <link rel="preconnect" id="api-preconnect" href="" crossorigin />
+    <link rel="dns-prefetch" id="api-dns-prefetch" href="" />
+
+    <!--
+      Performance: Preconnect to Google Fonts CDN for faster font loading.
+      This is only effective if the app loads any Google Fonts stylesheet.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <script>
+      // Inline (blocking) script intentionally — runs before any React code.
+      // Sets the preconnect href to the correct backend origin at runtime
+      // so static HTML doesn't need to know the deployment URL at build time.
+      (function () {
+        var apiUrl =
+          // Vite replaces import.meta.env vars only inside JS modules, not HTML.
+          // We fall back to the current origin (same-host deployments on Vercel).
+          window.__VITE_API_URL__ || window.location.origin;
+
+        var pc = document.getElementById('api-preconnect');
+        var dns = document.getElementById('api-dns-prefetch');
+        if (pc) pc.href = apiUrl;
+        if (dns) dns.href = apiUrl;
+
+        // Apply saved theme before React boots to eliminate flash of un-themed content
+        try {
+          var theme = localStorage.getItem('theme') || 'atlassian';
+          var mode = localStorage.getItem('mode') || 'light';
+          var root = document.documentElement;
+          root.setAttribute('data-theme', theme + '-' + mode);
+          if (mode === 'dark') root.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

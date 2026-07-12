@@ -53,8 +53,22 @@ export const getTasks = asyncHandler(async (req, res, next) => {
   }
   const parsedWorkspaceId = workspaceId;
 
+  // Single query: fetch workspace + tasks in one round-trip.
+  // Using findUnique with an include avoids the N+1 (workspace lookup → tasks lookup).
   const ws = await prisma.workspace.findUnique({
-    where: { id: parsedWorkspaceId }
+    where: { id: parsedWorkspaceId },
+    select: {
+      id: true,
+      ownerId: true,
+      tasks: {
+        include: {
+          // Select only the name field from the assignee — avoids transferring
+          // password hashes and other sensitive fields from the User row.
+          assignee: { select: { name: true } }
+        },
+        orderBy: { id: 'asc' }
+      }
+    }
   });
 
   if (!ws) {
@@ -64,14 +78,8 @@ export const getTasks = asyncHandler(async (req, res, next) => {
   if (!(await hasWorkspaceAccess(ws.ownerId, req.user.id))) {
     return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
   }
-  
-  const tasks = await prisma.task.findMany({
-    where: { workspaceId: parsedWorkspaceId },
-    include: { assignee: true },
-    orderBy: { id: 'asc' }
-  });
 
-  const mappedTasks = tasks.map(t => ({
+  const mappedTasks = ws.tasks.map(t => ({
     id: t.id.toString(),
     title: t.title,
     desc: t.descText,
@@ -86,6 +94,7 @@ export const getTasks = asyncHandler(async (req, res, next) => {
 
   return res.status(200).json({ success: true, data: mappedTasks });
 });
+
 
 // Create a new task
 export const createTask = asyncHandler(async (req, res, next) => {

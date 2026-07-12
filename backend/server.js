@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
@@ -29,6 +30,12 @@ for (const envVar of requiredEnv) {
 
 const app = express();
 app.set('trust proxy', 1);
+
+// ─── Compression ──────────────────────────────────────────────────────────
+// Compress all responses >1 kB with gzip (brotli in Node 18+).
+// Reduces JSON payload sizes by ~70-80% over the wire, cutting network time
+// for every API response without any code changes to controllers.
+app.use(compression({ level: 6, threshold: 1024 }));
 const PORT = process.env.PORT || 5000;
 
 // Enable CORS with whitelist configuration
@@ -82,6 +89,34 @@ app.use(cookieParser());
 app.use(express.json());
 
 // API Rate Limiting protection is handled at the router-level to prevent duplicate execution.
+
+// ─── Selective Cache-Control ───────────────────────────────────────────────
+// Apply a short stale-while-revalidate cache to read-only GET endpoints.
+// This allows browsers and CDN edges to serve cached responses instantly
+// while a background revalidation keeps data fresh.
+// Auth, notifications, and mutation endpoints are intentionally excluded.
+const CACHEABLE_GET_PATHS = [
+  '/api/workspaces',
+  '/api/v1/workspaces',
+  '/api/tasks',
+  '/api/v1/tasks',
+  '/api/goals',
+  '/api/v1/goals',
+  '/api/teams',
+  '/api/v1/teams',
+  '/api/schedule-events',
+  '/api/v1/schedule-events',
+];
+
+app.use((req, res, next) => {
+  if (req.method === 'GET' && CACHEABLE_GET_PATHS.some(p => req.path.startsWith(p))) {
+    // private: don't share between users in a shared CDN cache
+    // max-age=10: browser may serve cached response for up to 10 s
+    // stale-while-revalidate=30: after 10 s, serve stale while fetching fresh in background
+    res.set('Cache-Control', 'private, max-age=10, stale-while-revalidate=30');
+  }
+  next();
+});
 
 // Health check endpoints
 app.get('/health', (req, res) => {
