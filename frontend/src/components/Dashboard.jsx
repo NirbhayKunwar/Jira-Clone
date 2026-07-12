@@ -1685,7 +1685,7 @@ export default function Dashboard() {
                               {notif.type === 'task' ? '📋' : notif.type === 'member' ? '👥' : notif.type === 'team' ? '🛡️' : notif.type === 'goal' ? '🎯' : notif.type === 'calendar' ? '📅' : '🔔'}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-text-secondary font-medium whitespace-pre-wrap">{notif.text}</p>
+                              <p className="text-text-secondary font-medium whitespace-pre-wrap">{notif.text || notif.message || 'Activity notification content unavailable'}</p>
                               <span className="text-[8px] text-text-secondary-muted block mt-1 font-mono">
                                 {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                               </span>
@@ -1922,7 +1922,7 @@ export default function Dashboard() {
                               {notif.type === 'task' ? '📋' : notif.type === 'member' ? '👥' : notif.type === 'team' ? '🛡️' : notif.type === 'goal' ? '🎯' : notif.type === 'calendar' ? '📅' : '🔔'}
                             </span>
                             <div className="flex-1 min-w-0">
-                              <p className="text-text-secondary font-medium whitespace-pre-wrap">{notif.text}</p>
+                              <p className="text-text-secondary font-medium whitespace-pre-wrap">{notif.text || notif.message || 'Activity notification content unavailable'}</p>
                               <span className="text-[8px] text-text-secondary-muted block mt-1 font-mono">
                                 {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {new Date(notif.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                               </span>

@@ -45,10 +45,19 @@ const updateProfileSchema = z.object({
   hasConfiguredWorkspace: z.boolean().optional()
 });
 
-export const addNotification = async (text, type = 'info', userId = null) => {
+export const addNotification = async (text, type = 'info', userId = null, title = null) => {
   try {
+    const derivedTitle = title || (
+      type === 'task' ? 'Task Update' :
+      type === 'member' ? 'Member Activity' :
+      type === 'team' ? 'Team Workspace Update' :
+      type === 'goal' ? 'Epic/Goal Update' :
+      type === 'calendar' ? 'Schedule Update' : 'System Notification'
+    );
+
     const notif = await prisma.notification.create({
       data: {
+        title: derivedTitle,
         message: text,
         type,
         userId
@@ -81,7 +90,26 @@ export const getNotifications = async (req, res) => {
       take: limit
     });
 
-    return res.status(200).json({ success: true, data: notifications });
+    const mapped = notifications.map(n => ({
+      id: n.id.toString(),
+      title: n.title || (
+        n.type === 'task' ? 'Task Update' :
+        n.type === 'member' ? 'Member Activity' :
+        n.type === 'team' ? 'Team Workspace Update' :
+        n.type === 'goal' ? 'Epic/Goal Update' :
+        n.type === 'calendar' ? 'Schedule Update' : 'System Notification'
+      ),
+      message: n.message,
+      text: n.message, // Return text mapped to message to prevent blank rendering in frontend interfaces
+      type: n.type,
+      read: n.read,
+      deleted: n.deleted,
+      deletedAt: n.deletedAt,
+      createdAt: n.createdAt,
+      userId: n.userId ? n.userId.toString() : null
+    }));
+
+    return res.status(200).json({ success: true, data: mapped });
   } catch (error) {
     logger.error('Failed to fetch notifications:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch notifications.', data: null });
