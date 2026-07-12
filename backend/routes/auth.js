@@ -1,23 +1,20 @@
 import express from 'express';
 import { signUp, signIn, signOut, refreshTokens, sendOtp, changePassword, updateProfile, getUsers, addTeamMember, deleteUser, googleSignIn, getNotifications, deleteNotification, updateTeamMemberRole } from '../controllers/authController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
-import { rateLimiter } from '../middleware/rateLimiter.js';
+import { authLimiter, otpLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-// 10 requests per 15 minutes for auth/sensitive operations
-const strictLimiter = rateLimiter(15 * 60 * 1000, 10);
-
 // Authentication Endpoints
-router.post('/signup', strictLimiter, signUp);
-router.post('/signin', strictLimiter, signIn);
+router.post('/signup', authLimiter, signUp);
+router.post('/signin', authLimiter, signIn);
 router.post('/signout', signOut);
 router.post('/refresh', refreshTokens);
-router.post('/google-signin', strictLimiter, googleSignIn);
+router.post('/google-signin', authLimiter, googleSignIn);
 
 // Password Reset / Change Endpoints via OTP
-router.post('/send-otp', strictLimiter, sendOtp);
-router.post('/change-password', strictLimiter, changePassword);
+router.post('/send-otp', otpLimiter, sendOtp);
+router.post('/change-password', authLimiter, changePassword);
 
 // Profile Updates (Secured)
 router.put('/profile', verifyToken, updateProfile);

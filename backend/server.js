@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import { apiLimiter, authLimiter } from './middleware/rateLimiter.js';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js';
 import taskRoutes from './routes/tasks.js';
@@ -82,18 +82,6 @@ app.use(cookieParser());
 app.use(express.json());
 
 // API Rate Limiting protection
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: { success: false, message: 'Too many requests from this IP, please try again after 15 minutes.' }
-});
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { success: false, message: 'Too many authentication attempts, please try again after 15 minutes.' }
-});
-
 app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter);
 app.use('/api/v1/auth', authLimiter);
