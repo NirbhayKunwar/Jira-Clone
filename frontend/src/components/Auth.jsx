@@ -175,13 +175,8 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       }
 
       setLoading(false);
-      setSuccess(view === 'login' ? 'Logged in successfully! Redirecting...' : 'Account created successfully! Welcome to Jira.');
-      
-      // Navigate to dashboard and supply the full backend user object (including role, dept, location)
-      setTimeout(() => {
-        login(data.user, data.token);
-        if (onSuccess) onSuccess(data.user);
-      }, 1500);
+      login(data.user, data.token);
+      if (onSuccess) onSuccess(data.user);
 
     } catch (err) {
       console.error('Auth Form Submit Error:', err);
@@ -218,13 +213,9 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         throw new Error(`${backendData.message || 'Google Sign-In backend verification failed.'}${detail}`);
       }
  
-      setSuccess(`Successfully authenticated as ${backendData.user.name || backendData.user.email}! Redirecting...`);
-      
-      setTimeout(() => {
-        setGoogleLoading(false);
-        login(backendData.user, backendData.token);
-        if (onSuccess) onSuccess(backendData.user);
-      }, 1500);
+      setGoogleLoading(false);
+      login(backendData.user, backendData.token);
+      if (onSuccess) onSuccess(backendData.user);
     } catch (err) {
       console.error('Google Auth Verification/API Error:', err);
       setGoogleLoading(false);
