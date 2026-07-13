@@ -69,10 +69,13 @@ describe('Task Controller BOLA and CRUD tests', () => {
   it('should get all tasks successfully if workspace exists and user has access', async () => {
     req.query.workspaceId = '60c72b2f9b1d8e001c888882';
     
-    prisma.workspace.findUnique.mockResolvedValue({ id: '60c72b2f9b1d8e001c888882', ownerId: '60c72b2f9b1d8e001c888881' });
-    prisma.task.findMany.mockResolvedValue([
-      { id: '60c72b2f9b1d8e001c888883', title: 'Task 1', descText: 'Desc', status: 'todo', priority: 'High', epic: 'General', assigneeId: '60c72b2f9b1d8e001c888881', workspaceId: '60c72b2f9b1d8e001c888882', createdAt: new Date(), completedAt: null }
-    ]);
+    prisma.workspace.findUnique.mockResolvedValue({
+      id: '60c72b2f9b1d8e001c888882',
+      ownerId: '60c72b2f9b1d8e001c888881',
+      tasks: [
+        { id: '60c72b2f9b1d8e001c888883', title: 'Task 1', descText: 'Desc', status: 'todo', priority: 'High', epic: 'General', assigneeId: '60c72b2f9b1d8e001c888881', workspaceId: '60c72b2f9b1d8e001c888882', createdAt: new Date(), completedAt: null, assignee: { name: 'Test User' } }
+      ]
+    });
 
     await getTasks(req, res, next);
     
