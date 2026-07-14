@@ -268,34 +268,6 @@ export default function ProfileSettings() {
     }
   };
 
-  const handleAvatarClick = () => {
-    const fileInput = document.getElementById('avatar-upload-input');
-    if (fileInput) fileInput.click();
-  };
-
-  const handleAvatarChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 1.5 * 1024 * 1024) {
-      setProfileError('Image size must be less than 1.5MB.');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64Data = reader.result;
-      updateProfile({
-        ...user,
-        picture: base64Data
-      });
-      setProfileSuccess('Avatar image updated successfully.');
-    };
-    reader.onerror = () => {
-      setProfileError('Failed to read image file.');
-    };
-    reader.readAsDataURL(file);
-  };
 
   // Get User Avatar Initials
   const getUserInitials = () => {
@@ -730,20 +702,8 @@ export default function ProfileSettings() {
             <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-r from-accent to-accent-hover" />
             
             <div className="relative pt-6 flex flex-col items-center">
-              {/* Hidden file input */}
-              <input
-                id="avatar-upload-input"
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarChange}
-                className="hidden"
-              />
-              {/* Avatar upload wrapper */}
-              <div
-                onClick={handleAvatarClick}
-                className="relative group/avatar cursor-pointer mb-4"
-                title="Click to upload profile avatar"
-              >
+              {/* Avatar wrapper */}
+              <div className="relative mb-4">
                 {user?.picture ? (
                   <img src={user.picture} alt={name} className="w-24 h-24 rounded-full border-4 border-card-secondary shadow-md object-cover" />
                 ) : (
@@ -751,10 +711,6 @@ export default function ProfileSettings() {
                     {getUserInitials()}
                   </div>
                 )}
-                {/* Hover upload action overlay */}
-                <div className="absolute inset-0 bg-slate-900/50 rounded-full flex items-center justify-center text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity border-4 border-card-secondary">
-                  <Camera className="w-6 h-6" />
-                </div>
               </div>
 
               <h4 className="font-display font-extrabold text-text-secondary text-base mt-2">{name}</h4>
