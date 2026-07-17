@@ -372,7 +372,8 @@ export const signUp = async (req, res) => {
         email: normalizedEmail,
         password: hashedPassword,
         teamOwnerId,
-        authProvider: 'LOCAL'
+        authProvider: 'LOCAL',
+        rbacRole: teamOwnerId ? 'MEMBER' : 'ADMIN'
       }
     });
 
@@ -992,10 +993,21 @@ export const googleSignIn = async (req, res) => {
           name,
           email: normalizedEmail,
           password: null,
-          authProvider: 'GOOGLE'
+          authProvider: 'GOOGLE',
+          rbacRole: 'ADMIN'
         }
       });
       logger.info(`[GOOGLE AUTH] Auto-registered Google user: ${normalizedEmail}`);
+    } else if (user.otherLinks === 'PENDING_INVITE') {
+      // Activate pre-invited user profile on Google SSO login
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otherLinks: '',
+          authProvider: 'GOOGLE'
+        }
+      });
+      logger.info(`[GOOGLE AUTH] Activated pre-invited Google user: ${normalizedEmail}`);
     }
 
     await addNotification(`User ${user.name} logged in using Google SSO.`, 'member', user.id);
