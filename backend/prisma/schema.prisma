@@ -8,25 +8,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model Workspace {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  name            String
-  key             String   @unique
-  templateType    String   @map("template_type")
-  boardName       String   @map("board_name")
-  description     String?
-  sprintDuration  Int?     @default(2) @map("sprint_duration")
-  wipLimit        Int?     @default(5) @map("wip_limit")
-  createdAt       DateTime @default(now()) @map("created_at")
-  tasks           Task[]
-  scheduleEvents  ScheduleEvent[]
-  ownerId         String?  @map("owner_id") @db.ObjectId
-  owner           User?    @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([ownerId])
-  @@map("workspaces")
-}
-
 enum AuthProvider {
   LOCAL
   GOOGLE
@@ -38,31 +19,95 @@ enum RbacRole {
   MEMBER
 }
 
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  GUEST
+}
+
+enum TeamRole {
+  TEAM_LEAD
+  FRONTEND_DEVELOPER
+  BACKEND_DEVELOPER
+  FULLSTACK_ENGINEER
+  QA_ENGINEER
+  UI_UX_DESIGNER
+  DEVOPS_ENGINEER
+  PRODUCT_MANAGER
+  BUSINESS_ANALYST
+  VIEWER
+}
+
+enum ProjectRole {
+  PROJECT_LEAD
+  DEVELOPER
+  TESTER
+  DESIGNER
+  OBSERVER
+}
+
+enum RecordStatus {
+  ACTIVE
+  ARCHIVED
+  DEACTIVATED
+  REMOVED
+}
+
+model Workspace {
+  id              String            @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  key             String            @unique
+  templateType    String            @map("template_type")
+  boardName       String            @map("board_name")
+  description     String?
+  sprintDuration  Int?              @default(2) @map("sprint_duration")
+  wipLimit        Int?              @default(5) @map("wip_limit")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  status          RecordStatus      @default(ACTIVE)
+  tasks           Task[]
+  scheduleEvents  ScheduleEvent[]
+  ownerId         String?           @map("owner_id") @db.ObjectId
+  owner           User?             @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  projects        Project[]
+  workspaceMembers WorkspaceMember[]
+  invitations     Invitation[]
+  teams           Team[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
 model User {
-  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  id                     String            @id @default(auto()) @map("_id") @db.ObjectId
   name                   String
-  email                  String   @unique
+  email                  String            @unique
   password               String?
-  role                   String?  @default("Full Stack Engineer")
-  dept                   String?  @default("Core Engineering")
+  role                   String?           @default("Full Stack Engineer")
+  dept                   String?           @default("Core Engineering")
   location               String?
-  githubUrl              String?  @map("github_url")
-  linkedinUrl            String?  @map("linkedin_url")
-  websiteUrl             String?  @map("website_url")
-  otherLinks             String?  @map("other_links")
-  hasConfiguredWorkspace Boolean? @default(false) @map("has_configured_workspace")
-  authProvider           AuthProvider @default(LOCAL) @map("auth_provider")
-  rbacRole               RbacRole @default(MEMBER) @map("rbac_role")
-  tokenVersion           Int      @default(1) @map("token_version")
-  createdAt              DateTime @default(now()) @map("created_at")
+  githubUrl              String?           @map("github_url")
+  linkedinUrl            String?           @map("linkedin_url")
+  websiteUrl             String?           @map("workspace_url") // Keep schema-level map compatibility
+  otherLinks             String?           @map("other_links")
+  hasConfiguredWorkspace Boolean?          @default(false) @map("has_configured_workspace")
+  authProvider           AuthProvider      @default(LOCAL) @map("auth_provider")
+  rbacRole               RbacRole          @default(MEMBER) @map("rbac_role")
+  tokenVersion           Int               @default(1) @map("token_version")
+  createdAt              DateTime          @default(now()) @map("created_at")
   tasks                  Task[]
   notifications          Notification[]
-  ownedWorkspaces        Workspace[] @relation("WorkspaceOwner")
-  ownedGoals             Goal[]      @relation("GoalOwner")
-  ownedTeams             Team[]      @relation("TeamOwner")
-  teamOwnerId            String?     @map("team_owner_id") @db.ObjectId
-  teamOwner              User?       @relation("TeamMembershipOwner", fields: [teamOwnerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  teamMembers            User[]      @relation("TeamMembershipOwner")
+  ownedWorkspaces        Workspace[]       @relation("WorkspaceOwner")
+  ownedGoals             Goal[]            @relation("GoalOwner")
+  ownedTeams             Team[]            @relation("TeamOwner")
+  teamOwnerId            String?           @map("team_owner_id") @db.ObjectId
+  teamOwner              User?             @relation("TeamMembershipOwner", fields: [teamOwnerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teamMembers            User[]            @relation("TeamMembershipOwner")
+  workspaceMembers       WorkspaceMember[]
+  sentInvitations        Invitation[]
+  auditLogsActor         AuditLog[]        @relation("AuditActor")
+  auditLogsTarget        AuditLog[]        @relation("AuditTarget")
+  ledTeams               Team[]            @relation("TeamLead")
 
   @@index([teamOwnerId])
   @@map("users")
@@ -106,14 +151,22 @@ model Goal {
 }
 
 model Team {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
   name        String
-  descText    String?  @map("desc_text")
-  membersText String   @map("members_text")
-  ownerId     String?  @map("owner_id") @db.ObjectId
-  owner       User?    @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  descText    String?      @map("desc_text")
+  membersText String       @map("members_text") // backward compatibility
+  ownerId     String?      @map("owner_id") @db.ObjectId
+  owner       User?        @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status      RecordStatus @default(ACTIVE)
+  teamLeadId  String?      @map("team_lead_id") @db.ObjectId
+  teamLead    User?        @relation("TeamLead", fields: [teamLeadId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  teamMembers TeamMember[]
+  workspaceId String?      @map("workspace_id") @db.ObjectId
+  workspace   Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([ownerId])
+  @@index([teamLeadId])
+  @@index([workspaceId])
   @@map("teams")
 }
 
@@ -146,14 +199,215 @@ model Notification {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   title     String?
   message   String
-  type      String    @default("info")
+  type      String    @default("info") // categories: INVITATION, TEAM, PROJECT, TASK, COMMENT, MENTION, ROLE_CHANGE, SYSTEM
+  link      String?
+  icon      String?
   read      Boolean   @default(false)
   deleted   Boolean   @default(false)
   deletedAt DateTime? @map("deleted_at")
   createdAt DateTime  @default(now()) @map("created_at")
   userId    String?   @map("user_id") @db.ObjectId
   user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  
   @@index([userId])
   @@map("notifications")
 }
 
+model Project {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  key         String
+  description String?
+  status      RecordStatus   @default(ACTIVE)
+  workspaceId String         @map("workspace_id") @db.ObjectId
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  projectMembers ProjectMember[]
+
+  @@index([workspaceId])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  projectId         String          @map("project_id") @db.ObjectId
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspaceMemberId String          @map("workspace_member_id") @db.ObjectId
+  workspaceMember   WorkspaceMember @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
+  role              ProjectRole     @default(DEVELOPER)
+  joinedAt          DateTime        @default(now()) @map("joined_at")
+
+  @@index([projectId])
+  @@index([workspaceMemberId])
+  @@map("project_members")
+}
+
+model WorkspaceMember {
+  id               String         @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId      String         @map("workspace_id") @db.ObjectId
+  workspace        Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId           String         @map("user_id") @db.ObjectId
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role             WorkspaceRole  @default(MEMBER)
+  status           RecordStatus   @default(ACTIVE)
+  joinedAt         DateTime       @default(now()) @map("joined_at")
+  teamMemberships  TeamMember[]
+  projectMemberships ProjectMember[]
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+model TeamMember {
+  id                String          @id @default(auto()) @map("_id") @db.ObjectId
+  teamId            String          @map("team_id") @db.ObjectId
+  team              Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  workspaceMemberId String          @map("workspace_member_id") @db.ObjectId
+  workspaceMember   WorkspaceMember @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
+  role              TeamRole        @default(FULLSTACK_ENGINEER)
+  status            RecordStatus    @default(ACTIVE)
+  joinedAt          DateTime        @default(now()) @map("joined_at")
+
+  @@index([teamId])
+  @@index([workspaceMemberId])
+  @@map("team_members")
+}
+
+model Invitation {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  email         String
+  workspaceId   String        @map("workspace_id") @db.ObjectId
+  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceRole WorkspaceRole @default(MEMBER)
+  teamId        String?       @map("team_id") @db.ObjectId
+  teamRole      TeamRole?
+  projectId     String?       @map("project_id") @db.ObjectId
+  projectRole   ProjectRole?
+  token         String        @unique
+  status        String        @default("PENDING") // PENDING, ACCEPTED, DECLINED, EXPIRED, REVOKED
+  expiresAt     DateTime      @map("expires_at")
+  invitedById   String        @map("invited_by_id") @db.ObjectId
+  invitedBy     User          @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@index([workspaceId])
+  @@index([email])
+  @@map("invitations")
+}
+
+model Permission {
+  id          String                   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String                   @unique // e.g. "workspace.manage"
+  description String?
+  workspaceRoles WorkspaceRolePermission[]
+  teamRoles      TeamRolePermission[]
+
+  @@map("permissions")
+}
+
+model WorkspaceRolePermission {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  role         WorkspaceRole
+  permissionId String        @map("permission_id") @db.ObjectId
+  permission   Permission    @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@index([permissionId])
+  @@map("workspace_role_permissions")
+}
+
+model TeamRolePermission {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  role         TeamRole
+  permissionId String     @map("permission_id") @db.ObjectId
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@index([permissionId])
+  @@map("team_role_permissions")
+}
+
+model AuditLog {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  actorId      String?      @map("actor_id") @db.ObjectId
+  actor        User?        @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  targetUserId String?      @map("target_user_id") @db.ObjectId
+  targetUser   User?        @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  action       String       // e.g. "MemberInvited", "RoleChanged"
+  resourceType String       @map("resource_type") // e.g. "Workspace", "Team", "Project"
+  resourceId   String?      @map("resource_id") @db.ObjectId
+  oldValue     String?      @map("old_value")
+  newValue     String?      @map("new_value")
+  timestamp    DateTime     @default(now())
+  ipAddress    String?      @map("ip_address")
+  browser      String?
+  device       String?
+  userAgent    String?      @map("user_agent")
+
+  @@index([actorId])
+  @@index([targetUserId])
+  @@map("audit_logs")
+}
+
+model Epic {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  createdAt   DateTime @default(now())
+}
+
+model Milestone {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  createdAt   DateTime @default(now())
+}
+
+model Release {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  version     String
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  createdAt   DateTime @default(now())
+}
+
+model Wiki {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  createdAt   DateTime @default(now())
+}
+
+model AutomationRule {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  createdAt   DateTime @default(now())
+}
+
+model CustomField {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  createdAt   DateTime @default(now())
+}
+
+model Label {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  createdAt   DateTime @default(now())
+}
+
+model Tag {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  createdAt   DateTime @default(now())
+}
+
+model Webhook {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  url         String
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  createdAt   DateTime @default(now())
+}

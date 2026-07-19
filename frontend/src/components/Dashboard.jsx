@@ -14,6 +14,12 @@ import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask } from '../
 import { useUsers, useAddUser, useRemoveUser } from '../hooks/useUsers';
 import { API_URL, getAuthHeaders } from '../config/api';
 import { getApiData, getApiList } from '../config/apiResponse';
+import { useUiStore } from '../store/uiStore';
+import MembersTable from '../features/workspace/components/MembersTable';
+import InviteMemberModal from '../features/invitations/components/InviteMemberModal';
+import TeamDetailsWrapper from '../features/teams/components/TeamDetailsWrapper';
+import ProfileDrawer from '../features/members/components/ProfileDrawer';
+import AuditTimeline from '../features/audit/components/AuditTimeline';
 
 // Lazy-loaded sub-panels
 const ProfileSettings = lazy(() => import('./ProfileSettings'));
@@ -184,6 +190,7 @@ export default function Dashboard() {
   const { user, theme, setTheme, mode, toggleMode, logout: onLogout } = useAuthStore();
   const { activeWorkspace, workspaces, setActiveWorkspace: onSwitchWorkspace, deleteWorkspace, workspaceError } = useWorkspaceStore();
   const queryClient = useQueryClient();
+  const { selectedTeamId, setSelectedTeam } = useUiStore();
 
   const onTriggerCreateWorkspace = () => navigate('/workspace-setup');
 
@@ -1606,15 +1613,27 @@ export default function Dashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('team')}
+              onClick={() => setActiveTab('workspace-members')}
               className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
-                activeTab === 'team' 
+                activeTab === 'workspace-members' 
                   ? 'bg-accent text-white shadow-sm' 
                   : 'text-text-secondary-muted hover:text-text-secondary hover:bg-dominant-offset'
               }`}
             >
               <Users className="w-4.5 h-4.5" />
-              <span>Team Members</span>
+              <span>Workspace Members</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('audit-logs')}
+              className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
+                activeTab === 'audit-logs' 
+                  ? 'bg-accent text-white shadow-sm' 
+                  : 'text-text-secondary-muted hover:text-text-secondary hover:bg-dominant-offset'
+              }`}
+            >
+              <Activity className="w-4.5 h-4.5" />
+              <span>Audit Ledger</span>
             </button>
 
             <button
@@ -3370,6 +3389,9 @@ export default function Dashboard() {
 
           {/* TAB: TEAMS DIRECTORY */}
           {activeTab === 'teams' && (
+            selectedTeamId ? (
+              <TeamDetailsWrapper workspaceId={activeWorkspace?.id} />
+            ) : (
             <div className="space-y-6 animate-[fade-in_200ms_ease-out]">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -3546,7 +3568,12 @@ export default function Dashboard() {
                           {/* Header row */}
                           <div className="flex items-start justify-between gap-4">
                             <div className="space-y-0.5">
-                              <h4 className="text-sm font-bold text-text-secondary leading-tight">{team.name}</h4>
+                              <h4 
+                                onClick={() => setSelectedTeam(team.id)}
+                                className="text-sm font-bold text-text-secondary leading-tight cursor-pointer hover:text-accent transition-colors"
+                              >
+                                {team.name}
+                              </h4>
                               <p className="text-[10px] text-text-secondary-muted font-medium">{resolvedMembers.length} Members</p>
                             </div>
                             
@@ -3661,6 +3688,7 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+            )
           )}
 
           {/* TAB: PROJECTS DIRECTORY */}
@@ -3807,6 +3835,14 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+          )}
+
+          {activeTab === 'workspace-members' && (
+            <MembersTable workspaceId={activeWorkspace?.id} />
+          )}
+
+          {activeTab === 'audit-logs' && (
+            <AuditTimeline workspaceId={activeWorkspace?.id} />
           )}
 
           {/* TAB 3: TEAM MEMBERS */}
@@ -4334,6 +4370,10 @@ export default function Dashboard() {
           />
         </div>
       )}
+
+      {/* Redesigned overlays */}
+      <InviteMemberModal workspaceId={activeWorkspace?.id} />
+      <ProfileDrawer />
     </div>
   );
 }

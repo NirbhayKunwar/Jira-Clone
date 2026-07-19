@@ -11,6 +11,9 @@ import goalRoutes from './routes/goals.js';
 import teamRoutes from './routes/teams.js';
 import scheduleEventRoutes from './routes/scheduleEvents.js';
 import notificationsRoutes from './routes/notifications.js';
+import workspaceMembersRoutes from './routes/workspaceMembers.js';
+import teamMembersRoutes from './routes/teamMembers.js';
+import membersRoutes from './routes/members.js';
 import { initializeDatabase } from './config/db.js';
 import { globalErrorHandler } from './middleware/errorHandler.js';
 import prisma from './config/prisma.js';
@@ -133,11 +136,14 @@ app.get('/ready', (req, res) => {
 const registerRoutes = (routerPath) => {
   app.use(`${routerPath}/auth`, authRoutes);
   app.use(`${routerPath}/tasks`, taskRoutes);
+  app.use(`${routerPath}/workspaces`, workspaceMembersRoutes); // Mounts invitations and member operations under workspaces
   app.use(`${routerPath}/workspaces`, workspaceRoutes);
   app.use(`${routerPath}/goals`, goalRoutes);
+  app.use(`${routerPath}/teams`, teamMembersRoutes); // Mounts team details/members under teams
   app.use(`${routerPath}/teams`, teamRoutes);
   app.use(`${routerPath}/schedule-events`, scheduleEventRoutes);
   app.use(`${routerPath}/notifications`, notificationsRoutes);
+  app.use(`${routerPath}/members`, membersRoutes);
 };
 
 registerRoutes('/api');
