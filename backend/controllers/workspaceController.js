@@ -10,8 +10,12 @@ const createWorkspaceSchema = z.object({
   template_type: z.enum(['scrum', 'kanban']),
   board_name: z.string().optional(),
   description: z.string().optional(),
-  sprint_duration: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseInt(val) : val).optional(),
-  wip_limit: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseInt(val) : val).optional()
+  sprint_duration: z.union([z.number(), z.string(), z.null(), z.undefined()])
+    .transform(val => (val === null || val === undefined) ? undefined : (typeof val === 'string' ? parseInt(val) : val))
+    .optional(),
+  wip_limit: z.union([z.number(), z.string(), z.null(), z.undefined()])
+    .transform(val => (val === null || val === undefined) ? undefined : (typeof val === 'string' ? parseInt(val) : val))
+    .optional()
 });
 
 // Get all workspaces (scoped to user ownership or team membership)
