@@ -8,16 +8,18 @@ export const initializeDatabase = async () => {
 
     // Self-healing: promote all existing standalone users (no teamOwnerId) to ADMIN
     // so they are not locked out of creating workspaces or inviting members.
-    const updateResult = await prisma.user.updateMany({
-      where: {
-        teamOwnerId: null,
-        rbacRole: 'MEMBER'
-      },
-      data: {
-        rbacRole: 'ADMIN'
-      }
+    const standaloneMembers = await prisma.user.findMany({
+      where: { rbacRole: 'MEMBER' },
+      select: { id: true, teamOwnerId: true }
     });
-    if (updateResult.count > 0) {
+
+    const toPromote = standaloneMembers.filter(u => u.teamOwnerId === null || u.teamOwnerId === undefined);
+    if (toPromote.length > 0) {
+      const ids = toPromote.map(u => u.id);
+      const updateResult = await prisma.user.updateMany({
+        where: { id: { in: ids } },
+        data: { rbacRole: 'ADMIN' }
+      });
       console.log(`[DATABASE] Self-healed: Promoted ${updateResult.count} standalone users from MEMBER to ADMIN.`);
     }
   } catch (error) {
