@@ -78,7 +78,7 @@ export default function MembersTable({ workspaceId }) {
               </thead>
               <tbody className="divide-y divide-border-secondary/35">
                 {members.map((member) => (
-                  <MemberRow key={member.id} member={member} workspaceId={workspaceId} />
+                  <MemberRow key={member.id} member={member} workspaceId={workspaceId} allMembers={members} />
                 ))}
               </tbody>
             </table>

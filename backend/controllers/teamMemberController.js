@@ -54,6 +54,27 @@ export const getTeam = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Team not found or archived.' });
     }
 
+    // Verify authorized access
+    const wsMember = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: team.workspaceId,
+        userId: req.user.id,
+        status: 'ACTIVE'
+      }
+    });
+
+    const isWsAdmin = wsMember && (wsMember.role === 'OWNER' || wsMember.role === 'ADMIN');
+    const isTeamMember = team.teamMembers.some(m => m.workspaceMember?.userId === req.user.id);
+
+    if (!isWsAdmin && !isTeamMember) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        reason: 'Only Team Members, Workspace Admins, or Workspace Owners can view team details.',
+        teamId
+      });
+    }
+
     res.status(200).json({ success: true, data: team });
   } catch (error) {
     next(error);

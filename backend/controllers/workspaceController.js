@@ -18,37 +18,24 @@ const createWorkspaceSchema = z.object({
     .optional()
 });
 
-// Get all workspaces (scoped to user ownership or team membership)
+// Get all workspaces (scoped strictly to active WorkspaceMember entries)
 export const getWorkspaces = asyncHandler(async (req, res, next) => {
   const userId = req.user ? req.user.id : null;
   if (!userId) {
     return next(new AppError('Unauthorized. Session user not found.', 401));
   }
 
-  let teamOwnerId = req.user ? req.user.teamOwnerId : null;
-  if (teamOwnerId === undefined) {
-    teamOwnerId = null;
-  }
-
-  if (teamOwnerId === null) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { teamOwnerId: true }
-    });
-    if (user) {
-      teamOwnerId = user.teamOwnerId;
+  const memberships = await prisma.workspaceMember.findMany({
+    where: {
+      userId,
+      status: 'ACTIVE'
+    },
+    include: {
+      workspace: true
     }
-  }
-
-  const ownerIds = [userId];
-  if (teamOwnerId) {
-    ownerIds.push(teamOwnerId);
-  }
-
-  const workspaces = await prisma.workspace.findMany({
-    where: { ownerId: { in: ownerIds } },
-    orderBy: { id: 'asc' }
   });
+
+  const workspaces = memberships.map(m => m.workspace).filter(Boolean);
   
   const mapped = workspaces.map(w => ({
     id: w.id.toString(),
@@ -65,7 +52,7 @@ export const getWorkspaces = asyncHandler(async (req, res, next) => {
   return res.status(200).json({ success: true, data: mapped });
 });
 
-// Get workspace by ID (with ownership/membership verification)
+// Get workspace by ID (with membership verification)
 export const getWorkspaceById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   if (!/^[0-9a-fA-F]{24}$/.test(id)) {
@@ -81,18 +68,16 @@ export const getWorkspaceById = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  if (w.ownerId && w.ownerId !== req.user.id) {
-    let authorized = false;
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: { teamOwnerId: true }
-    });
-    if (user && user.teamOwnerId === w.ownerId) {
-      authorized = true;
+  const member = await prisma.workspaceMember.findFirst({
+    where: {
+      workspaceId,
+      userId: req.user.id,
+      status: 'ACTIVE'
     }
-    if (!authorized) {
-      return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
-    }
+  });
+
+  if (!member) {
+    return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
   }
 
   const mapped = {
@@ -110,27 +95,40 @@ export const getWorkspaceById = asyncHandler(async (req, res, next) => {
   return res.status(200).json({ success: true, data: mapped });
 });
 
-// Create a new workspace (linked to owner)
+// Create a new workspace (linked to owner and auto-creating membership)
 export const createWorkspace = asyncHandler(async (req, res, next) => {
   const body = createWorkspaceSchema.parse(req.body);
   const { name, key, template_type, board_name, description, sprint_duration, wip_limit } = body;
   const normalizedKey = key.toUpperCase().trim();
 
   try {
-    const w = await prisma.workspace.create({
-      data: {
-        name: name.trim(),
-        key: normalizedKey,
-        templateType: template_type,
-        boardName: board_name || `${name} Board`,
-        description: description || '',
-        sprintDuration: template_type === 'scrum' ? (sprint_duration || 2) : null,
-        wipLimit: template_type === 'kanban' ? (wip_limit || 5) : null,
-        ownerId: req.user ? req.user.id : null
-      }
+    const { w } = await prisma.$transaction(async (tx) => {
+      const workspaceRecord = await tx.workspace.create({
+        data: {
+          name: name.trim(),
+          key: normalizedKey,
+          templateType: template_type,
+          boardName: board_name || `${name} Board`,
+          description: description || '',
+          sprintDuration: template_type === 'scrum' ? (sprint_duration || 2) : null,
+          wipLimit: template_type === 'kanban' ? (wip_limit || 5) : null,
+          ownerId: req.user.id
+        }
+      });
+
+      await tx.workspaceMember.create({
+        data: {
+          workspaceId: workspaceRecord.id,
+          userId: req.user.id,
+          role: 'OWNER',
+          status: 'ACTIVE'
+        }
+      });
+
+      return { w: workspaceRecord };
     });
 
-    logger.info(`[WORKSPACE SERVICE] Created workspace via Prisma: ${w.name} (${w.key})`);
+    logger.info(`[WORKSPACE SERVICE] Created workspace and membership via Prisma transaction: ${w.name} (${w.key})`);
 
     const mapped = {
       id: w.id.toString(),
@@ -153,7 +151,7 @@ export const createWorkspace = asyncHandler(async (req, res, next) => {
   }
 });
 
-// Delete workspace
+// Delete workspace (Only Owner)
 export const deleteWorkspace = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   if (!/^[0-9a-fA-F]{24}$/.test(id)) {
@@ -169,8 +167,17 @@ export const deleteWorkspace = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  if (w.ownerId && w.ownerId !== req.user.id) {
-    return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
+  const member = await prisma.workspaceMember.findFirst({
+    where: {
+      workspaceId,
+      userId: req.user.id,
+      role: 'OWNER',
+      status: 'ACTIVE'
+    }
+  });
+
+  if (!member) {
+    return next(new AppError('Forbidden. Only the Workspace Owner can delete this workspace.', 403));
   }
 
   await prisma.workspace.delete({

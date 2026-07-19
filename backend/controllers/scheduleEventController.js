@@ -14,16 +14,36 @@ const createEventSchema = z.object({
   workspaceId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid workspace ID format')
 });
 
-const hasWorkspaceAccess = async (workspaceOwnerId, userId) => {
-  if (!workspaceOwnerId) return true;
-  if (workspaceOwnerId === userId) return true;
-  if (prisma.user && typeof prisma.user.findUnique === 'function') {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { teamOwnerId: true }
+const verifyWorkspaceAccess = async (workspaceId, userId) => {
+  if (!workspaceId) return false;
+  
+  if (prisma.workspaceMember) {
+    const member = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId,
+        userId,
+        status: 'ACTIVE'
+      }
     });
-    return user && user.teamOwnerId === workspaceOwnerId;
+    if (member) return true;
   }
+
+  if (prisma.workspace) {
+    const ws = await prisma.workspace.findUnique({
+      where: { id: workspaceId }
+    });
+    if (ws) {
+      if (ws.ownerId === userId) return true;
+      if (prisma.user) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { teamOwnerId: true }
+        });
+        if (user && user.teamOwnerId === ws.ownerId) return true;
+      }
+    }
+  }
+
   return false;
 };
 
@@ -48,7 +68,7 @@ export const getEvents = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  if (!(await hasWorkspaceAccess(ws.ownerId, req.user.id))) {
+  if (!(await verifyWorkspaceAccess(ws.id, req.user.id))) {
     return next(new AppError('Forbidden. Access to this workspace is denied.', 403));
   }
   
@@ -84,7 +104,7 @@ export const createEvent = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  if (!(await hasWorkspaceAccess(ws.ownerId, req.user.id))) {
+  if (!(await verifyWorkspaceAccess(ws.id, req.user.id))) {
     return next(new AppError('Forbidden. Access to this workspace is denied.', 403));
   }
 
@@ -111,7 +131,7 @@ export const createEvent = asyncHandler(async (req, res, next) => {
 
   logger.info(`[SCHEDULE SERVICE] Created schedule event: ${e.title} for ${eventDate}`);
 
-  await addNotification(`New event "${title}" was scheduled for ${eventDate}.`, 'calendar', req.user.id);
+  await addNotification(`New event "${title}" was scheduled for ${eventDate}.`, 'calendar', req.user.id, null, parsedWorkspaceId);
 
   return res.status(201).json({ success: true, message: 'Event created successfully.', data: mapped });
 });
@@ -134,8 +154,14 @@ export const deleteEvent = asyncHandler(async (req, res, next) => {
     return next(new AppError('Event not found.', 404));
   }
 
-  if (eventCheck.workspace && !(await hasWorkspaceAccess(eventCheck.workspace.ownerId, req.user.id))) {
+  const targetWorkspaceId = eventCheck.workspaceId || eventCheck.workspace?.id;
+  if (targetWorkspaceId && !(await verifyWorkspaceAccess(targetWorkspaceId, req.user.id))) {
     return next(new AppError('Forbidden. You do not have access to this event.', 403));
+  } else if (!targetWorkspaceId && eventCheck.workspace) {
+    const ownerId = eventCheck.workspace.ownerId;
+    if (ownerId && ownerId !== req.user.id) {
+      return next(new AppError('Forbidden. You do not have access to this event.', 403));
+    }
   }
 
   await prisma.scheduleEvent.delete({
@@ -144,7 +170,7 @@ export const deleteEvent = asyncHandler(async (req, res, next) => {
 
   logger.info(`[SCHEDULE SERVICE] Deleted schedule event: ${eventCheck.title}`);
 
-  await addNotification(`Event "${eventCheck.title}" was removed from the schedule.`, 'calendar', req.user.id);
+  await addNotification(`Event "${eventCheck.title}" was removed from the schedule.`, 'calendar', req.user.id, null, eventCheck.workspaceId);
 
   return res.status(200).json({ success: true, message: 'Event deleted successfully.', data: null });
 });

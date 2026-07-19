@@ -4,7 +4,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { useUiStore } from '../../../store/uiStore';
 import { useUpdateWorkspaceMember, useRemoveWorkspaceMember, useTransferTasks } from '../hooks/useWorkspaceMembers';
 
-export default function MemberRow({ member, workspaceId }) {
+export default function MemberRow({ member, workspaceId, allMembers = [] }) {
   const { user: currentUser } = useAuthStore();
   const { setProfileDrawer, setWorkspaceMembersFilter } = useUiStore();
   const updateMutation = useUpdateWorkspaceMember(workspaceId);
@@ -205,15 +205,22 @@ export default function MemberRow({ member, workspaceId }) {
               </div>
 
               <form onSubmit={handleTransferAndRemove} className="flex items-center space-x-2.5 w-full md:w-auto">
-                <input
-                  aria-label="Enter User Email to transfer tasks to"
-                  type="email"
+                <select
+                  aria-label="Select member to transfer tasks to"
                   required
-                  placeholder="Transfer to user email..."
                   value={targetTransferUserId}
                   onChange={(e) => setTargetTransferUserId(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs bg-dominant border border-border-secondary rounded-lg focus:outline-none focus:ring-1 focus:ring-accent text-text-secondary"
-                />
+                  className="px-2.5 py-1.5 text-xs bg-dominant border border-border-secondary rounded-lg focus:outline-none focus:ring-1 focus:ring-accent text-text-secondary cursor-pointer"
+                >
+                  <option value="">Select recipient...</option>
+                  {allMembers
+                    .filter(m => m.id !== member.id && m.status === 'ACTIVE')
+                    .map(m => (
+                      <option key={m.user.id} value={m.user.id}>
+                        {m.user.name} ({m.user.email})
+                      </option>
+                    ))}
+                </select>
                 <button
                   type="submit"
                   disabled={isTransferring}

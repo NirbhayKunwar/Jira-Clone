@@ -25,5 +25,15 @@ export const useUiStore = create((set) => ({
     activeTeamTab: activeTab
   }),
 
-  setTransferLeadModal: (open) => set({ isTransferLeadModalOpen: open })
+  setTransferLeadModal: (open) => set({ isTransferLeadModalOpen: open }),
+
+  resetUiStore: () => set({
+    isProfileDrawerOpen: false,
+    selectedMemberId: null,
+    isInviteModalOpen: false,
+    workspaceMembersFilter: { role: '', status: 'ACTIVE', search: '' },
+    selectedTeamId: null,
+    activeTeamTab: 'overview',
+    isTransferLeadModalOpen: false
+  })
 }));

@@ -45,7 +45,7 @@ const updateProfileSchema = z.object({
   hasConfiguredWorkspace: z.boolean().optional()
 });
 
-export const addNotification = async (text, type = 'info', userId = null, title = null) => {
+export const addNotification = async (text, type = 'info', userId = null, title = null, workspaceId = null, createdBy = null) => {
   try {
     const derivedTitle = title || (
       type === 'task' ? 'Task Update' :
@@ -60,10 +60,12 @@ export const addNotification = async (text, type = 'info', userId = null, title 
         title: derivedTitle,
         message: text,
         type,
-        userId
+        userId,
+        workspaceId,
+        createdBy
       }
     });
-    logger.info(`[NOTIFICATION] Notification created: ${text}`);
+    logger.info(`[NOTIFICATION] Notification created: ${text} for user ${userId} in workspace ${workspaceId}`);
     return notif;
   } catch (error) {
     logger.error('[NOTIFICATION ERROR] Failed to create notification:', error);
@@ -76,15 +78,21 @@ export const getNotifications = async (req, res) => {
     const userId = req.user ? req.user.id : null;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
+    const workspaceId = req.query.workspaceId || req.headers['x-workspace-id'];
+
+    const whereConditions = {
+      deleted: false,
+      userId
+    };
+
+    if (workspaceId && /^[0-9a-fA-F]{24}$/.test(workspaceId)) {
+      whereConditions.workspaceId = workspaceId;
+    } else {
+      whereConditions.workspaceId = null;
+    }
 
     const notifications = await prisma.notification.findMany({
-      where: {
-        deleted: false,
-        OR: [
-          { userId },
-          { userId: null }
-        ]
-      },
+      where: whereConditions,
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit
@@ -106,7 +114,8 @@ export const getNotifications = async (req, res) => {
       deleted: n.deleted,
       deletedAt: n.deletedAt,
       createdAt: n.createdAt,
-      userId: n.userId ? n.userId.toString() : null
+      userId: n.userId ? n.userId.toString() : null,
+      workspaceId: n.workspaceId ? n.workspaceId.toString() : null
     }));
 
     return res.status(200).json({ success: true, data: mapped });
@@ -131,7 +140,7 @@ export const deleteNotification = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Notification not found.', data: null });
     }
 
-    if (notif.userId && notif.userId !== req.user.id) {
+    if (notif.userId !== req.user.id) {
       return res.status(403).json({ success: false, message: 'Forbidden. Access to this notification is denied.', data: null });
     }
 

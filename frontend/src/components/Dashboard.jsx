@@ -187,10 +187,30 @@ export default function Dashboard() {
   const [dashboardOpenedAt] = useState(() => Date.now());
 
 
-  const { user, theme, setTheme, mode, toggleMode, logout: onLogout } = useAuthStore();
-  const { activeWorkspace, workspaces, setActiveWorkspace: onSwitchWorkspace, deleteWorkspace, workspaceError } = useWorkspaceStore();
+  const { user, theme, setTheme, mode, toggleMode, logout: authLogout } = useAuthStore();
+  const { activeWorkspace, workspaces, setActiveWorkspace: storeSwitchWorkspace, deleteWorkspace, workspaceError } = useWorkspaceStore();
   const queryClient = useQueryClient();
   const { selectedTeamId, setSelectedTeam } = useUiStore();
+
+  const onSwitchWorkspace = (ws) => {
+    queryClient.clear();
+    setSelectedTeam(null);
+    storeSwitchWorkspace(ws);
+  };
+
+  const onLogout = () => {
+    queryClient.clear();
+    useWorkspaceStore.getState().resetWorkspaceStore?.();
+    useUiStore.getState().resetUiStore?.();
+    localStorage.removeItem('jira_current_user');
+    localStorage.removeItem('jira_token');
+    localStorage.removeItem('jira_active_workspace');
+    localStorage.removeItem('jira_dashboard_active_tab');
+    localStorage.removeItem('jira_recent_visits');
+    sessionStorage.clear();
+    authLogout();
+    navigate('/auth');
+  };
 
   const onTriggerCreateWorkspace = () => navigate('/workspace-setup');
 

@@ -22,11 +22,25 @@ export const getMemberProfile = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Member profile not found.' });
     }
 
+    // Verify requesting user is in the same workspace
+    const requester = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: member.workspaceId,
+        userId: req.user.id,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!requester) {
+      return res.status(403).json({ success: false, message: 'Forbidden. You do not have access to this member profile.' });
+    }
+
     const userId = member.userId;
 
     // Get Active Tasks Count
     const activeTasks = await prisma.task.findMany({
       where: {
+        workspaceId: member.workspaceId,
         assigneeId: userId,
         status: { notIn: ['done', 'completed'] }
       },
@@ -36,6 +50,7 @@ export const getMemberProfile = async (req, res, next) => {
     // Get Completed Tasks Count
     const completedTasksCount = await prisma.task.count({
       where: {
+        workspaceId: member.workspaceId,
         assigneeId: userId,
         status: { in: ['done', 'completed'] }
       }
@@ -44,6 +59,7 @@ export const getMemberProfile = async (req, res, next) => {
     // Get member timeline logs
     const activities = await prisma.auditLog.findMany({
       where: {
+        resourceId: member.workspaceId,
         OR: [
           { actorId: userId },
           { targetUserId: userId }

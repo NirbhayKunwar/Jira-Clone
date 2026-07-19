@@ -119,6 +119,11 @@ export const useWorkspaceStore = create((set, get) => {
         console.error('Error deleting workspace:', error);
         return false;
       }
+    },
+
+    resetWorkspaceStore: () => {
+      localStorage.removeItem('jira_active_workspace');
+      set({ workspaces: [], activeWorkspace: null, isLoadingWorkspaces: false, workspaceError: null });
     }
   };
 });
