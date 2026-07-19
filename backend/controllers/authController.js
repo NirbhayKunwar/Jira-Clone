@@ -507,7 +507,7 @@ export const refreshTokens = async (req, res) => {
     });
   } catch (error) {
     logger.warn('[RTR] Refresh token rotated or invalidated.');
-    return res.status(403).json({ success: false, message: 'Invalid or expired refresh token.', data: null });
+    return res.status(401).json({ success: false, message: 'Invalid or expired refresh token.', data: null });
   }
 };
 
