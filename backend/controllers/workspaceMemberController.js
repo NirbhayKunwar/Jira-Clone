@@ -3,6 +3,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import eventBus from '../config/eventBus.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { isValidObjectId } from '../middleware/rbac.js';
 
 // Schemas for input validation
 const inviteSchema = z.object({
@@ -357,6 +358,9 @@ export const acceptInvitation = async (req, res, next) => {
 export const updateWorkspaceMember = async (req, res, next) => {
   try {
     const { workspaceId, memberId } = req.params;
+    if (!isValidObjectId(memberId)) {
+      return res.status(400).json({ success: false, message: 'Invalid member ID format.' });
+    }
     const validationResult = updateMemberSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.status(400).json({ success: false, errors: validationResult.error.flatten() });
@@ -432,6 +436,9 @@ export const updateWorkspaceMember = async (req, res, next) => {
 export const removeWorkspaceMember = async (req, res, next) => {
   try {
     const { workspaceId, memberId } = req.params;
+    if (!isValidObjectId(memberId)) {
+      return res.status(400).json({ success: false, message: 'Invalid member ID format.' });
+    }
 
     const targetMember = await prisma.workspaceMember.findFirst({
       where: { id: memberId, workspaceId },
@@ -521,6 +528,9 @@ export const getWorkspaceInvitations = async (req, res, next) => {
 export const revokeInvitation = async (req, res, next) => {
   try {
     const { workspaceId, inviteId } = req.params;
+    if (!isValidObjectId(inviteId)) {
+      return res.status(400).json({ success: false, message: 'Invalid invitation ID format.' });
+    }
 
     const invitation = await prisma.invitation.findFirst({
       where: { id: inviteId, workspaceId }
@@ -563,6 +573,9 @@ export const revokeInvitation = async (req, res, next) => {
 export const resendInvitation = async (req, res, next) => {
   try {
     const { workspaceId, inviteId } = req.params;
+    if (!isValidObjectId(inviteId)) {
+      return res.status(400).json({ success: false, message: 'Invalid invitation ID format.' });
+    }
 
     const invitation = await prisma.invitation.findFirst({
       where: { id: inviteId, workspaceId }
@@ -693,7 +706,13 @@ export const getWorkspacePermissions = async (req, res, next) => {
 export const transferMemberTasks = async (req, res, next) => {
   try {
     const { workspaceId, memberId } = req.params;
-    const { targetUserId } = req.body; // User ID of user receiving the tasks
+    const { targetUserId } = req.body;
+    if (!isValidObjectId(memberId)) {
+      return res.status(400).json({ success: false, message: 'Invalid source member ID format.' });
+    }
+    if (!isValidObjectId(targetUserId)) {
+      return res.status(400).json({ success: false, message: 'Invalid destination user ID format.' });
+    }
 
     const sourceMember = await prisma.workspaceMember.findFirst({
       where: { id: memberId, workspaceId }

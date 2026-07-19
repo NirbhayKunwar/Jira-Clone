@@ -71,7 +71,47 @@ export const initializeDatabase = async () => {
           });
         }
       }
+
+      // Member gets invite, sprint management, task assignment, and comment creation
+      if (['workspace.invite', 'sprint.manage', 'task.assign', 'comment.create'].includes(wp.name)) {
+        const existingMemberPerm = await prisma.workspaceRolePermission.findFirst({
+          where: { role: 'MEMBER', permissionId: wp.id }
+        });
+        if (!existingMemberPerm) {
+          await prisma.workspaceRolePermission.create({
+            data: { role: 'MEMBER', permissionId: wp.id }
+          });
+        }
+      }
+
+      // Guest gets comment creation
+      if (wp.name === 'comment.create') {
+        const existingGuestPerm = await prisma.workspaceRolePermission.findFirst({
+          where: { role: 'GUEST', permissionId: wp.id }
+        });
+        if (!existingGuestPerm) {
+          await prisma.workspaceRolePermission.create({
+            data: { role: 'GUEST', permissionId: wp.id }
+          });
+        }
+      }
     }
+
+    // Seed Team Role permissions
+    const teamPerms = await prisma.permission.findMany({
+      where: { name: { in: ['team.manage', 'team.invite'] } }
+    });
+    for (const tp of teamPerms) {
+      const existingTeamLeadPerm = await prisma.teamRolePermission.findFirst({
+        where: { role: 'TEAM_LEAD', permissionId: tp.id }
+      });
+      if (!existingTeamLeadPerm) {
+        await prisma.teamRolePermission.create({
+          data: { role: 'TEAM_LEAD', permissionId: tp.id }
+        });
+      }
+    }
+
     console.log('[DATABASE] Seeded permission models and defaults successfully.');
   } catch (error) {
     console.error('[DATABASE] Failed to connect to MongoDB Atlas:', error);

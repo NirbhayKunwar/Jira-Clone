@@ -2,6 +2,7 @@ import prisma from '../config/prisma.js';
 import { z } from 'zod';
 import eventBus from '../config/eventBus.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { isValidObjectId } from '../middleware/rbac.js';
 
 const addTeamMemberSchema = z.object({
   workspaceMemberId: z.string(),
@@ -88,6 +89,9 @@ export const addTeamMember = async (req, res, next) => {
     }
 
     const { workspaceMemberId, role } = validationResult.data;
+    if (!isValidObjectId(workspaceMemberId)) {
+      return res.status(400).json({ success: false, message: 'Invalid workspace member ID format.' });
+    }
 
     // Check if team exists and is active
     const team = await prisma.team.findUnique({ where: { id: teamId } });
@@ -161,6 +165,9 @@ export const addTeamMember = async (req, res, next) => {
 export const updateTeamMember = async (req, res, next) => {
   try {
     const { teamId, memberId } = req.params;
+    if (!isValidObjectId(memberId)) {
+      return res.status(400).json({ success: false, message: 'Invalid team member ID format.' });
+    }
     const validationResult = updateTeamMemberSchema.safeParse(req.body);
     if (!validationResult.success) {
       return res.status(400).json({ success: false, errors: validationResult.error.flatten() });
@@ -222,6 +229,9 @@ export const updateTeamMember = async (req, res, next) => {
 export const removeTeamMember = async (req, res, next) => {
   try {
     const { teamId, memberId } = req.params;
+    if (!isValidObjectId(memberId)) {
+      return res.status(400).json({ success: false, message: 'Invalid team member ID format.' });
+    }
 
     const teamMember = await prisma.teamMember.findFirst({
       where: { id: memberId, teamId, status: 'ACTIVE' }
@@ -264,7 +274,10 @@ export const removeTeamMember = async (req, res, next) => {
 export const transferTeamLead = async (req, res, next) => {
   try {
     const { teamId } = req.params;
-    const { newLeadMemberId } = req.body; // TeamMember ID of new lead
+    const { newLeadMemberId } = req.body;
+    if (!isValidObjectId(newLeadMemberId)) {
+      return res.status(400).json({ success: false, message: 'Invalid target lead member ID format.' });
+    }
 
     const team = await prisma.team.findUnique({
       where: { id: teamId },

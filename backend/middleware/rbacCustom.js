@@ -1,22 +1,37 @@
 import prisma from '../config/prisma.js';
+import { getOrCreateWorkspaceMember, isValidObjectId } from './rbac.js';
 
 export const requireWorkspaceAdminOrTeamLead = async (req, res, next) => {
   try {
     const { teamId } = req.params;
+    if (!teamId || !isValidObjectId(teamId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        reason: 'Invalid Team ID format (must be 24-character hex string).'
+      });
+    }
+
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ success: false, message: 'Unauthorized. Please log in.' });
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        reason: 'Authentication token missing or invalid.'
+      });
     }
 
     const team = await prisma.team.findUnique({ where: { id: teamId } });
-    if (!team) {
-      return res.status(404).json({ success: false, message: 'Team not found.' });
+    if (!team || team.status === 'ARCHIVED') {
+      return res.status(404).json({
+        success: false,
+        error: 'Not Found',
+        reason: 'Team not found or archived.'
+      });
     }
 
-    // Check workspace member role
+    // Check workspace member role via self-healing loader
     if (team.workspaceId) {
-      const wsMember = await prisma.workspaceMember.findFirst({
-        where: { workspaceId: team.workspaceId, userId: req.user.id, status: 'ACTIVE' }
-      });
+      const wsMember = await getOrCreateWorkspaceMember(team.workspaceId, req.user.id);
       if (wsMember && (wsMember.role === 'OWNER' || wsMember.role === 'ADMIN')) {
         return next();
       }
@@ -27,7 +42,12 @@ export const requireWorkspaceAdminOrTeamLead = async (req, res, next) => {
       return next();
     }
 
-    return res.status(403).json({ success: false, message: 'Forbidden. Workspace Admin or Team Lead status required.' });
+    return res.status(403).json({
+      success: false,
+      error: 'Forbidden',
+      reason: 'Workspace Admin or Team Lead status required.',
+      teamId
+    });
   } catch (error) {
     next(error);
   }
