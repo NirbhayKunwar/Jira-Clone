@@ -2466,7 +2466,7 @@ export default function Dashboard() {
               )}
 
               {/* Kanban Grid */}
-              <div ref={kanbanGridRef} className="flex flex-row overflow-x-auto gap-4 md:gap-6 flex-grow items-start pb-4 scrollbar-thin w-full min-w-0 snap-x snap-mandatory">
+              <div ref={kanbanGridRef} className="flex flex-col md:flex-row overflow-y-auto md:overflow-x-auto md:overflow-y-hidden gap-4 md:gap-6 flex-grow items-stretch md:items-start pb-4 scrollbar-thin w-full min-w-0">
                 {columns.map(col => {
                   const currentCount = processedTasks.filter(t => t.status === col.id).length;
                   const wipExceeded = col.hasWipLimit && currentCount > (activeWorkspace?.wip_limit || 5);
@@ -2478,7 +2478,7 @@ export default function Dashboard() {
                       data-column-id={col.id}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, col.id)}
-                      className={`bg-card-secondary/60 rounded-xl border p-4 flex flex-col w-[85vw] xs:w-[280px] sm:w-[320px] shrink-0 max-h-[calc(100dvh-240px)] md:max-h-[calc(100dvh-280px)] overflow-hidden transition-all duration-300 snap-center ${
+                      className={`bg-card-secondary/60 rounded-xl border p-4 flex flex-col w-full md:w-[320px] md:shrink-0 max-h-none md:max-h-[calc(100dvh-280px)] overflow-hidden transition-all duration-300 ${
                         wipExceeded 
                           ? 'border-red-500/40 bg-red-500/[0.02]' 
                           : isHovered
