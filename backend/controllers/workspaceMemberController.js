@@ -296,16 +296,29 @@ export const acceptInvitation = async (req, res, next) => {
         });
       }
 
-      // Add to Project if specified
-      let projectMember = null;
-      if (invitation.projectId) {
-        projectMember = await tx.projectMember.create({
-          data: {
-            projectId: invitation.projectId,
-            workspaceMemberId: wsMember.id,
-            role: invitation.projectRole || 'DEVELOPER'
-          }
+      // Add to Project
+      let targetProjectId = invitation.projectId;
+      if (!targetProjectId) {
+        const firstProj = await tx.project.findFirst({
+          where: { workspaceId: invitation.workspaceId }
         });
+        if (firstProj) targetProjectId = firstProj.id;
+      }
+
+      let projectMember = null;
+      if (targetProjectId) {
+        const existingPM = await tx.projectMember.findFirst({
+          where: { projectId: targetProjectId, workspaceMemberId: wsMember.id }
+        });
+        if (!existingPM) {
+          projectMember = await tx.projectMember.create({
+            data: {
+              projectId: targetProjectId,
+              workspaceMemberId: wsMember.id,
+              role: invitation.projectRole || 'DEVELOPER'
+            }
+          });
+        }
       }
 
       // Update Invitation Status

@@ -19,6 +19,14 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
   const initials = member.user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   const isMe = member.user.id === currentUser?.id;
 
+  // Determine current logged-in user's role in this active workspace
+  const myWorkspaceMember = allMembers.find(m => m.user?.id === currentUser?.id || m.userId === currentUser?.id);
+  const myWorkspaceRole = myWorkspaceMember?.role || currentUser?.rbacRole || 'MEMBER';
+
+  const canManageRole = !isMe && (myWorkspaceRole === 'OWNER' || (myWorkspaceRole === 'ADMIN' && member.role !== 'OWNER'));
+  const canManageStatus = !isMe && (myWorkspaceRole === 'OWNER' || (myWorkspaceRole === 'ADMIN' && member.role !== 'OWNER'));
+  const canRemove = !isMe && (myWorkspaceRole === 'OWNER' || (myWorkspaceRole === 'ADMIN' && member.role !== 'OWNER'));
+
   const handleRoleChange = async (newRole) => {
     try {
       if (member.role === 'OWNER' && newRole !== 'OWNER' && !confirm('Are you sure you want to demote the owner? You will lose ownership control.')) {
@@ -50,11 +58,12 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
     if (!confirm(`Are you sure you want to remove ${member.user.name} from the workspace?`)) {
       return;
     }
+
     try {
       const res = await removeMutation.mutateAsync(member.id);
-      if (res && res.requiresTransfer) {
+      if (res?.requiresTransfer) {
         setRequiresTransfer(true);
-        setActiveTasksCount(res.data?.activeTasksCount || 0);
+        setActiveTasksCount(res.activeTasksCount || 1);
       } else {
         alert('Member removed successfully.');
       }
@@ -65,18 +74,20 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
 
   const handleTransferAndRemove = async (e) => {
     e.preventDefault();
-    if (!targetTransferUserId) return;
-    setIsTransferring(true);
+    if (!targetTransferUserId) {
+      alert('Please select a team member to transfer tasks to.');
+      return;
+    }
+
     try {
-      // 1. Transfer tasks
+      setIsTransferring(true);
       await transferTasksMutation.mutateAsync({
-        memberId: member.id,
-        targetUserId: targetTransferUserId
+        fromUserId: member.user.id,
+        toUserId: targetTransferUserId
       });
-      // 2. Remove member
       await removeMutation.mutateAsync(member.id);
-      alert('Tasks transferred and member removed successfully.');
       setRequiresTransfer(false);
+      alert('Tasks transferred and member removed successfully.');
     } catch (error) {
       alert(error.message);
     } finally {
@@ -85,13 +96,12 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
   };
 
   // Determine workload indicator color
-  const totalTasks = member.projectMemberships?.length || 0; // fallback workload indicator
   const statusColor = member.status === 'ACTIVE' ? 'bg-green-500' : 'bg-red-500';
 
   return (
     <>
-      <tr className="hover:bg-dominant-offset/5 transition-colors border-b border-border-secondary/30 last:border-0 text-left">
-        {/* User Card info */}
+      <tr className="hover:bg-dominant-offset/20 transition-colors border-b border-border-secondary/30 last:border-0 text-left">
+        {/* User Info */}
         <td className="px-6 py-4.5 whitespace-nowrap">
           <div className="flex items-center space-x-3.5">
             <div className="relative">
@@ -114,12 +124,12 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
 
         {/* Workspace Role Dropdown */}
         <td className="px-6 py-4.5 whitespace-nowrap">
-          {(!isMe && (currentUser?.rbacRole === 'ADMIN' || currentUser?.rbacRole === 'LEADER')) ? (
+          {canManageRole ? (
             <select
               aria-label="Workspace Role"
               value={member.role}
               onChange={(e) => handleRoleChange(e.target.value)}
-              disabled={member.role === 'OWNER' && currentUser?.rbacRole !== 'OWNER'}
+              disabled={member.role === 'OWNER' && myWorkspaceRole !== 'OWNER'}
               className="text-xs font-semibold bg-dominant border border-border-secondary rounded-lg px-2.5 py-1.5 text-text-secondary focus:outline-none cursor-pointer focus:ring-1 focus:ring-accent"
             >
               <option value="OWNER">Owner</option>
@@ -136,7 +146,7 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
 
         {/* Member status actions */}
         <td className="px-6 py-4.5 whitespace-nowrap">
-          {(!isMe && (currentUser?.rbacRole === 'ADMIN' || currentUser?.rbacRole === 'LEADER')) ? (
+          {canManageStatus ? (
             <select
               aria-label="Status Control"
               value={member.status}
@@ -176,7 +186,7 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
             >
               <Eye className="w-4 h-4" />
             </button>
-            {(!isMe && (currentUser?.rbacRole === 'ADMIN' || currentUser?.rbacRole === 'LEADER')) && (
+            {canRemove && (
               <button
                 onClick={handleRemove}
                 className="p-1.5 rounded-lg text-text-secondary-muted hover:text-red-500 hover:bg-red-500/5 transition-all cursor-pointer border-none bg-transparent touch-target"

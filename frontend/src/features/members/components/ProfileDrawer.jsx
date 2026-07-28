@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Briefcase, MapPin, Mail, Globe, Shield } from 'lucide-react';
+import { X, Briefcase, MapPin, Mail, Globe, Shield, Calendar } from 'lucide-react';
 import { useUiStore } from '../../../store/uiStore';
 import { useMemberProfile } from '../hooks/useMemberProfile';
 import TasksTab from './TasksTab';
@@ -115,6 +115,10 @@ export default function ProfileDrawer() {
                 <div className="flex items-center space-x-2.5">
                   <MapPin className="w-3.5 h-3.5" />
                   <span>{data.profile.location}</span>
+                </div>
+                <div className="flex items-center space-x-2.5">
+                  <Calendar className="w-3.5 h-3.5 text-accent" />
+                  <span>Joined {new Date(data.profile.joinedAt || Date.now()).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                 </div>
               </div>
 

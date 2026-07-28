@@ -116,12 +116,29 @@ export const createWorkspace = asyncHandler(async (req, res, next) => {
         }
       });
 
-      await tx.workspaceMember.create({
+      const primaryProject = await tx.project.create({
+        data: {
+          name: name.trim(),
+          key: normalizedKey,
+          workspaceId: workspaceRecord.id,
+          leadId: req.user.id
+        }
+      });
+
+      const memberRecord = await tx.workspaceMember.create({
         data: {
           workspaceId: workspaceRecord.id,
           userId: req.user.id,
           role: 'OWNER',
           status: 'ACTIVE'
+        }
+      });
+
+      await tx.projectMember.create({
+        data: {
+          projectId: primaryProject.id,
+          workspaceMemberId: memberRecord.id,
+          role: 'PROJECT_LEAD'
         }
       });
 
