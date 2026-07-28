@@ -64,7 +64,7 @@ export default function MembersTable({ workspaceId }) {
       ) : (
         /* Members Table Container */
         <div className="bg-card-secondary rounded-xl border border-border-secondary/60 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto scrollbar-thin">
             <table className="min-w-full divide-y divide-border-secondary/40 text-left">
               <thead className="bg-dominant-offset/10 text-xs font-bold text-text-secondary-muted uppercase tracking-wider select-none">
                 <tr>

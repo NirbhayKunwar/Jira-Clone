@@ -5,9 +5,10 @@ import {
   Trash2, X, AlertTriangle, CheckCircle2, ChevronRight,
   Filter, UserCheck, Calendar, Activity, Info, User, Palette, ChevronDown,
   Target, Rocket, UserCircle, Clock, LayoutDashboard, List,
-  Settings, Menu, Copy, Check, Bell
+  Settings, Menu, Copy, Check, Bell, Monitor
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { useTheme } from '../hooks/useTheme';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask } from '../hooks/useTasks';
@@ -187,7 +188,8 @@ export default function Dashboard() {
   const [dashboardOpenedAt] = useState(() => Date.now());
 
 
-  const { user, theme, setTheme, mode, toggleMode, logout: authLogout } = useAuthStore();
+  const { user, logout: authLogout } = useAuthStore();
+  const { theme, mode, resolvedMode, setTheme, setMode, toggleMode } = useTheme();
   const { activeWorkspace, workspaces, setActiveWorkspace: storeSwitchWorkspace, deleteWorkspace, workspaceError } = useWorkspaceStore();
   const queryClient = useQueryClient();
   const { selectedTeamId, setSelectedTeam } = useUiStore();
@@ -211,6 +213,25 @@ export default function Dashboard() {
     authLogout();
     navigate('/auth');
   };
+
+  // Support window.visualViewport for mobile soft keyboard changes
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleVisualViewportResize = () => {
+      const vv = window.visualViewport;
+      document.documentElement.style.setProperty('--vv-height', `${vv.height}px`);
+    };
+
+    window.visualViewport.addEventListener('resize', handleVisualViewportResize);
+    window.visualViewport.addEventListener('scroll', handleVisualViewportResize);
+    handleVisualViewportResize();
+
+    return () => {
+      window.visualViewport.removeEventListener('resize', handleVisualViewportResize);
+      window.visualViewport.removeEventListener('scroll', handleVisualViewportResize);
+    };
+  }, []);
 
   const onTriggerCreateWorkspace = () => navigate('/workspace-setup');
 
@@ -1201,7 +1222,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen flex bg-dominant text-text-secondary transition-colors duration-300 relative overflow-hidden">
+    <div className="min-h-dvh flex bg-dominant text-text-secondary transition-colors duration-300 relative overflow-hidden">
       
       {/* Sidebar Backdrop Overlay for Mobile/Tablet */}
       {isSidebarOpen && (
@@ -1212,7 +1233,7 @@ export default function Dashboard() {
       )}
 
       {/* 1. Sidebar Navigation */}
-      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 overflow-y-auto xl:overflow-visible custom-scrollbar ${
+      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 h-dvh pb-safe w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 overflow-y-auto xl:overflow-visible custom-scrollbar ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full invisible pointer-events-none xl:visible xl:pointer-events-auto'
       }`} aria-label="Workspace navigation">
         <div>
@@ -1982,16 +2003,15 @@ export default function Dashboard() {
                 </button>
 
                 {showThemePicker && (
-                  <div className="absolute right-0 mt-2 w-48 bg-card-secondary border border-border-secondary rounded-xl shadow-xl p-2 z-50 animate-[fade-in_150ms_ease-out]">
+                  <div className="absolute right-0 mt-2 w-56 bg-card-secondary border border-border-secondary rounded-xl shadow-xl p-2.5 z-50 animate-[fade-in_150ms_ease-out]">
                     <div className="text-[9px] font-bold text-text-secondary-muted px-2 py-1 uppercase tracking-wider">
-                      Select Theme
+                      Color Palette
                     </div>
                     {THEMES.map((t) => (
                       <button
                         key={t.id}
                         onClick={() => {
                           setTheme(t.id);
-                          setShowThemePicker(false);
                         }}
                         className={`w-full flex items-center space-x-2.5 p-2 rounded-lg text-[10px] font-bold hover:bg-dominant-offset cursor-pointer text-left transition-colors border-none bg-transparent ${
                           theme === t.id ? 'text-accent bg-accent-light' : 'text-text-secondary'
@@ -2001,6 +2021,45 @@ export default function Dashboard() {
                         <span>{t.name}</span>
                       </button>
                     ))}
+
+                    <div className="text-[9px] font-bold text-text-secondary-muted px-2 py-1 mt-2 uppercase tracking-wider border-t border-border-secondary/40 pt-2">
+                      Appearance Mode
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 mt-1">
+                      <button
+                        onClick={() => setMode('light')}
+                        className={`flex flex-col items-center justify-center p-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                          mode === 'light'
+                            ? 'border-accent bg-accent-light text-accent'
+                            : 'border-border-secondary/40 text-text-secondary-muted hover:bg-dominant-offset'
+                        }`}
+                      >
+                        <Sun className="w-3.5 h-3.5 mb-1" />
+                        <span>Light</span>
+                      </button>
+                      <button
+                        onClick={() => setMode('dark')}
+                        className={`flex flex-col items-center justify-center p-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                          mode === 'dark'
+                            ? 'border-accent bg-accent-light text-accent'
+                            : 'border-border-secondary/40 text-text-secondary-muted hover:bg-dominant-offset'
+                        }`}
+                      >
+                        <Moon className="w-3.5 h-3.5 mb-1" />
+                        <span>Dark</span>
+                      </button>
+                      <button
+                        onClick={() => setMode('system')}
+                        className={`flex flex-col items-center justify-center p-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                          mode === 'system'
+                            ? 'border-accent bg-accent-light text-accent'
+                            : 'border-border-secondary/40 text-text-secondary-muted hover:bg-dominant-offset'
+                        }`}
+                      >
+                        <Monitor className="w-3.5 h-3.5 mb-1" />
+                        <span>System</span>
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2008,10 +2067,10 @@ export default function Dashboard() {
               {/* Mode Toggle */}
               <button
                 onClick={toggleMode}
-                className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset transition-colors cursor-pointer border-none bg-transparent min-w-[44px] min-h-[44px] flex items-center justify-center"
-                title={mode === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+                className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset transition-colors cursor-pointer border-none bg-transparent min-w-[44px] min-h-[44px] flex items-center justify-center touch-target"
+                title={resolvedMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               >
-                {mode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {resolvedMode === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
 
               {/* Notifications Toggle */}

@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useWorkspaceStore } from './store/workspaceStore';
+import { useTheme } from './hooks/useTheme';
 
 // ─── Eager (always needed, tiny) ────────────────────────────────────────────
 // Nothing from the landing page is eager-loaded anymore. The spinner and route
@@ -80,19 +81,9 @@ function AuthRoute({ children }) {
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme, mode, user, toggleMode, setTheme } = useAuthStore();
+  const { user } = useAuthStore();
   const { fetchWorkspaces } = useWorkspaceStore();
-
-  // Sync theme/mode with DOM attributes
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.setAttribute('data-theme', `${theme}-${mode}`);
-    if (mode === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-  }, [theme, mode]);
+  const { theme, mode, resolvedMode, setTheme, setMode, toggleMode } = useTheme();
 
   // Fetch workspaces list once authenticated
   useEffect(() => {

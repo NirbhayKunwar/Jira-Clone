@@ -179,7 +179,7 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
             {(!isMe && (currentUser?.rbacRole === 'ADMIN' || currentUser?.rbacRole === 'LEADER')) && (
               <button
                 onClick={handleRemove}
-                className="p-1.5 rounded-lg text-text-secondary-muted hover:text-red-500 hover:bg-red-500/5 transition-all cursor-pointer border-none bg-transparent"
+                className="p-1.5 rounded-lg text-text-secondary-muted hover:text-red-500 hover:bg-red-500/5 transition-all cursor-pointer border-none bg-transparent touch-target"
                 title="Remove Member"
               >
                 <Trash2 className="w-4 h-4" />

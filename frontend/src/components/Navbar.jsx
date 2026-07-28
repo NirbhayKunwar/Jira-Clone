@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Menu, X, ChevronDown, Search, ArrowRight, Sun, Moon, Palette } from 'lucide-react';
+import { Menu, X, ChevronDown, Search, ArrowRight, Sun, Moon, Palette, Monitor } from 'lucide-react';
+import { useTheme } from '../hooks/useTheme';
 
 const THEMES = [
   { id: 'atlassian', name: 'Atlassian Blue (Default)', colorBg: 'bg-[#0052cc]' },
@@ -8,7 +9,8 @@ const THEMES = [
   { id: 'sunset', name: 'Sunset Amber', colorBg: 'bg-[#d97706]' }
 ];
 
-export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }) {
+export default function Navbar({ onNavigate }) {
+  const { theme, mode, resolvedMode, setTheme, setMode, toggleMode } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showThemePicker, setShowThemePicker] = useState(false);
@@ -173,18 +175,17 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
 
               {/* Theme Picker Floating Menu */}
               {showThemePicker && (
-                <div className="absolute right-0 mt-2 w-48 bg-card-secondary border border-border-secondary rounded-xl shadow-xl p-2 z-50 animate-[fade-in_150ms_ease-out]">
+                <div className="absolute right-0 mt-2 w-56 bg-card-secondary border border-border-secondary rounded-xl shadow-xl p-2.5 z-50 animate-[fade-in_150ms_ease-out]">
                   <div className="text-[10px] font-bold text-text-secondary-muted px-2 py-1 uppercase tracking-wider">
-                    Select Theme
+                    Color Palette
                   </div>
                   {THEMES.map((t) => (
                     <button
                       key={t.id}
                       onClick={() => {
                         setTheme(t.id);
-                        setShowThemePicker(false);
                       }}
-                      className={`w-full flex items-center space-x-2.5 p-2 rounded-lg text-xs font-semibold hover:bg-dominant-offset cursor-pointer text-left transition-all duration-200 ${
+                      className={`w-full flex items-center space-x-2.5 p-2 rounded-lg text-xs font-semibold hover:bg-dominant-offset cursor-pointer text-left transition-all duration-200 border-none bg-transparent ${
                         theme === t.id ? 'text-accent bg-accent-light' : 'text-text-secondary'
                       }`}
                     >
@@ -192,65 +193,105 @@ export default function Navbar({ theme, setTheme, mode, toggleMode, onNavigate }
                       <span>{t.name}</span>
                     </button>
                   ))}
+
+                  <div className="text-[10px] font-bold text-text-secondary-muted px-2 py-1 mt-2 uppercase tracking-wider border-t border-border-secondary/40 pt-2">
+                    Appearance Mode
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 mt-1">
+                    <button
+                      onClick={() => setMode('light')}
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                        mode === 'light'
+                          ? 'border-accent bg-accent-light text-accent'
+                          : 'border-border-secondary/40 text-text-secondary-muted hover:bg-dominant-offset'
+                      }`}
+                    >
+                      <Sun className="w-4 h-4 mb-1" />
+                      <span>Light</span>
+                    </button>
+                    <button
+                      onClick={() => setMode('dark')}
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                        mode === 'dark'
+                          ? 'border-accent bg-accent-light text-accent'
+                          : 'border-border-secondary/40 text-text-secondary-muted hover:bg-dominant-offset'
+                      }`}
+                    >
+                      <Moon className="w-4 h-4 mb-1" />
+                      <span>Dark</span>
+                    </button>
+                    <button
+                      onClick={() => setMode('system')}
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                        mode === 'system'
+                          ? 'border-accent bg-accent-light text-accent'
+                          : 'border-border-secondary/40 text-text-secondary-muted hover:bg-dominant-offset'
+                      }`}
+                    >
+                      <Monitor className="w-4 h-4 mb-1" />
+                      <span>System</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Mode Toggle Button */}
-              <button 
-                onClick={toggleMode}
-                className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset cursor-pointer transition-all duration-200"
-                title={mode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-              >
-                {mode === 'dark' ? <Sun className="w-5.5 h-5.5" /> : <Moon className="w-5.5 h-5.5" />}
-              </button>
+            <button 
+              onClick={toggleMode}
+              className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset cursor-pointer transition-all duration-200 touch-target"
+              title={resolvedMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {resolvedMode === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
 
             {/* Search Icon */}
-              <button className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset cursor-pointer transition-all duration-200">
-                <Search className="w-5 h-5" />
-              </button>
-            
-              <button 
-                onClick={() => onNavigate('login')} 
-                className="px-3 py-2 text-[15px] font-medium text-text-secondary-muted hover:text-accent hover:bg-dominant-offset rounded-md cursor-pointer whitespace-nowrap border-none bg-transparent transition-all duration-200"
-              >
-                Sign in
-              </button>
-            
-              <button 
-                onClick={() => onNavigate('signup')} 
-                className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-md font-semibold text-[15px] shadow-sm cursor-pointer block whitespace-nowrap border-none transition-all duration-200"
-              >
-                Get it free
-              </button>
+            <button className="p-2 text-text-secondary-muted hover:text-accent rounded-full hover:bg-dominant-offset cursor-pointer transition-all duration-200 touch-target">
+              <Search className="w-5 h-5" />
+            </button>
+          
+            <button 
+              onClick={() => onNavigate('login')} 
+              className="px-3 py-2 text-[15px] font-medium text-text-secondary-muted hover:text-accent hover:bg-dominant-offset rounded-md cursor-pointer whitespace-nowrap border-none bg-transparent transition-all duration-200 touch-target"
+            >
+              Sign in
+            </button>
+          
+            <button 
+              onClick={() => onNavigate('signup')} 
+              className="bg-accent hover:bg-accent-hover text-white px-4 py-2 rounded-md font-semibold text-[15px] shadow-sm cursor-pointer block whitespace-nowrap border-none transition-all duration-200 touch-target"
+            >
+              Get it free
+            </button>
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="lg:hidden flex items-center space-x-3">
+          <div className="lg:hidden flex items-center space-x-1.5">
             {/* Theme Toggle (Mobile) */}
             <button 
-              onClick={() => setTheme(prev => {
-                const nextIdx = (THEMES.findIndex(t => t.id === prev) + 1) % THEMES.length;
-                return THEMES[nextIdx].id;
-              })}
-              className="p-1.5 text-text-secondary-muted hover:text-accent rounded-md hover:bg-dominant-offset cursor-pointer"
-              title="Next Theme"
+              onClick={() => {
+                const nextIdx = (THEMES.findIndex(t => t.id === theme) + 1) % THEMES.length;
+                setTheme(THEMES[nextIdx].id);
+              }}
+              className="p-2 text-text-secondary-muted hover:text-accent rounded-md hover:bg-dominant-offset cursor-pointer touch-target"
+              title="Change Theme Palette"
             >
               <Palette className="w-5 h-5" />
             </button>
-            {/* Mode Toggle */}
+            {/* Mode Toggle (Mobile) */}
             <button 
               onClick={toggleMode}
-              className="p-1.5 text-text-secondary-muted hover:text-accent rounded-md hover:bg-dominant-offset cursor-pointer"
+              className="p-2 text-text-secondary-muted hover:text-accent rounded-md hover:bg-dominant-offset cursor-pointer touch-target"
+              title="Toggle Mode"
             >
-              {mode === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {resolvedMode === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-            <button className="p-1.5 text-text-secondary-muted hover:text-accent rounded-md hover:bg-dominant-offset">
+            <button className="p-2 text-text-secondary-muted hover:text-accent rounded-md hover:bg-dominant-offset touch-target">
               <Search className="w-5 h-5" />
             </button>
             <button 
               onClick={() => setIsOpen(!isOpen)} 
-              className="p-1.5 text-text-secondary-muted hover:text-accent rounded-md hover:bg-dominant-offset"
+              className="p-2 text-text-secondary-muted hover:text-accent rounded-md hover:bg-dominant-offset touch-target"
             >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>

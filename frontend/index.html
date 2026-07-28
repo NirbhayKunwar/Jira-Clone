@@ -24,6 +24,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
+    <meta name="theme-color" id="meta-theme-color" content="#f5f7fb" />
+    <meta name="color-scheme" content="light dark" />
+
     <script>
       // Inline (blocking) script intentionally — runs before any React code.
       // Sets the preconnect href to the correct backend origin at runtime
@@ -42,10 +45,33 @@
         // Apply saved theme before React boots to eliminate flash of un-themed content
         try {
           var theme = localStorage.getItem('theme') || 'atlassian';
-          var mode = localStorage.getItem('mode') || 'light';
+          var mode = localStorage.getItem('mode') || 'system';
+          var resolvedMode = mode;
+          if (mode === 'system') {
+            resolvedMode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
           var root = document.documentElement;
-          root.setAttribute('data-theme', theme + '-' + mode);
-          if (mode === 'dark') root.classList.add('dark');
+          root.setAttribute('data-theme', theme + '-' + resolvedMode);
+          if (resolvedMode === 'dark') {
+            root.classList.add('dark');
+          } else {
+            root.classList.remove('dark');
+          }
+
+          var themeColors = {
+            'atlassian-light': '#f5f7fb',
+            'atlassian-dark': '#070c19',
+            'emerald-light': '#f2f8f5',
+            'emerald-dark': '#04100c',
+            'cyberpunk-light': '#faf4f8',
+            'cyberpunk-dark': '#0c0216',
+            'sunset-light': '#fdfaf2',
+            'sunset-dark': '#100802'
+          };
+          var metaTheme = document.getElementById('meta-theme-color');
+          if (metaTheme) {
+            metaTheme.content = themeColors[theme + '-' + resolvedMode] || '#f5f7fb';
+          }
         } catch (e) {}
       })();
     </script>

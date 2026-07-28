@@ -16,7 +16,7 @@ export const useAuthStore = create((set) => {
   };
 
   const getInitialMode = () => {
-    return localStorage.getItem('mode') || 'light';
+    return localStorage.getItem('mode') || 'system';
   };
 
   const getInitialToken = () => {
