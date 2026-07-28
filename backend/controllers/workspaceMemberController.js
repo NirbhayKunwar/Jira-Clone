@@ -784,9 +784,109 @@ export const getWorkspaceProjects = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
     const projects = await prisma.project.findMany({
-      where: { workspaceId, status: 'ACTIVE' }
+      where: { workspaceId, status: 'ACTIVE' },
+      include: {
+        projectMembers: {
+          include: {
+            workspaceMember: {
+              include: {
+                user: {
+                  select: { id: true, name: true, email: true, role: true, dept: true }
+                }
+              }
+            }
+          }
+        }
+      }
     });
     res.status(200).json({ success: true, data: projects });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 14. Add Member to Project
+export const addProjectMember = async (req, res, next) => {
+  try {
+    const { workspaceId, projectId } = req.params;
+    const { workspaceMemberId, role } = req.body;
+
+    if (!workspaceMemberId) {
+      return res.status(400).json({ success: false, message: 'Workspace member ID is required.' });
+    }
+
+    const wm = await prisma.workspaceMember.findFirst({
+      where: { id: workspaceMemberId, workspaceId, status: 'ACTIVE' }
+    });
+
+    if (!wm) {
+      return res.status(404).json({ success: false, message: 'Active workspace member not found.' });
+    }
+
+    const existing = await prisma.projectMember.findFirst({
+      where: { projectId, workspaceMemberId }
+    });
+
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Member is already assigned to this project.' });
+    }
+
+    const pm = await prisma.projectMember.create({
+      data: {
+        projectId,
+        workspaceMemberId,
+        role: role || 'DEVELOPER'
+      },
+      include: {
+        workspaceMember: {
+          include: {
+            user: { select: { id: true, name: true, email: true, role: true, dept: true } }
+          }
+        }
+      }
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Member added to project successfully.',
+      data: pm
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// 15. Remove Member from Specific Project
+export const removeProjectMember = async (req, res, next) => {
+  try {
+    const { workspaceId, projectId, projectMemberId } = req.params;
+
+    const pm = await prisma.projectMember.findFirst({
+      where: {
+        id: projectMemberId,
+        projectId
+      },
+      include: {
+        workspaceMember: true
+      }
+    });
+
+    if (!pm) {
+      return res.status(404).json({ success: false, message: 'Project member not found.' });
+    }
+
+    if (pm.workspaceMember.workspaceId !== workspaceId) {
+      return res.status(403).json({ success: false, message: 'Forbidden.' });
+    }
+
+    await prisma.projectMember.delete({
+      where: { id: projectMemberId }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Member removed from project successfully.'
+    });
   } catch (error) {
     next(error);
   }

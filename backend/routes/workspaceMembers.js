@@ -12,7 +12,9 @@ import {
   getWorkspaceActivity,
   getWorkspacePermissions,
   transferMemberTasks,
-  getWorkspaceProjects
+  getWorkspaceProjects,
+  addProjectMember,
+  removeProjectMember
 } from '../controllers/workspaceMemberController.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
 import { requireWorkspaceRole } from '../middleware/rbac.js';
@@ -40,5 +42,7 @@ router.get('/:workspaceId/audit-logs', verifyToken, requireWorkspaceRole(['OWNER
 router.get('/:workspaceId/activity', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspaceActivity);
 router.get('/:workspaceId/permissions', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspacePermissions);
 router.get('/:workspaceId/projects', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspaceProjects);
+router.post('/:workspaceId/projects/:projectId/members', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), addProjectMember);
+router.delete('/:workspaceId/projects/:projectId/members/:projectMemberId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), removeProjectMember);
 
 export default router;

@@ -173,7 +173,7 @@ export default function ProfileDrawer() {
             {/* Tab content panel */}
             <div className="p-6 flex-grow">
               {activeTab === 'tasks' && <TasksTab tasks={data.tasks} />}
-              {activeTab === 'projects' && <ProjectsTab projects={data.projects} />}
+              {activeTab === 'projects' && <ProjectsTab projects={data.projects} workspaceId={workspaceId} />}
               {activeTab === 'activity' && <ActivityTab activities={data.activities} />}
             </div>
 

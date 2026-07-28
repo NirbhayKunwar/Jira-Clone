@@ -21,6 +21,7 @@ import InviteMemberModal from '../features/invitations/components/InviteMemberMo
 import TeamDetailsWrapper from '../features/teams/components/TeamDetailsWrapper';
 import ProfileDrawer from '../features/members/components/ProfileDrawer';
 import AuditTimeline from '../features/audit/components/AuditTimeline';
+import ProjectMembersModal from '../features/projects/components/ProjectMembersModal';
 
 // Lazy-loaded sub-panels
 const ProfileSettings = lazy(() => import('./ProfileSettings'));
@@ -565,6 +566,33 @@ export default function Dashboard() {
   const [newTeamName, setNewTeamName] = useState('');
   const [newTeamDesc, setNewTeamDesc] = useState('');
   const [newTeamMembers, setNewTeamMembers] = useState([]);
+
+  // Project Members Modal & Detailed Projects state
+  const [projectMembersModalState, setProjectMembersModalState] = useState({ isOpen: false, project: null });
+  const [workspaceMembersList, setWorkspaceMembersList] = useState([]);
+  const [workspaceProjectsList, setWorkspaceProjectsList] = useState([]);
+
+  useEffect(() => {
+    if (!activeWorkspace?.id) return;
+
+    fetch(`${API_URL}/api/workspace-members/${activeWorkspace.id}/members`, {
+      headers: getAuthHeaders()
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setWorkspaceMembersList(data.data || []);
+      })
+      .catch(() => {});
+
+    fetch(`${API_URL}/api/workspace-members/${activeWorkspace.id}/projects`, {
+      headers: getAuthHeaders()
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setWorkspaceProjectsList(data.data || []);
+      })
+      .catch(() => {});
+  }, [activeWorkspace?.id, projectMembersModalState.isOpen]);
 
   // Fetch Goals and Teams from backend database
   useEffect(() => {
@@ -3846,6 +3874,7 @@ export default function Dashboard() {
                           <th className="p-4">Key</th>
                           <th className="p-4">Type</th>
                           <th className="p-4">Lead</th>
+                          <th className="p-4">Project Members</th>
                           <th className="p-4">Date Created</th>
                           <th className="p-4 pr-6 text-right">Actions</th>
                         </tr>
@@ -3864,6 +3893,9 @@ export default function Dashboard() {
                                 month: 'short',
                                 day: 'numeric'
                               });
+
+                          const detailedProj = workspaceProjectsList.find(p => p.id === ws.id || p.key === ws.key);
+                          const memberCount = detailedProj?.projectMembers?.length || 1;
 
                           return (
                             <tr key={ws.id} className="hover:bg-dominant-offset/5 transition-colors group/row">
@@ -3902,6 +3934,18 @@ export default function Dashboard() {
                               {/* Lead */}
                               <td className="p-4 text-text-secondary-muted">
                                 {user?.name || 'Administrator'}
+                              </td>
+
+                              {/* Project Members */}
+                              <td className="p-4">
+                                <button
+                                  onClick={() => setProjectMembersModalState({ isOpen: true, project: detailedProj || ws })}
+                                  className="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-dominant hover:bg-dominant-offset text-text-secondary border border-border-secondary/60 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                                  title="View & Manage Assigned Project Members"
+                                >
+                                  <Users className="w-3.5 h-3.5 text-accent" />
+                                  <span>{memberCount} {memberCount === 1 ? 'Member' : 'Members'}</span>
+                                </button>
                               </td>
 
                               {/* Created Date */}
@@ -4486,6 +4530,13 @@ export default function Dashboard() {
       {/* Redesigned overlays */}
       <InviteMemberModal workspaceId={activeWorkspace?.id} />
       <ProfileDrawer />
+      <ProjectMembersModal
+        isOpen={projectMembersModalState.isOpen}
+        onClose={() => setProjectMembersModalState({ isOpen: false, project: null })}
+        project={projectMembersModalState.project}
+        workspaceId={activeWorkspace?.id}
+        workspaceMembers={workspaceMembersList}
+      />
     </div>
   );
 }
