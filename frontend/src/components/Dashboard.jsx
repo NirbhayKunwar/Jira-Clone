@@ -530,7 +530,7 @@ export default function Dashboard() {
           id: u.id,
           name: isYou ? 'You' : u.name,
           email: u.email,
-          role: u.isOwner ? 'Admin/Leader' : u.role,
+          role: u.role || 'Software Engineer',
           dept: u.dept,
           location: u.location,
           avatar: initials,
