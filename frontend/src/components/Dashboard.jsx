@@ -1233,10 +1233,10 @@ export default function Dashboard() {
       )}
 
       {/* 1. Sidebar Navigation */}
-      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 h-dvh pb-safe w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 overflow-y-auto xl:overflow-visible custom-scrollbar ${
+      <aside ref={sidebarRef} className={`fixed inset-y-0 left-0 h-dvh w-64 bg-card-secondary border-r border-border-secondary/60 flex flex-col justify-between flex-shrink-0 z-50 transform transition-transform duration-300 xl:relative xl:translate-x-0 overflow-hidden ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full invisible pointer-events-none xl:visible xl:pointer-events-auto'
       }`} aria-label="Workspace navigation">
-        <div>
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
           {/* Sidebar Header/Logo */}
           <div className="h-16 flex items-center px-6 border-b border-border-secondary/40">
             <div className="flex items-center space-x-2.5">
@@ -1755,23 +1755,36 @@ export default function Dashboard() {
                   <span>Projects</span>
                 </div>
               </button>
-
-              <button
-                onClick={onLogout}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-500/5 transition-all cursor-pointer border-none bg-transparent mt-2.5"
-              >
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-6 h-6 rounded border flex items-center justify-center flex-shrink-0 bg-red-500/10 border-red-500/20 text-red-500">
-                    <LogOut className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Sign Out</span>
-                </div>
-              </button>
             </div>
           </div>
         </div>
 
-
+        {/* Sidebar Footer — Pinned User Account & Sign Out */}
+        <div className="p-3 border-t border-border-secondary/40 bg-card-secondary mt-auto pb-safe">
+          <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-dominant-offset/30 border border-border-secondary/30">
+            <div className="flex items-center space-x-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-accent/20 border border-accent/30 text-accent font-bold flex items-center justify-center text-xs flex-shrink-0">
+                {getUserInitials()}
+              </div>
+              <div className="truncate">
+                <p className="text-xs font-bold text-text-secondary truncate leading-tight">
+                  {user?.name || 'User'}
+                </p>
+                <p className="text-[10px] text-text-secondary-muted truncate leading-tight mt-0.5">
+                  {user?.email || 'user@jira.clone'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onLogout}
+              className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer border-none bg-transparent flex-shrink-0 touch-target"
+              title="Sign Out"
+              aria-label="Sign Out of Account"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </aside>
 
       {/* 2. Main content container */}
