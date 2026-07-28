@@ -4446,13 +4446,15 @@ export default function Dashboard() {
         </div>
       )}
       {/* Mobile Floating Action Button (FAB) for Create Task */}
-      <button
-        onClick={() => setShowCreateModal(true)}
-        className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 md:hidden w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all z-40 border-none cursor-pointer"
-        aria-label="Create Task"
-      >
-        <Plus className="w-7 h-7" />
-      </button>
+      {activeTab === 'board' && (
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-5 md:hidden w-14 h-14 rounded-full bg-accent hover:bg-accent-hover text-white flex items-center justify-center shadow-lg hover:shadow-xl transition-all z-40 border-none cursor-pointer"
+          aria-label="Create Task"
+        >
+          <Plus className="w-7 h-7" />
+        </button>
+      )}
 
       {/* Touch Drag Floating Preview */}
       {touchDragActive && touchDragTaskId && (
