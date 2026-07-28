@@ -3846,12 +3846,18 @@ export default function Dashboard() {
                       </thead>
                       <tbody className="divide-y divide-border-secondary/30 text-xs font-semibold">
                         {workspaces.map(ws => {
-                          const isScrum = ws.template_type === 'scrum';
-                          const createdDate = new Date(ws.createdAt || '1970-01-01').toLocaleDateString('default', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          });
+                          const rawDate = ws.created_at || ws.createdAt;
+                          const createdDate = rawDate
+                            ? new Date(rawDate).toLocaleDateString('default', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })
+                            : new Date().toLocaleDateString('default', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              });
 
                           return (
                             <tr key={ws.id} className="hover:bg-dominant-offset/5 transition-colors group/row">

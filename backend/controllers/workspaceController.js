@@ -89,7 +89,8 @@ export const getWorkspaceById = asyncHandler(async (req, res, next) => {
     description: w.description,
     sprint_duration: w.sprintDuration,
     wip_limit: w.wipLimit,
-    created_at: w.createdAt
+    created_at: w.createdAt,
+    createdAt: w.createdAt
   };
 
   return res.status(200).json({ success: true, data: mapped });
