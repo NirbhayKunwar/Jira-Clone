@@ -121,8 +121,7 @@ export const createWorkspace = asyncHandler(async (req, res, next) => {
         data: {
           name: name.trim(),
           key: normalizedKey,
-          workspaceId: workspaceRecord.id,
-          leadId: req.user.id
+          workspaceId: workspaceRecord.id
         }
       });
 
