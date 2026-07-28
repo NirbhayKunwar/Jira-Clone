@@ -715,10 +715,20 @@ export default function Dashboard() {
       if (recentRef.current && !recentRef.current.contains(e.target)) {
         setShowRecentDropdown(false);
       }
-      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+      if (
+        (profileMenuRef.current && profileMenuRef.current.contains(e.target)) ||
+        (profileMenuMobileRef.current && profileMenuMobileRef.current.contains(e.target))
+      ) {
+        // clicked inside either profile menu
+      } else {
         setShowProfileMenu(false);
       }
-      if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
+      if (
+        (notificationsRef.current && notificationsRef.current.contains(e.target)) ||
+        (notificationsMobileRef.current && notificationsMobileRef.current.contains(e.target))
+      ) {
+        // clicked inside either notification menu
+      } else {
         setShowNotifications(false);
       }
     };
@@ -1812,7 +1822,7 @@ export default function Dashboard() {
             {/* Right Side Icons */}
             <div className="flex items-center space-x-2 ml-auto z-40">
               {/* Notifications (Mobile) */}
-              <div className="relative" ref={notificationsRef}>
+              <div className="relative" ref={notificationsMobileRef}>
                 <button
                   onClick={handleToggleNotifications}
                   className={`p-2 rounded-full hover:bg-dominant-offset transition-colors cursor-pointer border-none bg-transparent min-w-[44px] min-h-[44px] flex items-center justify-center relative ${
@@ -1861,7 +1871,7 @@ export default function Dashboard() {
               </div>
 
               {/* Profile Avatar on Right (Mobile) */}
-              <div className="relative" ref={profileMenuRef}>
+              <div className="relative" ref={profileMenuMobileRef}>
                 <button
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                   className="w-9 h-9 rounded-full focus:outline-none border-none bg-transparent p-0 cursor-pointer flex items-center justify-center min-w-[44px] min-h-[44px]"
