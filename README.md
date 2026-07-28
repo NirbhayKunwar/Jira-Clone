@@ -14,8 +14,8 @@ A high-performance, full-stack agile project management platform inspired by Atl
 
 ## 🌐 Live Demo & Deployment Links
 
-- **Frontend App**: [https://jira-clone-app.vercel.app](https://jira-clone-app.vercel.app) *(Deployment Link)*
-- **Backend REST API**: [https://jira-clone-api.onrender.com](https://jira-clone-api.onrender.com) *(Deployment Link)*
+- **Live Application (Frontend & API)**: [https://jira-clone-six-tau.vercel.app](https://jira-clone-six-tau.vercel.app)
+- **REST API Base Endpoint**: [https://jira-clone-six-tau.vercel.app/api](https://jira-clone-six-tau.vercel.app/api)
 
 ---
 
