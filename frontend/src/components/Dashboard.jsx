@@ -1290,9 +1290,7 @@ export default function Dashboard() {
                     {ws.name} ({ws.key})
                   </option>
                 ))}
-                {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
-                  <option value="__new__">+ Create Workspace...</option>
-                )}
+                <option value="__new__">+ Create Workspace...</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-text-secondary-muted">
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -3807,15 +3805,13 @@ export default function Dashboard() {
                   <span className="text-xs font-bold text-accent bg-accent/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
                     {workspaces.length} Active Projects
                   </span>
-                  {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
-                    <button
-                      onClick={onTriggerCreateWorkspace}
-                      className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Create Project</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={onTriggerCreateWorkspace}
+                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Create Project</span>
+                  </button>
                 </div>
               </div>
 
@@ -3827,14 +3823,12 @@ export default function Dashboard() {
                     <h4 className="text-sm font-bold text-text-secondary">No projects found</h4>
                     <p className="text-xs text-text-secondary-muted mt-1 max-w-sm mx-auto">Get started by setting up a project workspace using Kanban or Scrum templates.</p>
                   </div>
-                  {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
-                    <button
-                      onClick={onTriggerCreateWorkspace}
-                      className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-lg cursor-pointer border-none shadow-sm"
-                    >
-                      + Create your first project
-                    </button>
-                  )}
+                  <button
+                    onClick={onTriggerCreateWorkspace}
+                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-white text-xs font-bold rounded-lg cursor-pointer border-none shadow-sm"
+                  >
+                    + Create your first project
+                  </button>
                 </div>
               ) : (
                 <div className="bg-card-secondary rounded-xl border border-border-secondary/60 shadow-sm overflow-hidden">
