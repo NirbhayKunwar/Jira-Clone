@@ -573,9 +573,10 @@ export default function Dashboard() {
     const loadGoalsAndTeams = async () => {
       try {
         const headers = getAuthHeaders();
+        const wsParam = activeWorkspace?.id ? `?workspaceId=${activeWorkspace.id}` : '';
         const [goalsRes, teamsRes] = await Promise.all([
-          fetch(`${API_URL}/api/goals`, { headers }),
-          fetch(`${API_URL}/api/teams`, { headers })
+          fetch(`${API_URL}/api/goals${wsParam}`, { headers }),
+          fetch(`${API_URL}/api/teams${wsParam}`, { headers })
         ]);
         
         if (goalsRes.ok) {
@@ -592,7 +593,7 @@ export default function Dashboard() {
     };
     
     loadGoalsAndTeams();
-  }, [user]);
+  }, [user, activeWorkspace?.id]);
   
   const [expandedEpic, setExpandedEpic] = useState(null);
   const [customEpics, setCustomEpics] = useState([]);
@@ -3517,34 +3518,39 @@ export default function Dashboard() {
               {/* Create Team Form */}
               {showCreateTeamForm && (
                 <form 
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     if (!newTeamName.trim()) return;
                     
                     const teamPayload = {
                       name: newTeamName.trim(),
                       desc: newTeamDesc.trim(),
+                      workspaceId: activeWorkspace?.id,
                       members: newTeamMembers
                     };
 
-                    fetch(`${API_URL}/api/teams`, {
-                      method: 'POST',
-                      headers: getAuthHeaders(),
-                      body: JSON.stringify(teamPayload)
-                    })
-                      .then(res => {
-                        if (!res.ok) throw new Error('Failed to create team');
-                        return res.json();
-                      })
-                      .then(getApiData)
-                      .then(createdTeam => {
-                        setTeamsList(prev => [createdTeam, ...prev]);
-                        setNewTeamName('');
-                        setNewTeamDesc('');
-                        setNewTeamMembers([]);
-                        setShowCreateTeamForm(false);
-                      })
-                      .catch(err => console.error('Error creating team:', err));
+                    try {
+                      const res = await fetch(`${API_URL}/api/teams`, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify(teamPayload)
+                      });
+
+                      if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        throw new Error(errData.message || 'Failed to create team');
+                      }
+
+                      const data = await res.json();
+                      const createdTeam = getApiData(data);
+                      setTeamsList(prev => [createdTeam, ...prev]);
+                      setNewTeamName('');
+                      setNewTeamDesc('');
+                      setNewTeamMembers([]);
+                      setShowCreateTeamForm(false);
+                    } catch (err) {
+                      alert(err.message || 'Error saving team.');
+                    }
                   }}
                   className="bg-card-secondary p-6 rounded-xl border border-border-secondary/60 shadow-md space-y-4 animate-[fade-in_150ms_ease-out]"
                 >
