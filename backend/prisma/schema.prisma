@@ -156,7 +156,7 @@ model Team {
   id          String       @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   descText    String?      @map("desc_text")
-  membersText String       @map("members_text") // backward compatibility
+  membersText String?      @default("") @map("members_text") // backward compatibility
   ownerId     String?      @map("owner_id") @db.ObjectId
   owner       User?        @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   status      RecordStatus @default(ACTIVE)

@@ -148,11 +148,14 @@ export const createTeam = asyncHandler(async (req, res, next) => {
     }
   }
 
+  const selectedMembers = req.body.members || [];
+
   if (!prisma.$transaction) {
     const teamRecord = await prisma.team.create({
       data: {
         name: name.trim(),
         descText: desc || '',
+        membersText: '',
         workspaceId,
         ownerId: userId,
         teamLeadId: userId,
@@ -179,6 +182,7 @@ export const createTeam = asyncHandler(async (req, res, next) => {
       data: {
         name: name.trim(),
         descText: desc || '',
+        membersText: '',
         workspaceId,
         ownerId: userId,
         teamLeadId: userId,
@@ -186,14 +190,33 @@ export const createTeam = asyncHandler(async (req, res, next) => {
       }
     });
 
-    const teamMemberRecord = tx.teamMember ? await tx.teamMember.create({
+    const teamMemberRecord = (tx.teamMember && member) ? await tx.teamMember.create({
       data: {
         teamId: teamRecord.id,
-        workspaceMemberId: member ? member.id : undefined,
+        workspaceMemberId: member.id,
         role: 'TEAM_LEAD',
         status: 'ACTIVE'
       }
     }) : null;
+
+    if (Array.isArray(selectedMembers) && selectedMembers.length > 0 && tx.teamMember) {
+      for (const targetUserId of selectedMembers) {
+        if (!targetUserId || targetUserId === userId) continue;
+        const targetWM = await tx.workspaceMember.findFirst({
+          where: { workspaceId, userId: String(targetUserId), status: 'ACTIVE' }
+        });
+        if (targetWM) {
+          await tx.teamMember.create({
+            data: {
+              teamId: teamRecord.id,
+              workspaceMemberId: targetWM.id,
+              role: 'FULLSTACK_ENGINEER',
+              status: 'ACTIVE'
+            }
+          });
+        }
+      }
+    }
 
     return { team: teamRecord, teamMember: teamMemberRecord };
   });
