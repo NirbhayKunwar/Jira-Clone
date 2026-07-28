@@ -657,7 +657,9 @@ export default function Dashboard() {
   const pickerRef = useRef(null);
   const recentRef = useRef(null);
   const profileMenuRef = useRef(null);
+  const profileMenuMobileRef = useRef(null);
   const notificationsRef = useRef(null);
+  const notificationsMobileRef = useRef(null);
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
