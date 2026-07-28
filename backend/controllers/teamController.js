@@ -134,6 +134,20 @@ export const createTeam = asyncHandler(async (req, res, next) => {
     }
   }
 
+  if (workspaceId) {
+    const existingTeam = await prisma.team.findFirst({
+      where: {
+        workspaceId,
+        name: name.trim(),
+        status: { not: 'ARCHIVED' }
+      }
+    });
+
+    if (existingTeam) {
+      return next(new AppError(`A team named "${name.trim()}" already exists in this workspace.`, 400));
+    }
+  }
+
   if (!prisma.$transaction) {
     const teamRecord = await prisma.team.create({
       data: {
@@ -235,6 +249,21 @@ export const updateTeam = asyncHandler(async (req, res, next) => {
   } else if (!isAdmin && !isLead && isTest) {
     if (teamCheck.ownerId && teamCheck.ownerId !== req.user.id) {
       return next(new AppError('Forbidden. You do not have access to this team.', 403));
+    }
+  }
+
+  if (name !== undefined && name.trim() !== teamCheck.name && teamCheck.workspaceId) {
+    const existingTeam = await prisma.team.findFirst({
+      where: {
+        workspaceId: teamCheck.workspaceId,
+        name: name.trim(),
+        id: { not: teamId },
+        status: { not: 'ARCHIVED' }
+      }
+    });
+
+    if (existingTeam) {
+      return next(new AppError(`A team named "${name.trim()}" already exists in this workspace.`, 400));
     }
   }
 

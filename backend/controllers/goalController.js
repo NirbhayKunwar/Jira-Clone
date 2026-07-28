@@ -126,6 +126,19 @@ export const createGoal = asyncHandler(async (req, res, next) => {
     }
   }
 
+  if (workspaceId) {
+    const existingGoal = await prisma.goal.findFirst({
+      where: {
+        workspaceId,
+        title: title.trim()
+      }
+    });
+
+    if (existingGoal) {
+      return next(new AppError(`An epic/goal titled "${title.trim()}" already exists in this workspace.`, 400));
+    }
+  }
+
   const g = await prisma.goal.create({
     data: {
       title: title.trim(),
