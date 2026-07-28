@@ -21,6 +21,43 @@ Welcome to the Jira Clone! This project is a premium, high-fidelity replica of J
 * **Reactive Dark Mode**: High-contrast, accessibility-compliant dark theme setting with reactive DOM element variables.
 * **Profile Settings**: Dynamic profile detail editor (Name, Role, Department, Location) and password resets secured by OTP.
 
+
+---
+
+## 🎨 Theme System & Mobile Architecture
+
+The application features a production-grade theme management architecture powered by React Context (`ThemeProvider`), custom CSS variables, and modern web standards:
+
+### 1. Appearance Modes & System Auto-Detection
+- **Modes**: Supports `Light`, `Dark`, and `System` modes.
+- **OS Theme Detection**: When set to `System`, the application monitors `window.matchMedia('(prefers-color-scheme: dark)')` to reactively switch between dark and light themes as the user's OS preference changes.
+- **Zero FOUC (Flash of Un-themed Content)**: A synchronous inline blocking script evaluates the initial theme and mode in `index.html` before React mounts.
+
+### 2. Curated Color Palettes
+Toggle between 4 curated theme colorways:
+- `Atlassian Blue` (Default Jira styling)
+- `Emerald Forest` (Green accent theme)
+- `Cyberpunk Neon` (Magenta/Pink high-contrast theme)
+- `Sunset Amber` (Warm orange/amber palette)
+
+### 3. Theme Persistence & Zero-Latency Multi-Tab Sync
+- Theme and mode settings are saved in `localStorage` (`theme` and `mode`) and persist across page refreshes, browser restarts, login, and logout.
+- Uses `BroadcastChannel("jira_theme_channel")` combined with `window.onstorage` to instantly mirror theme changes across all open browser tabs and windows without a reload.
+
+### 4. Dynamic Mobile Toolbar & Status Bar Colors
+- Updates the `<meta name="theme-color">` dynamically to match the active background palette (`#070c19` for dark mode, `#f5f7fb` for light mode).
+- Ensures seamless status bar and address bar color matching on Android Chrome and iPhone Safari.
+
+### 5. Mobile Responsiveness & Keyboard Adaptation
+- **Dynamic Viewport Height (`100dvh`)**: Uses `h-dvh` and `min-h-dvh` to prevent browser toolbar jumping.
+- **Mobile Soft Keyboard Adaptation**: Monitored via `window.visualViewport` to keep input forms visible without shrinking Kanban columns or breaking floating action bars.
+- **Safe Area Insets**: Native support for Dynamic Island and notch margins (`pt-safe`, `pb-safe`, `pl-safe`, `pr-safe`).
+- **Touch Target Guidelines**: All interactive controls follow 44px x 44px minimum touch target dimensions (`touch-target`).
+
+### 6. Accessibility & Reduced Motion (WCAG AA Compliance)
+- Fully accessible via keyboard navigation with distinct `focus-visible` rings.
+- Supports `@media (prefers-reduced-motion: reduce)` to disable heavy keyframe animations and smooth transitions when requested.
+
 ---
 
 ## 🔒 Security Architecture
