@@ -521,18 +521,19 @@ export default function Dashboard() {
     }
 
     const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-amber-500', 'bg-rose-500'];
+    const safeRawTasks = Array.isArray(rawTasks) ? rawTasks : [];
     return list.map((u, idx) => {
       const isYou = user && u.email && u.email.toLowerCase() === user.email.toLowerCase();
       const initials = (u.name || 'Member').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-      const activeTasksCount = rawTasks.filter(t => 
-        (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
-        (!isYou && t.assignee === u.name)
-      ).filter(t => t.status !== 'done').length;
+      const activeTasksCount = safeRawTasks.filter(t => 
+        t && ((isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
+        (!isYou && t.assignee === u.name))
+      ).filter(t => t && t.status !== 'done').length;
 
-      const completedTasksCount = rawTasks.filter(t => 
-        (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
-        (!isYou && t.assignee === u.name)
-      ).filter(t => t.status === 'done').length;
+      const completedTasksCount = safeRawTasks.filter(t => 
+        t && ((isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
+        (!isYou && t.assignee === u.name))
+      ).filter(t => t && t.status === 'done').length;
 
       return {
         id: u.id,
@@ -920,8 +921,8 @@ export default function Dashboard() {
     });
 
     if (recentSearchQuery) {
-      items = items.filter(item => 
-        item.name && item.name.toLowerCase().includes(recentSearchQuery.toLowerCase())
+      items = (Array.isArray(items) ? items : []).filter(item => 
+        item && item.name && item.name.toLowerCase().includes(recentSearchQuery.toLowerCase())
       );
     }
 
@@ -3283,7 +3284,7 @@ export default function Dashboard() {
                                   })
                                     .then(res => {
                                       if (res.ok) {
-                                        setGoalsList(prev => prev.filter(g => String(g.id) !== String(goal.id)));
+                                        setGoalsList(prev => (Array.isArray(prev) ? prev : []).filter(g => g && String(g.id) !== String(goal.id)));
                                       }
                                     })
                                     .catch(err => console.error('Error deleting goal:', err));
@@ -3665,9 +3666,9 @@ export default function Dashboard() {
                               checked={isChecked}
                               onChange={() => {
                                 if (isChecked) {
-                                  setNewTeamMembers(prev => prev.filter(id => id !== m.id));
+                                  setNewTeamMembers(prev => (Array.isArray(prev) ? prev : []).filter(id => id !== m.id));
                                 } else {
-                                  setNewTeamMembers(prev => [...prev, m.id]);
+                                  setNewTeamMembers(prev => [...(Array.isArray(prev) ? prev : []), m.id]);
                                 }
                               }}
                               className="accent-accent w-3.5 h-3.5"
@@ -3760,7 +3761,7 @@ export default function Dashboard() {
                                   })
                                     .then(res => {
                                       if (res.ok) {
-                                        setTeamsList(prev => prev.filter(t => String(t.id) !== String(team.id)));
+                                        setTeamsList(prev => (Array.isArray(prev) ? prev : []).filter(t => t && String(t.id) !== String(team.id)));
                                       }
                                     })
                                     .catch(err => console.error('Error deleting team:', err));

@@ -42,12 +42,12 @@ export default function InteractiveShowcase() {
       priority: 'Medium',
       assignee: 'You'
     };
-    setKanbanItems(prev => [...prev, newTask]);
+    setKanbanItems(prev => [...(Array.isArray(prev) ? prev : []), newTask]);
     setNewTitle('');
   };
 
   const handleDeleteKanban = (id) => {
-    setKanbanItems(prev => prev.filter(item => item.id !== id));
+    setKanbanItems(prev => (Array.isArray(prev) ? prev : []).filter(item => item.id !== id));
   };
 
   // Drag and Drop

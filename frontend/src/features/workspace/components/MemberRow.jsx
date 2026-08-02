@@ -223,8 +223,8 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
                   className="px-2.5 py-1.5 text-xs bg-dominant border border-border-secondary rounded-lg focus:outline-none focus:ring-1 focus:ring-accent text-text-secondary cursor-pointer"
                 >
                   <option value="">Select recipient...</option>
-                  {allMembers
-                    .filter(m => m.id !== member.id && m.status === 'ACTIVE')
+                  {(Array.isArray(allMembers) ? allMembers : [])
+                    .filter(m => m && m.id !== member.id && m.status === 'ACTIVE')
                     .map(m => (
                       <option key={m.user.id} value={m.user.id}>
                         {m.user.name} ({m.user.email})

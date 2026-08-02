@@ -20,11 +20,15 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
 
   if (!isOpen || !project) return null;
 
+  const safeLocalMembers = Array.isArray(localMembers) ? localMembers : [];
+  const safeWsMembers = Array.isArray(workspaceMembers) ? workspaceMembers : [];
+
   const assignedMemberIds = new Set(
-    localMembers.map(pm => pm.workspaceMember?.id || pm.workspaceMemberId || pm.workspaceMember?.user?.id)
+    safeLocalMembers.map(pm => pm && (pm.workspaceMember?.id || pm.workspaceMemberId || pm.workspaceMember?.user?.id))
   );
 
-  const availableMembers = workspaceMembers.filter(wm => 
+  const availableMembers = safeWsMembers.filter(wm => 
+    wm &&
     !assignedMemberIds.has(wm.id) && 
     !assignedMemberIds.has(wm.userId) && 
     !assignedMemberIds.has(wm.user?.id)

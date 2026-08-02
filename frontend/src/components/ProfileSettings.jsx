@@ -27,20 +27,19 @@ export default function ProfileSettings() {
   const [location, setLocation] = useState(user?.location || '');
   const [githubUrl, setGithubUrl] = useState(user?.githubUrl || '');
   const [linkedinUrl, setLinkedinUrl] = useState(user?.linkedinUrl || '');
-  const [otherLinks, setOtherLinks] = useState(() => {
-    if (user?.otherLinks) {
-      if (Array.isArray(user.otherLinks)) {
-        return user.otherLinks;
-      }
-      try {
-        return JSON.parse(user.otherLinks);
-      } catch (e) {
-        console.error('Error parsing otherLinks:', e);
-        return [];
-      }
+  const parseOtherLinks = (raw) => {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error('Error parsing otherLinks:', e);
+      return [];
     }
-    return [];
-  });
+  };
+
+  const [otherLinks, setOtherLinks] = useState(() => parseOtherLinks(user?.otherLinks));
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [email, setEmail] = useState(user?.email || ''); // Keep email read-only for security simulation
@@ -56,20 +55,7 @@ export default function ProfileSettings() {
         setGithubUrl(user.githubUrl || '');
         setLinkedinUrl(user.linkedinUrl || '');
         setEmail(user.email || '');
-        if (user.otherLinks) {
-          if (Array.isArray(user.otherLinks)) {
-            setOtherLinks(user.otherLinks);
-          } else {
-            try {
-              setOtherLinks(JSON.parse(user.otherLinks));
-            } catch (e) {
-              console.error('Error parsing otherLinks:', e);
-              setOtherLinks([]);
-            }
-          }
-        } else {
-          setOtherLinks([]);
-        }
+        setOtherLinks(parseOtherLinks(user.otherLinks));
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -456,9 +442,9 @@ export default function ProfileSettings() {
                 </div>
 
                 {/* Render Links as Card Grid */}
-                {otherLinks && otherLinks.filter(link => link && link.url && link.label).length > 0 && (
+                {(Array.isArray(otherLinks) ? otherLinks : []).filter(link => link && link.url && link.label).length > 0 && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                    {otherLinks.filter(link => link && link.url && link.label).map((link, idx) => (
+                    {(Array.isArray(otherLinks) ? otherLinks : []).filter(link => link && link.url && link.label).map((link, idx) => (
                       <div
                         key={idx}
                         className="flex items-center justify-between p-3 rounded-lg border border-border-secondary bg-dominant-offset/30 text-xs shadow-sm"
@@ -476,7 +462,7 @@ export default function ProfileSettings() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => setOtherLinks(prev => prev.filter((_, i) => i !== idx))}
+                          onClick={() => setOtherLinks(prev => (Array.isArray(prev) ? prev : []).filter((_, i) => i !== idx))}
                           className="p-1.5 text-text-secondary-muted hover:text-red-500 rounded-lg hover:bg-dominant cursor-pointer border-none bg-transparent flex items-center justify-center flex-shrink-0"
                           title="Remove Link"
                         >
@@ -719,7 +705,7 @@ export default function ProfileSettings() {
               <p className="text-[10px] text-text-secondary-muted mt-1 uppercase tracking-wide font-bold">{dept}</p>
 
               {/* Social Links Badge Row */}
-              {(githubUrl || linkedinUrl || (otherLinks && otherLinks.filter(link => link && link.url && link.label).length > 0)) && (
+              {(githubUrl || linkedinUrl || ((Array.isArray(otherLinks) ? otherLinks : []).filter(link => link && link.url && link.label).length > 0)) && (
                 <div className="flex items-center justify-center gap-3.5 mt-3">
                   {githubUrl && (
                     <a
