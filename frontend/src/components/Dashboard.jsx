@@ -588,7 +588,7 @@ export default function Dashboard() {
     })
       .then(res => res.json())
       .then(data => {
-        if (data.success) setWorkspaceMembersList(data.data || []);
+        setWorkspaceMembersList(getApiList(data, 'Workspace Members'));
       })
       .catch(() => {});
 
@@ -597,7 +597,7 @@ export default function Dashboard() {
     })
       .then(res => res.json())
       .then(data => {
-        if (data.success) setWorkspaceProjectsList(data.data || []);
+        setWorkspaceProjectsList(getApiList(data, 'Workspace Projects'));
       })
       .catch(() => {});
   }, [activeWorkspace?.id, projectMembersModalState.isOpen]);

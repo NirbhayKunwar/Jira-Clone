@@ -21,18 +21,26 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
   if (!isOpen || !project) return null;
 
   const safeLocalMembers = Array.isArray(localMembers) ? localMembers : [];
-  const safeWsMembers = Array.isArray(workspaceMembers) ? workspaceMembers : [];
+  
+  // Extract members array whether workspaceMembers is raw array or enveloped object ({ members: [...] })
+  const rawWsMembersList = Array.isArray(workspaceMembers)
+    ? workspaceMembers
+    : (Array.isArray(workspaceMembers?.members)
+        ? workspaceMembers.members
+        : (Array.isArray(workspaceMembers?.data)
+            ? workspaceMembers.data
+            : []));
 
   const assignedMemberIds = new Set(
-    safeLocalMembers.map(pm => pm && (pm.workspaceMember?.id || pm.workspaceMemberId || pm.workspaceMember?.user?.id))
+    safeLocalMembers.map(pm => String(pm?.workspaceMember?.id || pm?.workspaceMemberId || pm?.workspaceMember?.user?.id || pm?.id || ''))
   );
 
-  const availableMembers = safeWsMembers.filter(wm => 
-    wm &&
-    !assignedMemberIds.has(wm.id) && 
-    !assignedMemberIds.has(wm.userId) && 
-    !assignedMemberIds.has(wm.user?.id)
-  );
+  const availableMembers = rawWsMembersList.filter(wm => {
+    if (!wm) return false;
+    const wmId = String(wm.id || '');
+    const userId = String(wm.userId || wm.user?.id || '');
+    return !assignedMemberIds.has(wmId) && !assignedMemberIds.has(userId);
+  });
 
   const handleAddMember = async (e) => {
     e.preventDefault();
@@ -145,11 +153,16 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
                 className="sm:col-span-2 text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant-offset text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
               >
                 <option value="">Select workspace member...</option>
-                {availableMembers.map(wm => (
-                  <option key={wm.id} value={wm.id}>
-                    {wm.user?.name} ({wm.user?.email})
-                  </option>
-                ))}
+                {availableMembers.map(wm => {
+                  const optionId = wm.id || wm.workspaceMemberId || wm.userId || wm.user?.id;
+                  const name = wm.user?.name || wm.name || 'Member';
+                  const email = wm.user?.email || wm.email || '';
+                  return (
+                    <option key={optionId} value={optionId}>
+                      {name} {email ? `(${email})` : ''}
+                    </option>
+                  );
+                })}
               </select>
 
               <button
