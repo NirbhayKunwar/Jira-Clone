@@ -1159,7 +1159,9 @@ export default function Dashboard() {
   };
 
   // Filters
-  const filteredTasks = tasks.filter(t => {
+  const safeTaskList = Array.isArray(tasks) ? tasks : [];
+  const filteredTasks = safeTaskList.filter(t => {
+    if (!t) return false;
     const title = t.title || '';
     const desc = t.desc || '';
     const epic = t.epic || '';
@@ -1182,20 +1184,20 @@ export default function Dashboard() {
 
   // Process tasks (handling sorting for Recent filter)
   const processedTasks = useMemo(() => {
-    let list = [...filteredTasks];
+    let list = Array.isArray(filteredTasks) ? [...filteredTasks] : [];
     if (boardFilter === 'recent') {
       // Sort by task ID descending (newest created first)
-      list.sort((a, b) => parseInt(b.id) - parseInt(a.id));
+      list.sort((a, b) => parseInt(b.id || 0) - parseInt(a.id || 0));
     }
     return list;
   }, [filteredTasks, boardFilter]);
 
   // Calculate Metrics
-  const totalTasks = tasks.length;
-  const doneTasks = tasks.filter(t => t.status === 'done').length;
-  const progressTasks = tasks.filter(t => t.status === 'progress').length;
-  const reviewTasks = tasks.filter(t => t.status === 'review').length;
-  const highPriorityCount = tasks.filter(t => t.priority === 'High').length;
+  const totalTasks = safeTaskList.length;
+  const doneTasks = safeTaskList.filter(t => t && t.status === 'done').length;
+  const progressTasks = safeTaskList.filter(t => t && t.status === 'progress').length;
+  const reviewTasks = safeTaskList.filter(t => t && t.status === 'review').length;
+  const highPriorityCount = safeTaskList.filter(t => t && t.priority === 'High').length;
   const completionRate = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   // Dynamic Burnup Tracker Calculations
@@ -2668,7 +2670,7 @@ export default function Dashboard() {
                       <span className={`ml-1.5 px-1.5 py-0.5 text-[9px] rounded-full font-bold ${
                         forYouSubTab === 'assigned' ? 'bg-accent text-white' : 'bg-dominant-offset text-text-secondary-muted'
                       }`}>
-                        {tasks.filter(t => t.assignee === 'You' || t.assignee === user?.name).length}
+                        {(Array.isArray(tasks) ? tasks : []).filter(t => t && (t.assignee === 'You' || t.assignee === user?.name)).length}
                       </span>
                     </button>
                     <button
@@ -3079,7 +3081,7 @@ export default function Dashboard() {
                 <div className="bg-card-secondary p-4 rounded-xl border border-border-secondary/40 shadow-sm flex items-center justify-between">
                   <div>
                     <span className="text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider">On Track</span>
-                    <h3 className="text-xl font-extrabold text-green-500 mt-1">{goalsList.filter(g => g.status === 'on_track').length}</h3>
+                    <h3 className="text-xl font-extrabold text-green-500 mt-1">{(Array.isArray(goalsList) ? goalsList : []).filter(g => g && g.status === 'on_track').length}</h3>
                   </div>
                   <div className="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
                     <CheckCircle2 className="w-5 h-5" />
@@ -3089,7 +3091,7 @@ export default function Dashboard() {
                 <div className="bg-card-secondary p-4 rounded-xl border border-border-secondary/40 shadow-sm flex items-center justify-between">
                   <div>
                     <span className="text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider">At Risk</span>
-                    <h3 className="text-xl font-extrabold text-amber-500 mt-1">{goalsList.filter(g => g.status === 'at_risk').length}</h3>
+                    <h3 className="text-xl font-extrabold text-amber-500 mt-1">{(Array.isArray(goalsList) ? goalsList : []).filter(g => g && g.status === 'at_risk').length}</h3>
                   </div>
                   <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
                     <AlertTriangle className="w-5 h-5" />
@@ -3099,7 +3101,7 @@ export default function Dashboard() {
                 <div className="bg-card-secondary p-4 rounded-xl border border-border-secondary/40 shadow-sm flex items-center justify-between">
                   <div>
                     <span className="text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider">Off Track</span>
-                    <h3 className="text-xl font-extrabold text-red-500 mt-1">{goalsList.filter(g => g.status === 'off_track').length}</h3>
+                    <h3 className="text-xl font-extrabold text-red-500 mt-1">{(Array.isArray(goalsList) ? goalsList : []).filter(g => g && g.status === 'off_track').length}</h3>
                   </div>
                   <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500">
                     <X className="w-5 h-5" />
