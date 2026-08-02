@@ -52,6 +52,16 @@ const getClientDetails = (req) => {
 export const getWorkspaceMembers = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
+    if (!workspaceId || workspaceId === 'undefined' || workspaceId === 'null' || !isValidObjectId(workspaceId)) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          members: [],
+          nextCursor: null,
+          total: 0
+        }
+      });
+    }
     const { search = '', role, status = 'ACTIVE', limit = 10, cursor } = req.query;
 
     const parsedLimit = parseInt(limit, 10);
@@ -783,6 +793,9 @@ export const transferMemberTasks = async (req, res, next) => {
 export const getWorkspaceProjects = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
+    if (!workspaceId || workspaceId === 'undefined' || workspaceId === 'null' || !isValidObjectId(workspaceId)) {
+      return res.status(200).json({ success: true, data: [] });
+    }
     const projects = await prisma.project.findMany({
       where: { workspaceId, status: 'ACTIVE' },
       include: {

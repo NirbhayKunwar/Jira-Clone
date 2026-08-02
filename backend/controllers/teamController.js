@@ -60,7 +60,7 @@ export const getTeams = asyncHandler(async (req, res, next) => {
 
   const { workspaceId } = req.query || {};
   if (!workspaceId && !isTest) {
-    return next(new AppError('Workspace ID is required.', 400));
+    return res.status(200).json({ success: true, data: [] });
   }
 
   if (prisma.workspaceMember && workspaceId) {
