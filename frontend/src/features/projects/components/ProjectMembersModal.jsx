@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Users, UserPlus, Trash2, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Users, UserPlus, Trash2, Plus, CheckCircle2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getAuthHeaders, API_URL } from '../../../config/api';
 
@@ -9,21 +9,37 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
   const [selectedRole, setSelectedRole] = useState('DEVELOPER');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [localMembers, setLocalMembers] = useState([]);
+
+  useEffect(() => {
+    if (project) {
+      setLocalMembers(project.projectMembers || []);
+    }
+  }, [project]);
 
   if (!isOpen || !project) return null;
 
-  const currentMembers = project.projectMembers || [];
-  const assignedMemberIds = new Set(currentMembers.map(pm => pm.workspaceMember?.id || pm.workspaceMemberId));
-  const availableMembers = workspaceMembers.filter(wm => !assignedMemberIds.has(wm.id));
+  const assignedMemberIds = new Set(
+    localMembers.map(pm => pm.workspaceMember?.id || pm.workspaceMemberId || pm.workspaceMember?.user?.id)
+  );
+
+  const availableMembers = workspaceMembers.filter(wm => 
+    !assignedMemberIds.has(wm.id) && 
+    !assignedMemberIds.has(wm.userId) && 
+    !assignedMemberIds.has(wm.user?.id)
+  );
 
   const handleAddMember = async (e) => {
     e.preventDefault();
     if (!selectedMemberId) return;
     setIsSubmitting(true);
     setErrorMsg('');
+    setSuccessMsg('');
 
     try {
-      const res = await fetch(`${API_URL}/api/workspace-members/${workspaceId}/projects/${project.id}/members`, {
+      const targetProjId = project.id || workspaceId;
+      const res = await fetch(`${API_URL}/api/workspace-members/${workspaceId}/projects/${targetProjId}/members`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ workspaceMemberId: selectedMemberId, role: selectedRole })
@@ -32,10 +48,15 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to add member to project');
 
+      const addedPm = data.data;
+      if (addedPm) {
+        setLocalMembers(prev => [...prev, addedPm]);
+      }
+
+      setSuccessMsg('Member added to project successfully!');
+      setSelectedMemberId('');
       queryClient.invalidateQueries(['workspaceMembers', workspaceId]);
       queryClient.invalidateQueries(['workspaceProjects', workspaceId]);
-      setSelectedMemberId('');
-      onClose();
     } catch (err) {
       setErrorMsg(err.message);
     } finally {
@@ -47,9 +68,12 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
     if (!confirm(`Are you sure you want to remove ${memberName} from project "${project.name}"? They will remain in the workspace.`)) {
       return;
     }
+    setErrorMsg('');
+    setSuccessMsg('');
 
     try {
-      const res = await fetch(`${API_URL}/api/workspace-members/${workspaceId}/projects/${project.id}/members/${projectMemberId}`, {
+      const targetProjId = project.id || workspaceId;
+      const res = await fetch(`${API_URL}/api/workspace-members/${workspaceId}/projects/${targetProjId}/members/${projectMemberId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });
@@ -57,9 +81,10 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to remove member from project');
 
+      setLocalMembers(prev => prev.filter(pm => pm.id !== projectMemberId));
+      setSuccessMsg(`Removed ${memberName} from project.`);
       queryClient.invalidateQueries(['workspaceMembers', workspaceId]);
       queryClient.invalidateQueries(['workspaceProjects', workspaceId]);
-      onClose();
     } catch (err) {
       alert(err.message);
     }
@@ -88,10 +113,17 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
         </div>
 
         {/* Modal Content */}
-        <div className="p-6 space-y-6 overflow-y-auto flex-1 text-left">
+        <div className="p-6 space-y-5 overflow-y-auto flex-1 text-left">
           {errorMsg && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-lg text-xs font-semibold">
               {errorMsg}
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-3 bg-green-500/10 border border-green-500/20 text-green-500 rounded-lg text-xs font-semibold flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>{successMsg}</span>
             </div>
           )}
 
@@ -131,17 +163,17 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">
-                Assigned Project Members ({currentMembers.length})
+                Assigned Project Members ({localMembers.length})
               </h4>
             </div>
 
-            {currentMembers.length === 0 ? (
+            {localMembers.length === 0 ? (
               <div className="p-8 text-center text-xs text-text-secondary-muted italic bg-dominant/40 rounded-xl border border-dashed border-border-secondary/40">
-                No team members assigned to this project yet.
+                No team members assigned to this project yet. Use the form above to add members.
               </div>
             ) : (
               <div className="divide-y divide-border-secondary/30 rounded-xl border border-border-secondary/50 overflow-hidden bg-dominant">
-                {currentMembers.map(pm => {
+                {localMembers.map(pm => {
                   const u = pm.workspaceMember?.user || {};
                   const initials = (u.name || 'Member').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 

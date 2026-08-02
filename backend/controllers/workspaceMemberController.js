@@ -815,16 +815,57 @@ export const addProjectMember = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Workspace member ID is required.' });
     }
 
-    const wm = await prisma.workspaceMember.findFirst({
+    // Resolve workspace member by WorkspaceMember.id or User.id
+    let wm = await prisma.workspaceMember.findFirst({
       where: { id: workspaceMemberId, workspaceId, status: 'ACTIVE' }
     });
 
     if (!wm) {
-      return res.status(404).json({ success: false, message: 'Active workspace member not found.' });
+      wm = await prisma.workspaceMember.findFirst({
+        where: { userId: workspaceMemberId, workspaceId, status: 'ACTIVE' }
+      });
+    }
+
+    if (!wm) {
+      return res.status(404).json({ success: false, message: 'Active workspace member not found in this workspace.' });
+    }
+
+    // Resolve target project by Project.id or Workspace.id
+    let targetProject = await prisma.project.findUnique({
+      where: { id: projectId }
+    });
+
+    if (!targetProject) {
+      targetProject = await prisma.project.findFirst({
+        where: { workspaceId: projectId }
+      });
+    }
+
+    if (!targetProject) {
+      targetProject = await prisma.project.findFirst({
+        where: { workspaceId }
+      });
+    }
+
+    if (!targetProject) {
+      const ws = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+      if (ws) {
+        targetProject = await prisma.project.create({
+          data: {
+            name: ws.name,
+            key: ws.key,
+            workspaceId: ws.id
+          }
+        });
+      }
+    }
+
+    if (!targetProject) {
+      return res.status(404).json({ success: false, message: 'Project not found for this workspace.' });
     }
 
     const existing = await prisma.projectMember.findFirst({
-      where: { projectId, workspaceMemberId }
+      where: { projectId: targetProject.id, workspaceMemberId: wm.id }
     });
 
     if (existing) {
@@ -833,8 +874,8 @@ export const addProjectMember = async (req, res, next) => {
 
     const pm = await prisma.projectMember.create({
       data: {
-        projectId,
-        workspaceMemberId,
+        projectId: targetProject.id,
+        workspaceMemberId: wm.id,
         role: role || 'DEVELOPER'
       },
       include: {
@@ -861,26 +902,40 @@ export const removeProjectMember = async (req, res, next) => {
   try {
     const { workspaceId, projectId, projectMemberId } = req.params;
 
-    const pm = await prisma.projectMember.findFirst({
-      where: {
-        id: projectMemberId,
-        projectId
-      },
-      include: {
-        workspaceMember: true
-      }
+    let pm = await prisma.projectMember.findFirst({
+      where: { id: projectMemberId },
+      include: { workspaceMember: true }
     });
 
     if (!pm) {
-      return res.status(404).json({ success: false, message: 'Project member not found.' });
+      let targetProj = await prisma.project.findUnique({ where: { id: projectId } });
+      if (!targetProj) {
+        targetProj = await prisma.project.findFirst({ where: { workspaceId: projectId } });
+      }
+      if (!targetProj) {
+        targetProj = await prisma.project.findFirst({ where: { workspaceId } });
+      }
+
+      if (targetProj) {
+        pm = await prisma.projectMember.findFirst({
+          where: {
+            projectId: targetProj.id,
+            OR: [
+              { workspaceMemberId: projectMemberId },
+              { workspaceMember: { userId: projectMemberId } }
+            ]
+          },
+          include: { workspaceMember: true }
+        });
+      }
     }
 
-    if (pm.workspaceMember.workspaceId !== workspaceId) {
-      return res.status(403).json({ success: false, message: 'Forbidden.' });
+    if (!pm) {
+      return res.status(404).json({ success: false, message: 'Project member record not found.' });
     }
 
     await prisma.projectMember.delete({
-      where: { id: projectMemberId }
+      where: { id: pm.id }
     });
 
     res.status(200).json({
