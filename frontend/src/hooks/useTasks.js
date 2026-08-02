@@ -72,7 +72,7 @@ export function useUpdateTaskStatus(workspaceId) {
       const previousTasks = queryClient.getQueryData(['tasks', workspaceId]);
 
       // Immediately update the card's column in the UI
-      if (previousTasks) {
+      if (Array.isArray(previousTasks)) {
         queryClient.setQueryData(
           ['tasks', workspaceId],
           previousTasks.map((task) =>
@@ -118,7 +118,7 @@ export function useDeleteTask(workspaceId) {
       await queryClient.cancelQueries({ queryKey: ['tasks', workspaceId] });
       const previousTasks = queryClient.getQueryData(['tasks', workspaceId]);
 
-      if (previousTasks) {
+      if (Array.isArray(previousTasks)) {
         queryClient.setQueryData(
           ['tasks', workspaceId],
           previousTasks.filter((task) => task.id !== taskId)

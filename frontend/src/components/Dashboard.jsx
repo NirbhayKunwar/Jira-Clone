@@ -496,51 +496,58 @@ export default function Dashboard() {
   }, [isScrum]);
 
   // Compute team members dynamically from registered database users and current user session
-    const teamMembers = useMemo(() => {
-      const list = [...dbUsers];
-      if (user && user.email) {
-        const exists = list.some(u => u.email.toLowerCase() === user.email.toLowerCase());
-        if (!exists) {
-          list.push({
-            id: user.id ? String(user.id) : 'current',
-            name: user.name || user.email.split('@')[0],
-            email: user.email,
-            role: user.role || 'Full Stack Engineer',
-            dept: user.dept || 'Core Engineering',
-            location: user.location || 'San Francisco, CA',
-            isOwner: !user.teamOwnerId
-          });
-        }
+  const teamMembers = useMemo(() => {
+    const rawUsers = Array.isArray(dbUsers) ? dbUsers : [];
+    const rawTasks = Array.isArray(tasks) ? tasks : [];
+    
+    if (!Array.isArray(tasks)) {
+      console.error("[Dashboard] tasks is not an array:", tasks);
+    }
+    
+    const list = [...rawUsers];
+    if (user && user.email) {
+      const exists = list.some(u => u.email && u.email.toLowerCase() === user.email.toLowerCase());
+      if (!exists) {
+        list.push({
+          id: user.id ? String(user.id) : 'current',
+          name: user.name || user.email.split('@')[0],
+          email: user.email,
+          role: user.role || 'Full Stack Engineer',
+          dept: user.dept || 'Core Engineering',
+          location: user.location || 'San Francisco, CA',
+          isOwner: !user.teamOwnerId
+        });
       }
+    }
 
-      const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-amber-500', 'bg-rose-500'];
-      return list.map((u, idx) => {
-        const isYou = user && u.email.toLowerCase() === user.email.toLowerCase();
-        const initials = u.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-        const activeTasksCount = tasks.filter(t => 
-          (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
-          (!isYou && t.assignee === u.name)
-        ).filter(t => t.status !== 'done').length;
+    const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-amber-500', 'bg-rose-500'];
+    return list.map((u, idx) => {
+      const isYou = user && u.email && u.email.toLowerCase() === user.email.toLowerCase();
+      const initials = (u.name || 'Member').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+      const activeTasksCount = rawTasks.filter(t => 
+        (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
+        (!isYou && t.assignee === u.name)
+      ).filter(t => t.status !== 'done').length;
 
-        const completedTasksCount = tasks.filter(t => 
-          (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
-          (!isYou && t.assignee === u.name)
-        ).filter(t => t.status === 'done').length;
+      const completedTasksCount = rawTasks.filter(t => 
+        (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
+        (!isYou && t.assignee === u.name)
+      ).filter(t => t.status === 'done').length;
 
-        return {
-          id: u.id,
-          name: isYou ? 'You' : u.name,
-          email: u.email,
-          role: u.role || 'Software Engineer',
-          dept: u.dept,
-          location: u.location,
-          avatar: initials,
-          color: colors[idx % colors.length],
-          activeTasks: activeTasksCount,
-          completedTasks: completedTasksCount
-        };
-      });
-    }, [dbUsers, user, tasks]);
+      return {
+        id: u.id,
+        name: isYou ? 'You' : u.name,
+        email: u.email,
+        role: u.role || 'Software Engineer',
+        dept: u.dept,
+        location: u.location,
+        avatar: initials,
+        color: colors[idx % colors.length],
+        activeTasks: activeTasksCount,
+        completedTasks: completedTasksCount
+      };
+    });
+  }, [dbUsers, user, tasks]);
   
   // Modal & Search States
   const [searchQuery, setSearchQuery] = useState('');

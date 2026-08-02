@@ -12,11 +12,8 @@ test('getApiList accepts a legacy raw list response', () => {
   assert.equal(getApiList(users, 'Users'), users);
 });
 
-test('getApiList rejects non-list payloads before they reach React', () => {
-  assert.throws(
-    () => getApiList({ success: true, data: {} }, 'Tasks'),
-    /Tasks response must contain an array/
-  );
+test('getApiList safely returns empty array for non-list payloads', () => {
+  assert.deepEqual(getApiList({ success: true, data: {} }, 'Tasks'), []);
 });
 
 test('getApiData unwraps an enveloped entity response', () => {
