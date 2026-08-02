@@ -77,7 +77,17 @@ export const verifyWorkspaceAccess = async (req, res, next) => {
     }
 
     if (ws.ownerId && ws.ownerId !== req.user.id) {
-      return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
+      const member = await prisma.workspaceMember.findFirst({
+        where: { workspaceId: rawId, userId: req.user.id, status: 'ACTIVE' }
+      });
+      if (!member) {
+        // Also allow if user is owner of team or has active user session in organization
+        const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+        const isTeamMember = user && (user.teamOwnerId === ws.ownerId || user.rbacRole === 'ADMIN' || user.rbacRole === 'LEADER');
+        if (!isTeamMember) {
+          return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
+        }
+      }
     }
 
     next();

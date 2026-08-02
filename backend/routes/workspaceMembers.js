@@ -33,16 +33,16 @@ router.patch('/:workspaceId/members/:memberId', verifyToken, requireWorkspaceRol
 router.delete('/:workspaceId/members/:memberId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), removeWorkspaceMember);
 router.post('/:workspaceId/members/:memberId/transfer-tasks', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), transferMemberTasks);
 
-router.get('/:workspaceId/invitations', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), getWorkspaceInvitations);
-router.post('/:workspaceId/invitations', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), inviteWorkspaceMember);
-router.delete('/:workspaceId/invitations/:inviteId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), revokeInvitation);
-router.post('/:workspaceId/invitations/:inviteId/resend', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), resendInvitation);
+router.get('/:workspaceId/invitations', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER']), getWorkspaceInvitations);
+router.post('/:workspaceId/invitations', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER']), inviteWorkspaceMember);
+router.delete('/:workspaceId/invitations/:inviteId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER']), revokeInvitation);
+router.post('/:workspaceId/invitations/:inviteId/resend', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER']), resendInvitation);
 
-router.get('/:workspaceId/audit-logs', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), getWorkspaceAuditLogs);
+router.get('/:workspaceId/audit-logs', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER']), getWorkspaceAuditLogs);
 router.get('/:workspaceId/activity', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspaceActivity);
 router.get('/:workspaceId/permissions', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspacePermissions);
 router.get('/:workspaceId/projects', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspaceProjects);
-router.post('/:workspaceId/projects/:projectId/members', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), addProjectMember);
-router.delete('/:workspaceId/projects/:projectId/members/:projectMemberId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), removeProjectMember);
+router.post('/:workspaceId/projects/:projectId/members', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER']), addProjectMember);
+router.delete('/:workspaceId/projects/:projectId/members/:projectMemberId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER']), removeProjectMember);
 
 export default router;
