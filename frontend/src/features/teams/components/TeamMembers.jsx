@@ -25,8 +25,8 @@ export default function TeamMembers({ team, workspaceId }) {
   const canManage = isAdmin || isLeader;
 
   // Filter out users who are already in the team
-  const existingTeamMemberUserIds = team.teamMembers?.map(m => m.workspaceMember?.userId) || [];
-  const addableWsMembers = wsMembers.filter(m => !existingTeamMemberUserIds.includes(m.userId));
+  const existingTeamMemberUserIds = team?.teamMembers?.map(m => m.workspaceMember?.userId) || [];
+  const addableWsMembers = (Array.isArray(wsMembers) ? wsMembers : []).filter(m => m && !existingTeamMemberUserIds.includes(m.userId));
 
   const handleAddMember = async (e) => {
     e.preventDefault();

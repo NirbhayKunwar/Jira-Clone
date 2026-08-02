@@ -13,9 +13,9 @@ export const useTeams = (workspaceId) => {
       });
       if (!res.ok) throw new Error('Failed to fetch teams');
       const json = await res.json();
-      const teams = json.data || json;
-      // Filter teams by workspaceId
-      return teams.filter(t => t.workspaceId === workspaceId || !t.workspaceId);
+      const rawData = json?.data ?? json;
+      const list = Array.isArray(rawData) ? rawData : (Array.isArray(rawData?.teams) ? rawData.teams : []);
+      return list.filter(t => t && (t.workspaceId === workspaceId || !t.workspaceId));
     },
     enabled: !!workspaceId
   });

@@ -6,7 +6,7 @@ export default function TeamActivity({ team, workspaceId }) {
   const { data: activities = [], isLoading } = useWorkspaceActivity(workspaceId);
 
   // Filter logs for this specific team
-  const teamActivities = activities.filter(a => a.resourceType === 'Team' && String(a.resourceId) === String(team.id));
+  const teamActivities = (Array.isArray(activities) ? activities : []).filter(a => a && a.resourceType === 'Team' && String(a.resourceId) === String(team?.id));
 
   return (
     <div className="space-y-5 text-left">
