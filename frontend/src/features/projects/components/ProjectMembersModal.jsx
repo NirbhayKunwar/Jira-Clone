@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, UserPlus, Trash2, Plus, CheckCircle2 } from 'lucide-react';
+import { X, Users, UserPlus, Trash2, Plus, CheckCircle2, Mail } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getAuthHeaders, API_URL } from '../../../config/api';
+import { useUiStore } from '../../../store/uiStore';
 
 export default function ProjectMembersModal({ isOpen, onClose, project, workspaceId, workspaceMembers = [] }) {
   const queryClient = useQueryClient();
+  const { setInviteModal } = useUiStore();
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [selectedRole, setSelectedRole] = useState('DEVELOPER');
+  const [addMode, setAddMode] = useState('select'); // 'select' or 'email'
+  const [inviteEmail, setInviteEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -44,13 +48,44 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
 
   const handleAddMember = async (e) => {
     e.preventDefault();
-    if (!selectedMemberId) return;
     setIsSubmitting(true);
     setErrorMsg('');
     setSuccessMsg('');
 
     try {
       const targetProjId = project.id || workspaceId;
+
+      if (addMode === 'email' || !selectedMemberId) {
+        if (!inviteEmail.trim()) {
+          setErrorMsg('Please select a workspace member or enter an email address.');
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Invite / Add user by email directly to workspace + project
+        const res = await fetch(`${API_URL}/api/workspaces/${workspaceId}/invitations`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            email: inviteEmail.trim(),
+            workspaceRole: 'MEMBER',
+            projectId: targetProjId,
+            projectRole: selectedRole
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Failed to add member');
+
+        setSuccessMsg(data.message || `Member processed for ${inviteEmail}`);
+        setInviteEmail('');
+        queryClient.invalidateQueries(['workspaceMembers', workspaceId]);
+        queryClient.invalidateQueries(['workspaceProjects', workspaceId]);
+        queryClient.invalidateQueries(['workspace-members', workspaceId]);
+        return;
+      }
+
+      // Add existing workspace member
       const res = await fetch(`${API_URL}/api/workspaces/${workspaceId}/projects/${targetProjId}/members`, {
         method: 'POST',
         headers: getAuthHeaders(),
@@ -62,13 +97,14 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
 
       const addedPm = data.data;
       if (addedPm) {
-        setLocalMembers(prev => [...prev, addedPm]);
+        setLocalMembers(prev => [...(Array.isArray(prev) ? prev : []), addedPm]);
       }
 
       setSuccessMsg('Member added to project successfully!');
       setSelectedMemberId('');
       queryClient.invalidateQueries(['workspaceMembers', workspaceId]);
       queryClient.invalidateQueries(['workspaceProjects', workspaceId]);
+      queryClient.invalidateQueries(['workspace-members', workspaceId]);
     } catch (err) {
       setErrorMsg(err.message);
     } finally {
@@ -93,10 +129,11 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to remove member from project');
 
-      setLocalMembers(prev => prev.filter(pm => pm.id !== projectMemberId));
+      setLocalMembers(prev => (Array.isArray(prev) ? prev : []).filter(pm => pm.id !== projectMemberId));
       setSuccessMsg(`Removed ${memberName} from project.`);
       queryClient.invalidateQueries(['workspaceMembers', workspaceId]);
       queryClient.invalidateQueries(['workspaceProjects', workspaceId]);
+      queryClient.invalidateQueries(['workspace-members', workspaceId]);
     } catch (err) {
       alert(err.message);
     }
@@ -141,39 +178,107 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
 
           {/* Add Member Section */}
           <form onSubmit={handleAddMember} className="space-y-3 bg-dominant p-4 rounded-xl border border-border-secondary/50">
-            <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center space-x-1.5">
-              <UserPlus className="w-3.5 h-3.5 text-accent" />
-              <span>Add Teammate to Project</span>
-            </h4>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-              <select
-                value={selectedMemberId}
-                onChange={(e) => setSelectedMemberId(e.target.value)}
-                className="sm:col-span-2 text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant-offset text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
-              >
-                <option value="">Select workspace member...</option>
-                {availableMembers.map(wm => {
-                  const optionId = wm.id || wm.workspaceMemberId || wm.userId || wm.user?.id;
-                  const name = wm.user?.name || wm.name || 'Member';
-                  const email = wm.user?.email || wm.email || '';
-                  return (
-                    <option key={optionId} value={optionId}>
-                      {name} {email ? `(${email})` : ''}
-                    </option>
-                  );
-                })}
-              </select>
-
-              <button
-                type="submit"
-                disabled={!selectedMemberId || isSubmitting}
-                className="px-3 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all cursor-pointer border-none flex items-center justify-center space-x-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Member</span>
-              </button>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center space-x-1.5">
+                <UserPlus className="w-3.5 h-3.5 text-accent" />
+                <span>Add Teammate to Project</span>
+              </h4>
+              <div className="flex items-center space-x-1 text-[10px]">
+                <button
+                  type="button"
+                  onClick={() => setAddMode('select')}
+                  className={`px-2 py-0.5 rounded font-bold cursor-pointer border-none transition-colors ${addMode === 'select' ? 'bg-accent text-white' : 'bg-dominant-offset text-text-secondary-muted'}`}
+                >
+                  Select Member
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAddMode('email')}
+                  className={`px-2 py-0.5 rounded font-bold cursor-pointer border-none transition-colors ${addMode === 'email' ? 'bg-accent text-white' : 'bg-dominant-offset text-text-secondary-muted'}`}
+                >
+                  By Email
+                </button>
+              </div>
             </div>
+            
+            {availableMembers.length === 0 && addMode === 'select' ? (
+              <div className="p-3 bg-accent/5 border border-accent/20 rounded-lg text-xs space-y-2">
+                <div className="text-text-secondary font-medium">
+                  {rawWsMembersList.length <= 1 
+                    ? 'You are currently the only member in this workspace. Invite teammates to your workspace first or enter their email directly below.' 
+                    : 'All workspace members are already assigned to this project.'}
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setAddMode('email')}
+                    className="px-3 py-1 bg-accent text-white rounded text-xs font-bold border-none cursor-pointer flex items-center gap-1"
+                  >
+                    <Mail className="w-3 h-3" />
+                    <span>Type Email Directly</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      setInviteModal(true);
+                    }}
+                    className="px-3 py-1 bg-dominant-offset hover:bg-dominant-offset/80 text-text-secondary rounded text-xs font-semibold border border-border-secondary/60 cursor-pointer"
+                  >
+                    Invite to Workspace
+                  </button>
+                </div>
+              </div>
+            ) : addMode === 'email' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <input
+                  type="email"
+                  required
+                  placeholder="Enter colleague's email address..."
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="sm:col-span-2 text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant-offset text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+
+                <button
+                  type="submit"
+                  disabled={!inviteEmail.trim() || isSubmitting}
+                  className="px-3 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all cursor-pointer border-none flex items-center justify-center space-x-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isSubmitting ? 'Adding...' : 'Add Member'}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <select
+                  value={selectedMemberId}
+                  onChange={(e) => setSelectedMemberId(e.target.value)}
+                  className="sm:col-span-2 text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant-offset text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
+                >
+                  <option value="">Select workspace member...</option>
+                  {availableMembers.map(wm => {
+                    const optionId = wm.id || wm.workspaceMemberId || wm.userId || wm.user?.id;
+                    const name = wm.user?.name || wm.name || 'Member';
+                    const email = wm.user?.email || wm.email || '';
+                    return (
+                      <option key={optionId} value={optionId}>
+                        {name} {email ? `(${email})` : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <button
+                  type="submit"
+                  disabled={!selectedMemberId || isSubmitting}
+                  className="px-3 py-2 bg-accent hover:bg-accent-hover disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-all cursor-pointer border-none flex items-center justify-center space-x-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isSubmitting ? 'Adding...' : 'Add Member'}</span>
+                </button>
+              </div>
+            )}
           </form>
 
           {/* Current Project Members List */}
