@@ -3702,8 +3702,14 @@ export default function Dashboard() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {teamsList.map(team => {
-                    // Resolve members details
-                    const resolvedMembers = teamMembers.filter(m => team.members.map(String).includes(String(m.id)));
+                    // Resolve members details safely
+                    const rawMembers = Array.isArray(team.members) 
+                      ? team.members.map(m => (typeof m === 'object' ? String(m.workspaceMemberId || m.id) : String(m))) 
+                      : (Array.isArray(team.teamMembers) 
+                          ? team.teamMembers.map(tm => String(tm.workspaceMemberId || tm.workspaceMember?.id || tm.id)) 
+                          : []);
+
+                    const resolvedMembers = (teamMembers || []).filter(m => m && m.id && rawMembers.includes(String(m.id)));
                     
                     // Aggregate tasks
                     const totalActiveTasks = resolvedMembers.reduce((sum, m) => sum + (m.activeTasks || 0), 0);
@@ -3798,9 +3804,9 @@ export default function Dashboard() {
                                 const val = e.target.value;
                                 if (!val) return;
                                 const memberId = String(val);
-                                if (team.members.map(String).includes(memberId)) return;
+                                if (rawMembers.includes(memberId)) return;
                                 
-                                const updatedMembers = [...team.members.map(String), memberId];
+                                const updatedMembers = [...rawMembers, memberId];
                                 
                                 fetch(`${API_URL}/api/teams/${team.id}`, {
                                   method: 'PUT',
@@ -3821,7 +3827,7 @@ export default function Dashboard() {
                               className="text-[10px] px-2 py-1.5 rounded border border-border-secondary bg-dominant text-text-secondary focus:outline-none max-w-[150px] cursor-pointer"
                             >
                               <option value="">Select user...</option>
-                              {teamMembers.filter(m => !team.members.map(String).includes(String(m.id))).map(m => (
+                              {(teamMembers || []).filter(m => m && m.id && !rawMembers.includes(String(m.id))).map(m => (
                                 <option key={m.id} value={m.id}>
                                   {m.name === 'You' && user?.name ? user.name : m.name}
                                 </option>
