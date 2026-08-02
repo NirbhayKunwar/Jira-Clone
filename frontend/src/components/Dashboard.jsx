@@ -775,10 +775,18 @@ export default function Dashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const [recentItems, setRecentItems] = useState(() => {
-    const savedRecents = localStorage.getItem('jira_recent_visits');
-    return savedRecents ? JSON.parse(savedRecents) : [];
-  });
+  const getSafeStoredRecents = () => {
+    try {
+      const savedRecents = localStorage.getItem('jira_recent_visits');
+      if (!savedRecents) return [];
+      const parsed = JSON.parse(savedRecents);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
+  const [recentItems, setRecentItems] = useState(getSafeStoredRecents);
 
   // Fetch activity log notifications from backend
   useEffect(() => {
@@ -790,14 +798,14 @@ export default function Dashboard() {
           headers: getAuthHeaders()
         });
         if (res.ok) {
-          const data = await res.json();
-          setNotifications(data.data || []);
+          const json = await res.json();
+          const list = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+          setNotifications(list);
         }
       } catch (err) {
-        console.error('Error fetching notifications:', err);
+        console.error('Failed to fetch notifications:', err);
       }
     };
-
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 10000); // 10s poll
     return () => clearInterval(interval);
@@ -821,19 +829,18 @@ export default function Dashboard() {
   useEffect(() => {
     if (!activeWorkspace) return;
     
-    // Load existing recents from localStorage
-    const savedRecents = localStorage.getItem('jira_recent_visits');
-    let recents = savedRecents ? JSON.parse(savedRecents) : [];
+    // Load existing recents from localStorage safely
+    let recents = getSafeStoredRecents();
     
     // Remove if already exists to avoid duplicates
-    recents = recents.filter(item => item.id !== activeWorkspace.id);
+    recents = recents.filter(item => item && item.id !== activeWorkspace.id);
     
     // Add new visit
     recents.unshift({
       id: activeWorkspace.id,
-      name: activeWorkspace.name,
-      key: activeWorkspace.key,
-      template_type: activeWorkspace.template_type,
+      name: activeWorkspace.name || 'Project',
+      key: activeWorkspace.key || 'PRJ',
+      template_type: activeWorkspace.template_type || 'kanban',
       visitedAt: new Date().toISOString()
     });
     
@@ -849,9 +856,8 @@ export default function Dashboard() {
 
   // Handle case where local storage recent visits is empty
   useEffect(() => {
-    if (workspaces && workspaces.length > 0) {
-      const savedRecents = localStorage.getItem('jira_recent_visits');
-      let recents = savedRecents ? JSON.parse(savedRecents) : [];
+    if (Array.isArray(workspaces) && workspaces.length > 0) {
+      let recents = getSafeStoredRecents();
       
       if (recents.length === 0) {
         recents = workspaces.map((ws, index) => {
@@ -863,9 +869,9 @@ export default function Dashboard() {
           }
           return {
             id: ws.id,
-            name: ws.name,
-            key: ws.key,
-            template_type: ws.template_type,
+            name: ws.name || 'Project',
+            key: ws.key || 'PRJ',
+            template_type: ws.template_type || 'kanban',
             visitedAt: date.toISOString()
           };
         });
