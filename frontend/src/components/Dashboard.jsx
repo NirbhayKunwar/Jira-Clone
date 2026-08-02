@@ -575,7 +575,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!activeWorkspace?.id) return;
 
-    fetch(`${API_URL}/api/workspace-members/${activeWorkspace.id}/members`, {
+    fetch(`${API_URL}/api/workspaces/${activeWorkspace.id}/members`, {
       headers: getAuthHeaders()
     })
       .then(res => res.json())
@@ -584,7 +584,7 @@ export default function Dashboard() {
       })
       .catch(() => {});
 
-    fetch(`${API_URL}/api/workspace-members/${activeWorkspace.id}/projects`, {
+    fetch(`${API_URL}/api/workspaces/${activeWorkspace.id}/projects`, {
       headers: getAuthHeaders()
     })
       .then(res => res.json())
@@ -596,12 +596,12 @@ export default function Dashboard() {
 
   // Fetch Goals and Teams from backend database
   useEffect(() => {
-    if (!user) return;
+    if (!user || !activeWorkspace?.id) return;
     
     const loadGoalsAndTeams = async () => {
       try {
         const headers = getAuthHeaders();
-        const wsParam = activeWorkspace?.id ? `?workspaceId=${activeWorkspace.id}` : '';
+        const wsParam = `?workspaceId=${activeWorkspace.id}`;
         const [goalsRes, teamsRes] = await Promise.all([
           fetch(`${API_URL}/api/goals${wsParam}`, { headers }),
           fetch(`${API_URL}/api/teams${wsParam}`, { headers })

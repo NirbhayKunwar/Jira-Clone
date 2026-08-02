@@ -39,7 +39,7 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
 
     try {
       const targetProjId = project.id || workspaceId;
-      const res = await fetch(`${API_URL}/api/workspace-members/${workspaceId}/projects/${targetProjId}/members`, {
+      const res = await fetch(`${API_URL}/api/workspaces/${workspaceId}/projects/${targetProjId}/members`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ workspaceMemberId: selectedMemberId, role: selectedRole })
@@ -73,7 +73,7 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
 
     try {
       const targetProjId = project.id || workspaceId;
-      const res = await fetch(`${API_URL}/api/workspace-members/${workspaceId}/projects/${targetProjId}/members/${projectMemberId}`, {
+      const res = await fetch(`${API_URL}/api/workspaces/${workspaceId}/projects/${targetProjId}/members/${projectMemberId}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });

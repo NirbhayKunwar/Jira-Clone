@@ -13,7 +13,7 @@ export default function ProjectsTab({ projects, workspaceId }) {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/workspace-members/${workspaceId}/projects/${pm.projectId}/members/${pm.id}`, {
+      const res = await fetch(`${API_URL}/api/workspaces/${workspaceId}/projects/${pm.projectId}/members/${pm.id}`, {
         method: 'DELETE',
         headers: getAuthHeaders()
       });

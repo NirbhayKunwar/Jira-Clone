@@ -137,6 +137,7 @@ const registerRoutes = (routerPath) => {
   app.use(`${routerPath}/auth`, authRoutes);
   app.use(`${routerPath}/tasks`, taskRoutes);
   app.use(`${routerPath}/workspaces`, workspaceMembersRoutes); // Mounts invitations and member operations under workspaces
+  app.use(`${routerPath}/workspace-members`, workspaceMembersRoutes); // Mount alias for workspace-members
   app.use(`${routerPath}/workspaces`, workspaceRoutes);
   app.use(`${routerPath}/goals`, goalRoutes);
   app.use(`${routerPath}/teams`, teamMembersRoutes); // Mounts team details/members under teams
