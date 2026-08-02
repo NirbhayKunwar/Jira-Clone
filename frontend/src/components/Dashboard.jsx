@@ -872,14 +872,26 @@ export default function Dashboard() {
 
   const recentDisplayItems = useMemo(() => {
     let items = [];
-    recentItems.forEach((ws, idx) => {
+    const validRecents = (recentItems || []).filter(r => r && r.id && workspaces.some(w => String(w.id) === String(r.id)));
+    
+    // If no stored recents match active workspaces, fallback to current workspaces
+    const listToRender = validRecents.length > 0 ? validRecents : workspaces.map(ws => ({
+      id: ws.id,
+      name: ws.name,
+      key: ws.key,
+      template_type: ws.template_type,
+      visitedAt: new Date().toISOString()
+    }));
+
+    listToRender.forEach((ws, idx) => {
+      const wsName = ws.name || 'Project';
       // Board item
       items.push({
         id: `board-${ws.id}`,
         wsId: ws.id,
-        name: ws.name.toLowerCase().includes('board') ? ws.name : `${ws.name} Board`,
+        name: wsName.toLowerCase().includes('board') ? wsName : `${wsName} Board`,
         type: 'board',
-        visitedAt: ws.visitedAt
+        visitedAt: ws.visitedAt || new Date().toISOString()
       });
       // Dashboard item
       if (idx === 0) {
@@ -888,19 +900,19 @@ export default function Dashboard() {
           wsId: ws.id,
           name: 'Default dashboard',
           type: 'dashboard',
-          visitedAt: ws.visitedAt
+          visitedAt: ws.visitedAt || new Date().toISOString()
         });
       }
     });
 
     if (recentSearchQuery) {
       items = items.filter(item => 
-        item.name.toLowerCase().includes(recentSearchQuery.toLowerCase())
+        item.name && item.name.toLowerCase().includes(recentSearchQuery.toLowerCase())
       );
     }
 
     return items;
-  }, [recentItems, recentSearchQuery]);
+  }, [recentItems, workspaces, recentSearchQuery]);
 
   const groupedRecentItems = useMemo(() => {
     const today = [];
@@ -940,7 +952,7 @@ export default function Dashboard() {
   };
 
   const handleSelectRecentWorkspace = (wsId, type) => {
-    const ws = workspaces.find(w => w.id === wsId);
+    const ws = workspaces.find(w => String(w.id) === String(wsId));
     if (ws) {
       onSwitchWorkspace(ws);
       if (type === 'dashboard') {
