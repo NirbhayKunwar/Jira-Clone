@@ -18,6 +18,9 @@ export default function InviteMemberModal({ workspaceId }) {
   const [projectId, setProjectId] = useState('');
   const [projectRole, setProjectRole] = useState('DEVELOPER');
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [inviteToken, setInviteToken] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isInviteModalOpen) return null;
@@ -28,9 +31,12 @@ export default function InviteMemberModal({ workspaceId }) {
 
     setIsSubmitting(true);
     setErrorMsg('');
+    setSuccessMsg('');
+    setInviteToken('');
+    setCopiedLink(false);
 
     try {
-      await inviteMutation.mutateAsync({
+      const res = await inviteMutation.mutateAsync({
         email: email.trim(),
         workspaceRole,
         teamId: teamId || null,
@@ -39,11 +45,14 @@ export default function InviteMemberModal({ workspaceId }) {
         projectRole: projectId ? projectRole : null
       });
 
-      alert(`Invitation successfully sent to ${email}`);
+      const message = res?.message || `Member processed for ${email}`;
+      setSuccessMsg(message);
+      if (res?.data?.token) {
+        setInviteToken(res.data.token);
+      }
       setEmail('');
       setTeamId('');
       setProjectId('');
-      setInviteModal(false);
     } catch (err) {
       setErrorMsg(err.message || 'Failed to send invitation');
     } finally {
@@ -77,6 +86,30 @@ export default function InviteMemberModal({ workspaceId }) {
             <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-500 text-xs font-bold flex items-start space-x-2.5">
               <AlertTriangle className="w-4.5 h-4.5 flex-shrink-0 mt-0.5" />
               <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-green-500 text-xs font-bold space-y-2">
+              <div>{successMsg}</div>
+              {inviteToken && (
+                <div className="pt-2 border-t border-green-500/20 flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] text-text-secondary truncate">
+                    {window.location.origin}/auth?token={inviteToken}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/auth?token=${inviteToken}`);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
+                    }}
+                    className="px-2.5 py-1 bg-green-500 text-white rounded text-[10px] font-bold border-none cursor-pointer flex-shrink-0"
+                  >
+                    {copiedLink ? 'Copied Link!' : 'Copy Link'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

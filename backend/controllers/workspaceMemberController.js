@@ -178,6 +178,63 @@ export const inviteWorkspaceMember = async (req, res, next) => {
       });
     }
 
+    // Check if target email belongs to an existing registered User in the database
+    const registeredUser = await prisma.user.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } }
+    });
+
+    if (registeredUser) {
+      // Auto-add existing registered user as an active workspace member
+      const member = await prisma.workspaceMember.create({
+        data: {
+          workspaceId,
+          userId: registeredUser.id,
+          role: workspaceRole,
+          status: 'ACTIVE'
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              dept: true,
+              location: true
+            }
+          }
+        }
+      });
+
+      // If teamId is provided, also add to team
+      if (teamId) {
+        await prisma.teamMember.create({
+          data: {
+            teamId,
+            workspaceMemberId: member.id,
+            role: teamRole || 'FULLSTACK_ENGINEER'
+          }
+        }).catch(() => {});
+      }
+
+      // If projectId is provided, also add to project
+      if (projectId) {
+        await prisma.projectMember.create({
+          data: {
+            projectId,
+            workspaceMemberId: member.id,
+            role: projectRole || 'DEVELOPER'
+          }
+        }).catch(() => {});
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: `${registeredUser.name || email} added to workspace successfully.`,
+        data: member
+      });
+    }
+
     // Create the invitation
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date();
@@ -185,7 +242,7 @@ export const inviteWorkspaceMember = async (req, res, next) => {
 
     const invitation = await prisma.invitation.create({
       data: {
-        email,
+        email: email.trim(),
         workspaceId,
         workspaceRole,
         teamId,

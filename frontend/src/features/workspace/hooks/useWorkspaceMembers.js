@@ -122,8 +122,11 @@ export const useInviteMember = (workspaceId) => {
       return res.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaceMembers', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['invitations', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['audit-log', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     }
   });
 };
