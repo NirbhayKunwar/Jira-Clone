@@ -646,8 +646,8 @@ export default function Dashboard() {
 
   const epicsList = useMemo(() => (
     [...new Set([
-      ...tasks.map(task => task.epic?.trim()).filter(Boolean),
-      ...customEpics
+      ...(Array.isArray(tasks) ? tasks : []).map(task => task?.epic?.trim()).filter(Boolean),
+      ...(Array.isArray(customEpics) ? customEpics : [])
     ])]
       .sort((a, b) => a.localeCompare(b))
   ), [customEpics, tasks]);
@@ -665,7 +665,8 @@ export default function Dashboard() {
     };
 
     return Object.fromEntries(epicsList.map((epic, index) => {
-      const epicTasks = tasks.filter(task => task.epic?.trim() === epic);
+      const safeTaskList = Array.isArray(tasks) ? tasks : [];
+      const epicTasks = safeTaskList.filter(task => task && task.epic?.trim() === epic);
       const starts = epicTasks.map(task => toMonthIndex(task.createdAt));
       const ends = epicTasks.map(task => toMonthIndex(task.completedAt || dashboardOpenedAt));
       const clamp = value => Math.min(5, Math.max(0, value));
@@ -806,7 +807,7 @@ export default function Dashboard() {
     // Reference showNotifications to trigger re-evaluation when dropdown is toggled
     void showNotifications;
     const lastCheck = localStorage.getItem('jira_last_notification_check') || 0;
-    return notifications.filter(n => new Date(n.createdAt).getTime() > Number(lastCheck)).length;
+    return (Array.isArray(notifications) ? notifications : []).filter(n => n && n.createdAt && new Date(n.createdAt).getTime() > Number(lastCheck)).length;
   }, [notifications, showNotifications]);
 
   const handleToggleNotifications = () => {
@@ -1221,7 +1222,9 @@ export default function Dashboard() {
     };
 
     // Filter tasks belonging to the current sprint (active tasks + tasks completed during current sprint)
-    const sprintTasks = tasks.filter(t => {
+    const safeTasksList = Array.isArray(tasks) ? tasks : [];
+    const sprintTasks = safeTasksList.filter(t => {
+      if (!t) return false;
       const compTime = getCompletionTime(t);
       return compTime === Infinity || compTime >= sprintStart.getTime();
     });
@@ -1236,7 +1239,7 @@ export default function Dashboard() {
       const timeAtPoint = sprintStart.getTime() + i * intervalMs;
       
       // Calculate how many tasks were completed before or at this point in time
-      const completedCount = sprintTasks.filter(t => getCompletionTime(t) <= timeAtPoint).length;
+      const completedCount = sprintTasks.filter(t => t && getCompletionTime(t) <= timeAtPoint).length;
       
       // Y position: 180 (0% completed) to 20 (100% completed)
       const completionFraction = totalSprintTasks > 0 ? completedCount / totalSprintTasks : 0;
@@ -1628,7 +1631,7 @@ export default function Dashboard() {
                     <span>Kanban Board</span>
                   </div>
                   <div className="space-y-0.5">
-                    {workspaces.filter(ws => ws.template_type === 'kanban').map(ws => {
+                    {(Array.isArray(workspaces) ? workspaces : []).filter(ws => ws && ws.template_type === 'kanban').map(ws => {
                       const isActive = activeWorkspace?.id === ws.id;
                       return (
                         <button
@@ -1651,7 +1654,7 @@ export default function Dashboard() {
                         </button>
                       );
                     })}
-                    {workspaces.filter(ws => ws.template_type === 'kanban').length === 0 && (
+                    {(Array.isArray(workspaces) ? workspaces : []).filter(ws => ws && ws.template_type === 'kanban').length === 0 && (
                       <div className="text-[10px] text-text-secondary-muted/65 italic pl-5 py-1">
                         No Kanban boards
                       </div>
@@ -1666,7 +1669,7 @@ export default function Dashboard() {
                     <span>Scrum Board</span>
                   </div>
                   <div className="space-y-0.5">
-                    {workspaces.filter(ws => ws.template_type === 'scrum').map(ws => {
+                    {(Array.isArray(workspaces) ? workspaces : []).filter(ws => ws && ws.template_type === 'scrum').map(ws => {
                       const isActive = activeWorkspace?.id === ws.id;
                       return (
                         <button
@@ -1689,7 +1692,7 @@ export default function Dashboard() {
                         </button>
                       );
                     })}
-                    {workspaces.filter(ws => ws.template_type === 'scrum').length === 0 && (
+                    {(Array.isArray(workspaces) ? workspaces : []).filter(ws => ws && ws.template_type === 'scrum').length === 0 && (
                       <div className="text-[10px] text-text-secondary-muted/65 italic pl-5 py-1">
                         No Scrum boards
                       </div>
@@ -2526,7 +2529,8 @@ export default function Dashboard() {
               {/* Kanban Grid */}
               <div ref={kanbanGridRef} className="flex flex-col md:flex-row overflow-y-auto md:overflow-x-auto md:overflow-y-hidden gap-4 md:gap-6 flex-grow items-stretch md:items-start pb-4 scrollbar-thin w-full min-w-0">
                 {columns.map(col => {
-                  const currentCount = processedTasks.filter(t => t.status === col.id).length;
+                  const columnTasks = (Array.isArray(processedTasks) ? processedTasks : []).filter(t => t && t.status === col.id);
+                  const currentCount = columnTasks.length;
                   const wipExceeded = col.hasWipLimit && currentCount > (activeWorkspace?.wip_limit || 5);
                   const isHovered = touchDragActive && touchTargetColumnId === col.id;
                   
@@ -2566,7 +2570,7 @@ export default function Dashboard() {
                       </div>
                       
                       <div className="space-y-3 overflow-y-auto pr-1 flex-grow scrollbar-thin">
-                        {processedTasks.filter(t => t.status === col.id).map(task => (
+                        {columnTasks.map(task => (
                           <Card 
                             key={task.id} 
                             task={task} 
@@ -2577,7 +2581,7 @@ export default function Dashboard() {
                             onClaim={handleClaimTask}
                           />
                         ))}
-                        {processedTasks.filter(t => t.status === col.id).length === 0 && (
+                        {currentCount === 0 && (
                           <EmptyPlaceholder text={`No tasks in ${col.name.toLowerCase()}`} />
                         )}
                       </div>
@@ -2741,13 +2745,13 @@ export default function Dashboard() {
 
                   {forYouSubTab === 'assigned' && (
                     <div className="space-y-3">
-                      {tasks.filter(t => t.assignee === 'You' || t.assignee === user?.name).length === 0 ? (
+                      {(Array.isArray(tasks) ? tasks : []).filter(t => t && (t.assignee === 'You' || t.assignee === user?.name)).length === 0 ? (
                         <div className="py-8 text-center text-[11px] text-text-secondary-muted italic">
                           No tasks currently assigned to you.
                         </div>
                       ) : (
                         <div className="divide-y divide-border-secondary/30">
-                          {tasks.filter(t => t.assignee === 'You' || t.assignee === user?.name).map(t => (
+                          {(Array.isArray(tasks) ? tasks : []).filter(t => t && (t.assignee === 'You' || t.assignee === user?.name)).map(t => (
                             <div key={t.id} className="py-3 flex items-center justify-between text-xs hover:bg-dominant-offset/10 px-2 rounded-lg transition-colors">
                               <div className="flex items-center space-x-3 min-w-0">
                                 <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider ${
@@ -2909,8 +2913,9 @@ export default function Dashboard() {
                 <div className="divide-y divide-border-secondary/40">
                   {epicsList.map(epic => {
                     const timeline = epicTimelines[epic] || { start: 1, end: 3, color: 'bg-slate-500' };
-                    const epicTasks = tasks.filter(t => t.epic === epic);
-                    const doneCount = epicTasks.filter(t => t.status === 'done').length;
+                    const safeTaskList = Array.isArray(tasks) ? tasks : [];
+                    const epicTasks = safeTaskList.filter(t => t && t.epic === epic);
+                    const doneCount = epicTasks.filter(t => t && t.status === 'done').length;
                     const totalCount = epicTasks.length;
                     const progressPct = totalCount ? Math.round((doneCount / totalCount) * 100) : 0;
                     const isExpanded = expandedEpic === epic;
@@ -3487,12 +3492,12 @@ export default function Dashboard() {
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-xs">
                         <span className="font-semibold text-text-secondary-muted">High Priority</span>
-                        <span className="font-bold text-red-500">{tasks.filter(t => t.priority === 'High').length}</span>
+                        <span className="font-bold text-red-500">{(Array.isArray(tasks) ? tasks : []).filter(t => t && t.priority === 'High').length}</span>
                       </div>
                       <div className="w-full bg-dominant rounded-full h-2">
                         <div 
                           className="bg-red-500 h-2 rounded-full transition-all duration-500" 
-                          style={{ width: `${totalTasks ? (tasks.filter(t => t.priority === 'High').length / totalTasks) * 100 : 0}%` }}
+                          style={{ width: `${totalTasks ? ((Array.isArray(tasks) ? tasks : []).filter(t => t && t.priority === 'High').length / totalTasks) * 100 : 0}%` }}
                         />
                       </div>
                     </div>
@@ -3501,12 +3506,12 @@ export default function Dashboard() {
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-xs">
                         <span className="font-semibold text-text-secondary-muted">Medium Priority</span>
-                        <span className="font-bold text-amber-500">{tasks.filter(t => t.priority === 'Medium').length}</span>
+                        <span className="font-bold text-amber-500">{(Array.isArray(tasks) ? tasks : []).filter(t => t && t.priority === 'Medium').length}</span>
                       </div>
                       <div className="w-full bg-dominant rounded-full h-2">
                         <div 
                           className="bg-amber-500 h-2 rounded-full transition-all duration-500" 
-                          style={{ width: `${totalTasks ? (tasks.filter(t => t.priority === 'Medium').length / totalTasks) * 100 : 0}%` }}
+                          style={{ width: `${totalTasks ? ((Array.isArray(tasks) ? tasks : []).filter(t => t && t.priority === 'Medium').length / totalTasks) * 100 : 0}%` }}
                         />
                       </div>
                     </div>
@@ -3515,12 +3520,12 @@ export default function Dashboard() {
                     <div className="space-y-1.5">
                       <div className="flex justify-between text-xs">
                         <span className="font-semibold text-text-secondary-muted">Low Priority</span>
-                        <span className="font-bold text-blue-500">{tasks.filter(t => t.priority === 'Low').length}</span>
+                        <span className="font-bold text-blue-500">{(Array.isArray(tasks) ? tasks : []).filter(t => t && t.priority === 'Low').length}</span>
                       </div>
                       <div className="w-full bg-dominant rounded-full h-2">
                         <div 
                           className="bg-blue-500 h-2 rounded-full transition-all duration-500" 
-                          style={{ width: `${totalTasks ? (tasks.filter(t => t.priority === 'Low').length / totalTasks) * 100 : 0}%` }}
+                          style={{ width: `${totalTasks ? ((Array.isArray(tasks) ? tasks : []).filter(t => t && t.priority === 'Low').length / totalTasks) * 100 : 0}%` }}
                         />
                       </div>
                     </div>
