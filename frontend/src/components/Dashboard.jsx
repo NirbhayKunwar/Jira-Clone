@@ -2394,36 +2394,38 @@ export default function Dashboard() {
                     <option value="Low">🔵 Low</option>
                   </select>
                 </div>
-                {/* Board View scope selector */}
-                <div className="flex items-center space-x-1.5 border-l border-border-secondary/40 pl-4">
-                  <span className="text-xs text-text-secondary-muted">View:</span>
-                  <div className="flex items-center gap-1 bg-dominant border border-border-secondary/60 p-0.5 rounded-lg">
-                    <button
-                      onClick={() => setBoardFilter('all')}
-                      className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all border-none cursor-pointer ${
-                        boardFilter === 'all' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
-                      }`}
-                    >
-                      All Tasks
-                    </button>
-                    <button
-                      onClick={() => setBoardFilter('foryou')}
-                      className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all border-none cursor-pointer ${
-                        boardFilter === 'foryou' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
-                      }`}
-                    >
-                      Assigned to me
-                    </button>
-                    <button
-                      onClick={() => setBoardFilter('recent')}
-                      className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all border-none cursor-pointer ${
-                        boardFilter === 'recent' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
-                      }`}
-                    >
-                      Recently Created
-                    </button>
+                {/* Board View scope selector - shown only on 'foryou' tab */}
+                {activeTab === 'foryou' && (
+                  <div className="flex items-center space-x-1.5 border-l border-border-secondary/40 pl-4">
+                    <span className="text-xs text-text-secondary-muted">View:</span>
+                    <div className="flex items-center gap-1 bg-dominant border border-border-secondary/60 p-0.5 rounded-lg">
+                      <button
+                        onClick={() => setBoardFilter('all')}
+                        className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all border-none cursor-pointer ${
+                          boardFilter === 'all' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
+                        }`}
+                      >
+                        All Tasks
+                      </button>
+                      <button
+                        onClick={() => setBoardFilter('foryou')}
+                        className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all border-none cursor-pointer ${
+                          boardFilter === 'foryou' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
+                        }`}
+                      >
+                        Assigned to me
+                      </button>
+                      <button
+                        onClick={() => setBoardFilter('recent')}
+                        className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all border-none cursor-pointer ${
+                          boardFilter === 'recent' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
+                        }`}
+                      >
+                        Recently Created
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Filter Reset Button */}
