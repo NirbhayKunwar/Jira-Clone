@@ -39,9 +39,13 @@ const ROADMAP_COLORS = ['#0052cc', '#ff5630', '#36b37e', '#ffab00', '#6554c0'];
 // Helper to reliably check if a task is assigned to the given user
 const isAssignedToUser = (task, currentUser) => {
   if (!task || !currentUser) return false;
-  if (task.assignee === 'You') return true;
-  if (currentUser.id && task.assigneeId && String(task.assigneeId) === String(currentUser.id)) return true;
-  if (currentUser.name && task.assignee && task.assignee.toLowerCase() === currentUser.name.toLowerCase()) return true;
+  // Ground truth: match by database assigneeId if present
+  if (task.assigneeId) {
+    return currentUser.id ? String(task.assigneeId) === String(currentUser.id) : false;
+  }
+  // Secondary fallback: match by assignee string
+  if (!task.assignee || task.assignee === 'Unassigned') return false;
+  if (currentUser.name && task.assignee.toLowerCase() === currentUser.name.toLowerCase()) return true;
   return false;
 };
 
@@ -536,17 +540,17 @@ export default function Dashboard() {
       const initials = (u.name || 'Member').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
       const activeTasksCount = safeRawTasks.filter(t => 
         t && (
-          (u.id && String(t.assigneeId) === String(u.id)) ||
-          (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
-          (!isYou && t.assignee === u.name)
+          t.assigneeId && u.id 
+            ? String(t.assigneeId) === String(u.id) 
+            : (t.assignee && u.name && t.assignee.toLowerCase() === u.name.toLowerCase())
         )
       ).filter(t => t && t.status !== 'done').length;
 
       const completedTasksCount = safeRawTasks.filter(t => 
         t && (
-          (u.id && String(t.assigneeId) === String(u.id)) ||
-          (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
-          (!isYou && t.assignee === u.name)
+          t.assigneeId && u.id 
+            ? String(t.assigneeId) === String(u.id) 
+            : (t.assignee && u.name && t.assignee.toLowerCase() === u.name.toLowerCase())
         )
       ).filter(t => t && t.status === 'done').length;
 
