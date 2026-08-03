@@ -955,7 +955,7 @@ export default function Dashboard() {
       const diffMs = now - date;
       const diffDays = Math.floor(diffMs / 86400000);
 
-      if (diffDays === 0) {
+      if (diffDays <= 0 || diffMs < 86400000) {
         today.push(item);
       } else if (diffDays <= 7) {
         thisWeek.push(item);
@@ -1434,9 +1434,9 @@ export default function Dashboard() {
                 <ChevronRight className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${showRecentDropdown ? 'rotate-90' : ''}`} />
               </button>
 
-              {/* Floating Dropdown (responsive positioning to avoid overflow clipping on mobile/tablet drawer) */}
+              {/* Inline Collapsible Recent Panel */}
               {showRecentDropdown && (
-                <div className="xl:absolute xl:left-[242px] xl:top-0 xl:w-80 relative left-0 w-full mt-1 bg-card-secondary border border-border-secondary rounded-xl shadow-xl z-50 p-4 animate-[fade-in_150ms_ease-out] text-text-secondary">
+                <div className="w-full mt-1.5 p-3 bg-dominant-offset/40 border border-border-secondary/60 rounded-xl shadow-inner animate-[fade-in_150ms_ease-out] text-text-secondary">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-bold text-text-secondary">Recent</span>
                     <button 
