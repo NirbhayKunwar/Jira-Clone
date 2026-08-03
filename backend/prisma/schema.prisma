@@ -674,3 +674,78 @@ model AutomationRun {
   @@index([ruleId])
   @@map("automation_runs")
 }
+
+model ApiToken {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String    @map("user_id") @db.ObjectId
+  name        String
+  tokenHash   String    @unique @map("token_hash")
+  scopes      String[]  @default(["read", "write"])
+  expiresAt   DateTime? @map("expires_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("api_tokens")
+}
+
+model Integration {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  provider    String   // GITHUB, SLACK, FIGMA, GITLAB
+  configJson  String   @map("config_json")
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([workspaceId, provider])
+  @@map("integrations")
+}
+
+model OrganizationSettings {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId        String   @unique @map("workspace_id") @db.ObjectId
+  allowedEmailDomain String?  @map("allowed_email_domain")
+  enforceSso         Boolean  @default(false) @map("enforce_sso")
+  allowPublicSharing Boolean  @default(true) @map("allow_public_sharing")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("organization_settings")
+}
+
+model ProjectTemplate {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String   @unique
+  category    String   // SOFTWARE, MARKETING, DEVOPS, DESIGN
+  description String?
+  configJson  String   @map("config_json")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("project_templates")
+}
+
+model Mention {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId      String   @map("task_id") @db.ObjectId
+  commentId   String?  @map("comment_id") @db.ObjectId
+  mentionedBy String   @map("mentioned_by") @db.ObjectId
+  userId      String   @map("user_id") @db.ObjectId
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([taskId])
+  @@map("mentions")
+}
+
+model Archive {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  entityType  String   @map("entity_type") // PROJECT, TASK, WIKI
+  entityId    String   @map("entity_id") @db.ObjectId
+  payloadJson String   @map("payload_json")
+  archivedBy  String   @map("archived_by") @db.ObjectId
+  archivedAt  DateTime @default(now()) @map("archived_at")
+
+  @@index([workspaceId])
+  @@index([entityId])
+  @@map("archives")
+}
