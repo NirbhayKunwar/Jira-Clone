@@ -109,6 +109,7 @@ export const getTasks = asyncHandler(async (req, res, next) => {
     priority: t.priority,
     epic: t.epic,
     assignee: t.assignee ? t.assignee.name : null,
+    assigneeId: t.assigneeId ? t.assigneeId.toString() : null,
     workspaceId: t.workspaceId ? t.workspaceId.toString() : null,
     createdAt: t.createdAt.toISOString(),
     completedAt: t.completedAt ? t.completedAt.toISOString() : null
@@ -180,6 +181,7 @@ export const createTask = asyncHandler(async (req, res, next) => {
     priority: t.priority,
     epic: t.epic,
     assignee: t.assignee ? t.assignee.name : null,
+    assigneeId: t.assigneeId ? t.assigneeId.toString() : null,
     workspaceId: t.workspaceId ? t.workspaceId.toString() : null,
     createdAt: t.createdAt.toISOString(),
     completedAt: t.completedAt ? t.completedAt.toISOString() : null
@@ -305,6 +307,7 @@ export const updateTask = asyncHandler(async (req, res, next) => {
     priority: t.priority,
     epic: t.epic,
     assignee: t.assignee ? t.assignee.name : null,
+    assigneeId: t.assigneeId ? t.assigneeId.toString() : null,
     workspaceId: t.workspaceId ? t.workspaceId.toString() : null,
     createdAt: t.createdAt.toISOString(),
     completedAt: t.completedAt ? t.completedAt.toISOString() : null
@@ -324,34 +327,43 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
   if (!/^[0-9a-fA-F]{24}$/.test(id)) {
     return next(new AppError('Invalid task ID format.', 400));
   }
-  const taskId = id;
 
-  const taskCheck = await prisma.task.findUnique({
-    where: { id: taskId },
+  const task = await prisma.task.findUnique({
+    where: { id },
     include: { workspace: true }
   });
 
-  if (!taskCheck) {
+  if (!task) {
     return next(new AppError('Task not found.', 404));
   }
 
-  const targetWorkspaceId = taskCheck.workspaceId || taskCheck.workspace?.id;
-  if (targetWorkspaceId && !(await verifyWorkspaceAccess(targetWorkspaceId, req.user.id))) {
-    return next(new AppError('Forbidden. You do not have access to this task.', 403));
-  } else if (!targetWorkspaceId && taskCheck.workspace) {
-    const ownerId = taskCheck.workspace.ownerId;
-    if (ownerId && ownerId !== req.user.id) {
-      return next(new AppError('Forbidden. You do not have access to this task.', 403));
-    }
+  const ws = task.workspace;
+  if (!ws) {
+    return next(new AppError('Workspace not found.', 404));
+  }
+
+  if (!(await verifyWorkspaceAccess(ws.id, req.user.id))) {
+    return next(new AppError('Forbidden. You do not belong to this workspace.', 403));
+  }
+
+  if (!req.user.rbacRole) {
+    return res.status(401).json({ success: false, message: 'Missing role information.', data: null });
+  }
+
+  const isAdminOrLeader = req.user.rbacRole === 'ADMIN' || req.user.rbacRole === 'LEADER';
+  const isAssignedToMe = task.assigneeId === req.user.id;
+
+  if (!isAdminOrLeader && !isAssignedToMe) {
+    return next(new AppError('You do not have permission to delete this task.', 403));
   }
 
   await prisma.task.delete({
-    where: { id: taskId }
+    where: { id }
   });
 
-  logger.info(`[TASK SERVICE] Deleted task ${id} from database via Prisma.`);
+  logger.info(`[TASK SERVICE] Task ${id} deleted successfully.`);
 
-  await addNotification(`Task "${taskCheck.title}" was deleted.`, 'task', req.user.id);
+  await addNotification(`Task "${task.title}" was deleted.`, 'task', req.user.id);
 
   return res.status(200).json({ success: true, message: 'Task deleted successfully.', data: null });
 });
@@ -414,6 +426,7 @@ export const claimTask = asyncHandler(async (req, res, next) => {
     priority: result.priority,
     epic: result.epic,
     assignee: result.assignee ? result.assignee.name : null,
+    assigneeId: result.assigneeId ? result.assigneeId.toString() : null,
     workspaceId: result.workspaceId ? result.workspaceId.toString() : null,
     createdAt: result.createdAt.toISOString(),
     completedAt: result.completedAt ? result.completedAt.toISOString() : null

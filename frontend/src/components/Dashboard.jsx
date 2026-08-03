@@ -36,10 +36,19 @@ const THEMES = [
 ];
 const ROADMAP_COLORS = ['#0052cc', '#ff5630', '#36b37e', '#ffab00', '#6554c0'];
 
+// Helper to reliably check if a task is assigned to the given user
+const isAssignedToUser = (task, currentUser) => {
+  if (!task || !currentUser) return false;
+  if (task.assignee === 'You') return true;
+  if (currentUser.id && task.assigneeId && String(task.assigneeId) === String(currentUser.id)) return true;
+  if (currentUser.name && task.assignee && task.assignee.toLowerCase() === currentUser.name.toLowerCase()) return true;
+  return false;
+};
+
 // Kanban Card Item
 function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview, onClaim }) {
   const { user } = useAuthStore();
-  const canDeleteOrEdit = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || (task.assignee && task.assignee === user?.name);
+  const canDeleteOrEdit = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || isAssignedToUser(task, user);
 
   const touchStartPos = useRef({ x: 0, y: 0 });
   const touchTimeout = useRef(null);
@@ -319,7 +328,7 @@ export default function Dashboard() {
         const task = tasks.find(t => t.id === touchDragTaskId);
         if (task) {
           const isAdminOrLeader = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER';
-          const isAssignedToMe = task.assignee && task.assignee === user?.name;
+          const isAssignedToMe = isAssignedToUser(task, user);
 
           if (!isAdminOrLeader && !isAssignedToMe) {
             alert('You do not have permission to perform this action.');
@@ -526,13 +535,19 @@ export default function Dashboard() {
       const isYou = user && u.email && u.email.toLowerCase() === user.email.toLowerCase();
       const initials = (u.name || 'Member').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
       const activeTasksCount = safeRawTasks.filter(t => 
-        t && ((isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
-        (!isYou && t.assignee === u.name))
+        t && (
+          (u.id && String(t.assigneeId) === String(u.id)) ||
+          (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
+          (!isYou && t.assignee === u.name)
+        )
       ).filter(t => t && t.status !== 'done').length;
 
       const completedTasksCount = safeRawTasks.filter(t => 
-        t && ((isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
-        (!isYou && t.assignee === u.name))
+        t && (
+          (u.id && String(t.assigneeId) === String(u.id)) ||
+          (isYou && (t.assignee === 'You' || t.assignee === u.name)) || 
+          (!isYou && t.assignee === u.name)
+        )
       ).filter(t => t && t.status === 'done').length;
 
       return {
@@ -834,7 +849,7 @@ export default function Dashboard() {
     let recents = getSafeStoredRecents();
     
     // Remove if already exists to avoid duplicates
-    recents = recents.filter(item => item && item.id !== activeWorkspace.id);
+    recents = recents.filter(item => item && String(item.id) !== String(activeWorkspace.id));
     
     // Add new visit
     recents.unshift({
@@ -995,7 +1010,7 @@ export default function Dashboard() {
       const task = tasks.find(t => t.id === taskId);
       if (task) {
         const isAdminOrLeader = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER';
-        const isAssignedToMe = task.assignee && task.assignee === user?.name;
+        const isAssignedToMe = isAssignedToUser(task, user);
 
         if (!isAdminOrLeader && !isAssignedToMe) {
           alert('You do not have permission to perform this action.');
@@ -1182,8 +1197,7 @@ export default function Dashboard() {
     // For You assignee filter
     let matchesAssignee = true;
     if (boardFilter === 'foryou') {
-      const userName = user?.name || 'You';
-      matchesAssignee = t.assignee === 'You' || t.assignee === userName;
+      matchesAssignee = isAssignedToUser(t, user);
     }
 
     return matchesSearch && matchesEpic && matchesPriority && matchesAssignee;
@@ -1193,8 +1207,12 @@ export default function Dashboard() {
   const processedTasks = useMemo(() => {
     let list = Array.isArray(filteredTasks) ? [...filteredTasks] : [];
     if (boardFilter === 'recent') {
-      // Sort by task ID descending (newest created first)
-      list.sort((a, b) => parseInt(b.id || 0) - parseInt(a.id || 0));
+      // Sort by task creation date descending (newest created first)
+      list.sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
     }
     return list;
   }, [filteredTasks, boardFilter]);
@@ -2376,14 +2394,45 @@ export default function Dashboard() {
                     <option value="Low">🔵 Low</option>
                   </select>
                 </div>
+                {/* Board View scope selector */}
+                <div className="flex items-center space-x-1.5 border-l border-border-secondary/40 pl-4">
+                  <span className="text-xs text-text-secondary-muted">View:</span>
+                  <div className="flex items-center gap-1 bg-dominant border border-border-secondary/60 p-0.5 rounded-lg">
+                    <button
+                      onClick={() => setBoardFilter('all')}
+                      className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all border-none cursor-pointer ${
+                        boardFilter === 'all' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
+                      }`}
+                    >
+                      All Tasks
+                    </button>
+                    <button
+                      onClick={() => setBoardFilter('foryou')}
+                      className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all border-none cursor-pointer ${
+                        boardFilter === 'foryou' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
+                      }`}
+                    >
+                      Assigned to me
+                    </button>
+                    <button
+                      onClick={() => setBoardFilter('recent')}
+                      className={`px-2.5 py-0.5 text-xs font-semibold rounded-md transition-all border-none cursor-pointer ${
+                        boardFilter === 'recent' ? 'bg-accent text-white shadow-sm' : 'text-text-secondary-muted hover:text-text-secondary bg-transparent'
+                      }`}
+                    >
+                      Recently Created
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Filter Reset Button */}
-              {(filterEpic !== 'All' || filterPriority !== 'All') && (
+              {(filterEpic !== 'All' || filterPriority !== 'All' || boardFilter !== 'all') && (
                 <button
                   onClick={() => {
                     setFilterEpic('All');
                     setFilterPriority('All');
+                    setBoardFilter('all');
                   }}
                   className="text-xs font-semibold text-accent hover:underline cursor-pointer border-none bg-transparent"
                 >
@@ -2677,7 +2726,7 @@ export default function Dashboard() {
                       <span className={`ml-1.5 px-1.5 py-0.5 text-[9px] rounded-full font-bold ${
                         forYouSubTab === 'assigned' ? 'bg-accent text-white' : 'bg-dominant-offset text-text-secondary-muted'
                       }`}>
-                        {(Array.isArray(tasks) ? tasks : []).filter(t => t && (t.assignee === 'You' || t.assignee === user?.name)).length}
+                        {(Array.isArray(tasks) ? tasks : []).filter(t => t && isAssignedToUser(t, user)).length}
                       </span>
                     </button>
                     <button
@@ -2754,13 +2803,13 @@ export default function Dashboard() {
 
                   {forYouSubTab === 'assigned' && (
                     <div className="space-y-3">
-                      {(Array.isArray(tasks) ? tasks : []).filter(t => t && (t.assignee === 'You' || t.assignee === user?.name)).length === 0 ? (
+                      {(Array.isArray(tasks) ? tasks : []).filter(t => t && isAssignedToUser(t, user)).length === 0 ? (
                         <div className="py-8 text-center text-[11px] text-text-secondary-muted italic">
                           No tasks currently assigned to you.
                         </div>
                       ) : (
                         <div className="divide-y divide-border-secondary/30">
-                          {(Array.isArray(tasks) ? tasks : []).filter(t => t && (t.assignee === 'You' || t.assignee === user?.name)).map(t => (
+                          {(Array.isArray(tasks) ? tasks : []).filter(t => t && isAssignedToUser(t, user)).map(t => (
                             <div key={t.id} className="py-3 flex items-center justify-between text-xs hover:bg-dominant-offset/10 px-2 rounded-lg transition-colors">
                               <div className="flex items-center space-x-3 min-w-0">
                                 <span className={`px-2 py-0.5 text-[9px] font-bold rounded-full uppercase tracking-wider ${
@@ -2773,7 +2822,7 @@ export default function Dashboard() {
                                 <span className="font-semibold text-text-secondary truncate">{t.title}</span>
                               </div>
                               <div className="flex items-center space-x-3">
-                                <span className="text-[10px] text-text-secondary-muted capitalize">Epic: {t.epic}</span>
+                                <span className="text-[10px] text-text-secondary-muted capitalize">Epic: {t.epic || 'Task'}</span>
                                 <span className={`px-2.5 py-0.5 text-[9px] font-bold rounded-md uppercase tracking-wider text-white ${
                                   t.status === 'done' ? 'bg-green-500' :
                                   t.status === 'progress' ? 'bg-blue-500' :
@@ -2798,19 +2847,19 @@ export default function Dashboard() {
 
                   {forYouSubTab === 'worked' && (
                     <div className="space-y-3">
-                      {tasks.slice(0, 5).length === 0 ? (
+                      {(Array.isArray(tasks) ? tasks : []).filter(t => t && isAssignedToUser(t, user)).length === 0 ? (
                         <div className="py-8 text-center text-[11px] text-text-secondary-muted italic">
                           No tasks worked on recently.
                         </div>
                       ) : (
                         <div className="divide-y divide-border-secondary/30">
-                          {tasks.slice(0, 5).map(t => (
+                          {(Array.isArray(tasks) ? tasks : []).filter(t => t && isAssignedToUser(t, user)).slice(0, 5).map(t => (
                             <div key={t.id} className="py-3 flex items-center justify-between text-xs hover:bg-dominant-offset/10 px-2 rounded-lg transition-colors">
                               <div className="min-w-0">
                                 <div className="font-semibold text-text-secondary truncate">{t.title}</div>
-                                <div className="text-[9px] text-text-secondary-muted">Assigned to: {t.assignee}</div>
+                                <div className="text-[9px] text-text-secondary-muted">Assigned to: {t.assignee || 'You'}</div>
                               </div>
-                              <span className="text-[10px] text-text-secondary-muted">Modified recently</span>
+                              <span className="text-[10px] text-text-secondary-muted">Active Task</span>
                             </div>
                           ))}
                         </div>
@@ -2820,21 +2869,20 @@ export default function Dashboard() {
 
                   {forYouSubTab === 'viewed' && (
                     <div className="space-y-3">
-                      {recentItems.length === 0 ? (
+                      {recentDisplayItems.length === 0 ? (
                         <div className="py-8 text-center text-[11px] text-text-secondary-muted italic">
                           No spaces viewed recently.
                         </div>
                       ) : (
                         <div className="divide-y divide-border-secondary/30">
-                          {recentItems.slice(0, 5).map(item => (
+                          {recentDisplayItems.slice(0, 5).map(item => (
                             <div 
                               key={item.id}
-                              onClick={() => handleSelectRecentWorkspace(item.id, 'board')}
+                              onClick={() => handleSelectRecentWorkspace(item.wsId, item.type)}
                               className="py-3 flex items-center justify-between text-xs hover:bg-dominant-offset/10 px-2 rounded-lg cursor-pointer transition-colors"
                             >
                               <div>
                                 <span className="font-semibold text-text-secondary">{item.name}</span>
-                                <span className="text-[10px] text-text-secondary-muted ml-2">({item.key})</span>
                               </div>
                               <span className="text-[9px] text-text-secondary-muted">{getRelativeTime(item.visitedAt)}</span>
                             </div>
