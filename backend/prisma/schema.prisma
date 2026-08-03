@@ -52,6 +52,9 @@ enum RecordStatus {
   ARCHIVED
   DEACTIVATED
   REMOVED
+  SUSPENDED
+  INACTIVE
+  DELETED
 }
 
 model Workspace {
@@ -90,6 +93,9 @@ model User {
   linkedinUrl            String?           @map("linkedin_url")
   websiteUrl             String?           @map("workspace_url") // Keep schema-level map compatibility
   otherLinks             String?           @map("other_links")
+  googleId               String?           @unique @map("google_id")
+  avatarUrl              String?           @map("avatar_url")
+  status                 RecordStatus      @default(ACTIVE)
   hasConfiguredWorkspace Boolean?          @default(false) @map("has_configured_workspace")
   authProvider           AuthProvider      @default(LOCAL) @map("auth_provider")
   rbacRole               RbacRole          @default(MEMBER) @map("rbac_role")

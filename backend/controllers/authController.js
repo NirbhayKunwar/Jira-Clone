@@ -5,6 +5,8 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import prisma from '../config/prisma.js';
 import logger from '../config/logger.js';
+import { handleGoogleLogin } from '../services/googleAuthService.js';
+import { AppError } from '../utils/errors.js';
 
 // Request Validation Schemas
 const signUpSchema = z.object({
@@ -30,8 +32,7 @@ const changePasswordSchema = z.object({
 });
 
 const googleSignInSchema = z.object({
-  credential: z.string(),
-  isSignUp: z.boolean().optional()
+  credential: z.string()
 });
 
 const updateProfileSchema = z.object({
@@ -969,72 +970,13 @@ export const deleteUser = async (req, res) => {
 export const googleSignIn = async (req, res) => {
   try {
     const body = googleSignInSchema.parse(req.body);
-    const { credential, isSignUp } = body;
+    const { credential } = body;
 
-    const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
-    if (!verifyRes.ok) {
-      return res.status(401).json({ success: false, message: 'Google SSO token verification failed.', data: null });
-    }
-
-    const payload = await verifyRes.json();
-    
-    const expectedClientId = process.env.GOOGLE_CLIENT_ID || "304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com";
-    if (payload.aud !== expectedClientId) {
-      return res.status(401).json({ success: false, message: 'Invalid token audience.', data: null });
-    }
-
-    const email = payload.email;
-    const name = payload.name || email.split('@')[0];
-
-    if (!email) {
-      return res.status(400).json({ success: false, message: 'Could not extract email from Google token.', data: null });
-    }
-
-    const normalizedEmail = email.toLowerCase();
-
-    let user = await prisma.user.findUnique({
-      where: { email: normalizedEmail }
+    const user = await handleGoogleLogin({
+      credential,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent']
     });
-    
-    if (!user) {
-      if (!isSignUp) {
-        return res.status(404).json({
-          success: false,
-          message: 'No account found with this Google email. Please sign up first.',
-          data: null
-        });
-      }
-      // Create user during explicit Sign Up flow
-      user = await prisma.user.create({
-        data: {
-          name,
-          email: normalizedEmail,
-          password: null,
-          authProvider: 'GOOGLE',
-          rbacRole: 'ADMIN'
-        }
-      });
-      logger.info(`[GOOGLE AUTH] Registered new Google user: ${normalizedEmail}`);
-    } else {
-      if (isSignUp && user.otherLinks !== 'PENDING_INVITE') {
-        return res.status(400).json({
-          success: false,
-          message: 'An account with this Google email already exists. Please sign in instead.',
-          data: null
-        });
-      }
-      if (user.otherLinks === 'PENDING_INVITE') {
-        // Activate pre-invited user profile on Google SSO login/signup
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            otherLinks: '',
-            authProvider: 'GOOGLE'
-          }
-        });
-        logger.info(`[GOOGLE AUTH] Activated pre-invited Google user: ${normalizedEmail}`);
-      }
-    }
 
     await addNotification(`User ${user.name} logged in using Google SSO.`, 'member', user.id);
 
@@ -1045,14 +987,29 @@ export const googleSignIn = async (req, res) => {
     return sendTokens(res, user, 200, 'Logged in successfully with Google.');
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, message: error.issues?.[0]?.message || 'Validation error', data: null });
+      return res.status(400).json({
+        success: false,
+        code: 'VALIDATION_ERROR',
+        message: error.issues?.[0]?.message || 'Validation error',
+        data: null
+      });
     }
+
+    if (error instanceof AppError || (error.statusCode && error.code)) {
+      return res.status(error.statusCode || 400).json({
+        success: false,
+        code: error.code || 'AUTHENTICATION_ERROR',
+        message: error.message
+      });
+    }
+
     logger.error('Google Sign In Error:', error);
     const isDatabaseUnavailable =
       error?.name === 'PrismaClientInitializationError' || error?.code === 'P1001';
 
     return res.status(isDatabaseUnavailable ? 503 : 500).json({
       success: false,
+      code: isDatabaseUnavailable ? 'SERVICE_UNAVAILABLE' : 'INTERNAL_SERVER_ERROR',
       message: isDatabaseUnavailable
         ? 'Authentication is temporarily unavailable. Please try again.'
         : 'Internal Server Error during Google Sign-In.',
