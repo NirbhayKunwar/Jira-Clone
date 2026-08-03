@@ -30,7 +30,8 @@ const changePasswordSchema = z.object({
 });
 
 const googleSignInSchema = z.object({
-  credential: z.string()
+  credential: z.string(),
+  isSignUp: z.boolean().optional()
 });
 
 const updateProfileSchema = z.object({
@@ -968,7 +969,7 @@ export const deleteUser = async (req, res) => {
 export const googleSignIn = async (req, res) => {
   try {
     const body = googleSignInSchema.parse(req.body);
-    const { credential } = body;
+    const { credential, isSignUp } = body;
 
     const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
     if (!verifyRes.ok) {
@@ -996,7 +997,14 @@ export const googleSignIn = async (req, res) => {
     });
     
     if (!user) {
-      // Create user with Nullable password and GOOGLE AuthProvider
+      if (!isSignUp) {
+        return res.status(404).json({
+          success: false,
+          message: 'No account found with this Google email. Please sign up first.',
+          data: null
+        });
+      }
+      // Create user during explicit Sign Up flow
       user = await prisma.user.create({
         data: {
           name,
@@ -1006,17 +1014,26 @@ export const googleSignIn = async (req, res) => {
           rbacRole: 'ADMIN'
         }
       });
-      logger.info(`[GOOGLE AUTH] Auto-registered Google user: ${normalizedEmail}`);
-    } else if (user.otherLinks === 'PENDING_INVITE') {
-      // Activate pre-invited user profile on Google SSO login
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          otherLinks: '',
-          authProvider: 'GOOGLE'
-        }
-      });
-      logger.info(`[GOOGLE AUTH] Activated pre-invited Google user: ${normalizedEmail}`);
+      logger.info(`[GOOGLE AUTH] Registered new Google user: ${normalizedEmail}`);
+    } else {
+      if (isSignUp && user.otherLinks !== 'PENDING_INVITE') {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this Google email already exists. Please sign in instead.',
+          data: null
+        });
+      }
+      if (user.otherLinks === 'PENDING_INVITE') {
+        // Activate pre-invited user profile on Google SSO login/signup
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            otherLinks: '',
+            authProvider: 'GOOGLE'
+          }
+        });
+        logger.info(`[GOOGLE AUTH] Activated pre-invited Google user: ${normalizedEmail}`);
+      }
     }
 
     await addNotification(`User ${user.name} logged in using Google SSO.`, 'member', user.id);

@@ -202,7 +202,8 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          credential: jwtToken
+          credential: jwtToken,
+          isSignUp: mode === 'signup'
         })
       });
  
