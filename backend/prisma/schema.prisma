@@ -444,3 +444,214 @@ model Webhook {
 
   @@unique([workspaceId, url])
 }
+
+model UserSettings {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @map("user_id") @db.ObjectId
+  theme       String   @default("jira-dark")
+  locale      String   @default("en-US")
+  timeZone    String   @default("UTC") @map("time_zone")
+  keybindings String?  @default("default")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("user_settings")
+}
+
+model UserPreferences {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId             String   @unique @map("user_id") @db.ObjectId
+  defaultWorkspaceId String?  @map("default_workspace_id") @db.ObjectId
+  defaultProjectId   String?  @map("default_project_id") @db.ObjectId
+  compactView        Boolean  @default(false) @map("compact_view")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("user_preferences")
+}
+
+model NotificationPreferences {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @unique @map("user_id") @db.ObjectId
+  emailEnabled Boolean  @default(true) @map("email_enabled")
+  inAppEnabled Boolean  @default(true) @map("in_app_enabled")
+  slackEnabled Boolean  @default(false) @map("slack_enabled")
+  pushEnabled  Boolean  @default(true) @map("push_enabled")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("notification_preferences")
+}
+
+model RecentView {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @map("user_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  entityType  String   @map("entity_type") // WORKSPACE, PROJECT, BOARD, TASK
+  entityId    String   @map("entity_id") @db.ObjectId
+  entityName  String   @map("entity_name")
+  entityKey   String?  @map("entity_key")
+  visitedAt   DateTime @default(now()) @map("visited_at")
+
+  @@index([userId, visitedAt])
+  @@index([workspaceId])
+  @@map("recent_views")
+}
+
+model SearchHistory {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @map("user_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  query       String
+  searchedAt  DateTime @default(now()) @map("searched_at")
+
+  @@index([userId, searchedAt])
+  @@map("search_history")
+}
+
+model Board {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  projectId   String   @map("project_id") @db.ObjectId
+  workspaceId String   @map("workspace_id") @db.ObjectId
+  type        String   @default("KANBAN") // KANBAN, SCRUM
+  columns     String?  // JSON stringified column config
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([projectId])
+  @@index([workspaceId])
+  @@map("boards")
+}
+
+model BoardView {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  boardId     String   @map("board_id") @db.ObjectId
+  name        String
+  filterQuery String?  @map("filter_query")
+  swimlanes   String?  @default("ASSIGNEE")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([boardId])
+  @@map("board_views")
+}
+
+model Sprint {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  goal        String?
+  projectId   String    @map("project_id") @db.ObjectId
+  workspaceId String    @map("workspace_id") @db.ObjectId
+  status      String    @default("FUTURE") // FUTURE, ACTIVE, CLOSED
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([projectId, status])
+  @@index([workspaceId])
+  @@map("sprints")
+}
+
+model TaskComment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId    String   @map("task_id") @db.ObjectId
+  authorId  String   @map("author_id") @db.ObjectId
+  content   String
+  edited    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([taskId, createdAt])
+  @@map("task_comments")
+}
+
+model TaskHistory {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId    String   @map("task_id") @db.ObjectId
+  actorId   String   @map("actor_id") @db.ObjectId
+  field     String
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  @@index([taskId, changedAt])
+  @@map("task_history")
+}
+
+model TaskWorklog {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId           String   @map("task_id") @db.ObjectId
+  authorId         String   @map("author_id") @db.ObjectId
+  timeSpentSeconds Int      @map("time_spent_seconds")
+  description      String?
+  startedAt        DateTime @map("started_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([taskId])
+  @@map("task_worklogs")
+}
+
+model TaskWatcher {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId    String   @map("task_id") @db.ObjectId
+  userId    String   @map("user_id") @db.ObjectId
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@map("task_watchers")
+}
+
+model TaskVote {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId    String   @map("task_id") @db.ObjectId
+  userId    String   @map("user_id") @db.ObjectId
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@map("task_votes")
+}
+
+model TaskRelation {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  sourceTaskId String   @map("source_task_id") @db.ObjectId
+  targetTaskId String   @map("target_task_id") @db.ObjectId
+  relationType String   @map("relation_type") // BLOCKS, IS_BLOCKED_BY, CLONES, RELATES_TO
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([sourceTaskId])
+  @@index([targetTaskId])
+  @@map("task_relations")
+}
+
+model Attachment {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId     String   @map("task_id") @db.ObjectId
+  fileName   String   @map("file_name")
+  fileUrl    String   @map("file_url")
+  fileSize   Int      @map("file_size")
+  mimeType   String   @map("mime_type")
+  uploaderId String   @map("uploader_id") @db.ObjectId
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([taskId])
+  @@map("attachments")
+}
+
+model AutomationTemplate {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  triggerType String   @map("trigger_type")
+  actionsJson String   @map("actions_json")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("automation_templates")
+}
+
+model AutomationRun {
+  id     String   @id @default(auto()) @map("_id") @db.ObjectId
+  ruleId String   @map("rule_id") @db.ObjectId
+  status String // SUCCESS, FAILED
+  output String?
+  runAt  DateTime @default(now()) @map("run_at")
+
+  @@index([ruleId])
+  @@map("automation_runs")
+}
