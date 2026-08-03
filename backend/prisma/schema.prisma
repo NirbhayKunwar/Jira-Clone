@@ -122,12 +122,19 @@ model Task {
   epic                String?
   assigneeId          String?    @map("assignee_id") @db.ObjectId
   assignee            User?      @relation(fields: [assigneeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  assigneeName        String?    @map("assignee_name")
+  assigneeAvatar      String?    @map("assignee_avatar")
+  projectKey          String?    @map("project_key")
+  workspaceName       String?    @map("workspace_name")
   workspaceId         String?    @map("workspace_id") @db.ObjectId
   workspace           Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   commentCount        Int        @default(0) @map("comment_count")
   watcherCount        Int        @default(0) @map("watcher_count")
   voteCount           Int        @default(0) @map("vote_count")
   worklogTotalSeconds Int        @default(0) @map("worklog_total_seconds")
+  deleted             Boolean    @default(false)
+  deletedAt           DateTime?  @map("deleted_at")
+  deletedBy           String?    @map("deleted_by") @db.ObjectId
   createdAt           DateTime   @default(now()) @map("created_at")
   completedAt         DateTime?  @map("completed_at")
 
@@ -724,16 +731,36 @@ model ProjectTemplate {
 }
 
 model Mention {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  taskId      String   @map("task_id") @db.ObjectId
-  commentId   String?  @map("comment_id") @db.ObjectId
-  mentionedBy String   @map("mentioned_by") @db.ObjectId
-  userId      String   @map("user_id") @db.ObjectId
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId         String   @map("task_id") @db.ObjectId
+  commentId      String?  @map("comment_id") @db.ObjectId
+  mentionedBy    String   @map("mentioned_by") @db.ObjectId
+  userId         String   @map("user_id") @db.ObjectId
+  resolved       Boolean  @default(false)
+  readAt         DateTime? @map("read_at")
+  notificationId String?  @map("notification_id") @db.ObjectId
+  createdAt      DateTime @default(now()) @map("created_at")
 
   @@index([userId])
   @@index([taskId])
   @@map("mentions")
+}
+
+model IdempotencyKey {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  key         String   @unique
+  workspaceId String?  @map("workspace_id") @db.ObjectId
+  userId      String?  @map("user_id") @db.ObjectId
+  method      String
+  endpoint    String
+  requestHash String   @map("request_hash")
+  response    String   // JSON stringified response payload
+  statusCode  Int      @map("status_code")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("idempotency_keys")
 }
 
 model Archive {
