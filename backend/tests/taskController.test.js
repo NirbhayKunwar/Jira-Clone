@@ -8,10 +8,14 @@ vi.mock('../config/prisma.js', () => {
     workspace: {
       findUnique: vi.fn(),
     },
+    workspaceMember: {
+      findFirst: vi.fn(),
+    },
     task: {
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
       delete: vi.fn(),
       findUnique: vi.fn(),
     },
@@ -113,6 +117,74 @@ describe('Task Controller BOLA and CRUD tests', () => {
       statusCode: 403,
       message: 'Forbidden. You do not have access to this task.'
     }));
+  });
+
+  it('should allow an active member to claim an unassigned task successfully', async () => {
+    req.params.id = '60c72b2f9b1d8e001c888883';
+    req.user = { id: '60c72b2f9b1d8e001c888881', name: 'Claiming Member', rbacRole: 'MEMBER' };
+
+    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'wm1', status: 'ACTIVE' });
+
+    prisma.task.findUnique
+      .mockResolvedValueOnce({
+        id: '60c72b2f9b1d8e001c888883',
+        title: 'Unassigned Issue',
+        assigneeId: null,
+        workspaceId: '60c72b2f9b1d8e001c888882',
+        workspace: { id: '60c72b2f9b1d8e001c888882', ownerId: '60c72b2f9b1d8e001c888881' }
+      })
+      .mockResolvedValueOnce({
+        id: '60c72b2f9b1d8e001c888883',
+        title: 'Unassigned Issue',
+        descText: 'Description',
+        status: 'todo',
+        priority: 'High',
+        epic: 'General',
+        assigneeId: '60c72b2f9b1d8e001c888881',
+        workspaceId: '60c72b2f9b1d8e001c888882',
+        createdAt: new Date(),
+        completedAt: null,
+        assignee: { name: 'Claiming Member' }
+      });
+
+    prisma.task.updateMany = vi.fn().mockResolvedValue({ count: 1 });
+
+    await claimTask(req, res, next);
+
+    expect(prisma.task.updateMany).toHaveBeenCalledWith({
+      where: { id: '60c72b2f9b1d8e001c888883', assigneeId: null },
+      data: { assigneeId: '60c72b2f9b1d8e001c888881', assigneeName: 'Claiming Member' }
+    });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      success: true,
+      code: 'TASK_CLAIMED_SUCCESS',
+      message: 'Task claimed successfully.'
+    }));
+  });
+
+  it('should return 409 conflict when claiming a task that has already been assigned', async () => {
+    req.params.id = '60c72b2f9b1d8e001c888883';
+    req.user = { id: '60c72b2f9b1d8e001c888881', name: 'Claiming Member' };
+
+    prisma.workspaceMember.findFirst.mockResolvedValue({ id: 'wm1', status: 'ACTIVE' });
+
+    prisma.task.findUnique.mockResolvedValue({
+      id: '60c72b2f9b1d8e001c888883',
+      title: 'Already Claimed Issue',
+      assigneeId: '60c72b2f9b1d8e001c888899', // Already assigned
+      workspaceId: '60c72b2f9b1d8e001c888882',
+      workspace: { id: '60c72b2f9b1d8e001c888882', ownerId: '60c72b2f9b1d8e001c888881' }
+    });
+
+    await claimTask(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      code: 'TASK_ALREADY_ASSIGNED',
+      message: 'Task has already been assigned'
+    });
   });
 });
 

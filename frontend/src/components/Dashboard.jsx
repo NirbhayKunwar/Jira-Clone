@@ -11,7 +11,7 @@ import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../hooks/useTheme';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask } from '../hooks/useTasks';
+import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask, useClaimTask } from '../hooks/useTasks';
 import { useUsers, useAddUser, useRemoveUser } from '../hooks/useUsers';
 import { API_URL, getAuthHeaders } from '../config/api';
 import { getApiData, getApiList } from '../config/apiResponse';
@@ -50,7 +50,7 @@ const isAssignedToUser = (task, currentUser) => {
 };
 
 // Kanban Card Item
-function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview, onClaim }) {
+function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview, onClaim, isClaiming }) {
   const { user } = useAuthStore();
   const canDeleteOrEdit = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || isAssignedToUser(task, user);
 
@@ -102,6 +102,8 @@ function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview
 
   if (!task) return null;
 
+  const isUnassigned = !task.assigneeId && (!task.assignee || task.assignee === 'Unassigned');
+
   return (
     <div
       draggable={!isPreview}
@@ -123,20 +125,29 @@ function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview
         {task.title}
       </h4>
 
-      {!task.assignee && (
+      {isUnassigned && (
         <div className="mt-2.5 flex items-center space-x-2">
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/20 uppercase tracking-wider">
             Unassigned
           </span>
-          {user?.rbacRole === 'MEMBER' && (
+          {user && (
             <button
+              disabled={isClaiming}
               onClick={(e) => {
                 e.stopPropagation();
                 if (onClaim) onClaim(task.id);
               }}
-              className="text-[9px] font-bold px-2 py-0.5 rounded bg-accent hover:bg-accent-hover text-white cursor-pointer border-none shadow-sm transition-all"
+              className="text-[9px] font-bold px-2 py-0.5 rounded bg-accent hover:bg-accent-hover text-white cursor-pointer border-none shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-1"
+              title="Assign this task to yourself"
             >
-              Claim Task
+              {isClaiming ? (
+                <>
+                  <span className="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span>Assigning...</span>
+                </>
+              ) : (
+                <span>Assign to Me</span>
+              )}
             </button>
           )}
         </div>
@@ -283,6 +294,10 @@ export default function Dashboard() {
   const touchLastCoordsRef = useRef({ x: 0, y: 0 });
   const kanbanGridRef = useRef(null);
 
+  // Toast & Self-Assignment States
+  const [toast, setToast] = useState(null);
+  const [claimingTaskId, setClaimingTaskId] = useState(null);
+
   // TanStack Query Hooks (Hoisted to prevent TDZ ReferenceErrors in effects)
   const { data: tasks = [] } = useTasks(activeWorkspace?.id);
   const { data: dbUsers = [], refetch: refetchUsers } = useUsers();
@@ -290,8 +305,16 @@ export default function Dashboard() {
   const createTaskMutation = useCreateTask(activeWorkspace?.id);
   const updateTaskStatusMutation = useUpdateTaskStatus(activeWorkspace?.id);
   const deleteTaskMutation = useDeleteTask(activeWorkspace?.id);
+  const claimTaskMutation = useClaimTask(activeWorkspace?.id);
   const addUserMutation = useAddUser();
   const removeUserMutation = useRemoveUser();
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Effect to handle window touchmove and touchend during touch drag
   useEffect(() => {
@@ -1164,24 +1187,25 @@ export default function Dashboard() {
     }
   };
 
-  const handleClaimTask = async (taskId) => {
-    if (!taskId) return;
-    try {
-      const res = await fetch(`${API_URL}/api/tasks/${taskId}/claim`, {
-        method: 'PUT',
-        headers: getAuthHeaders()
-      });
-      if (res.ok) {
-        // Immediately invalidate React Query cache to refresh board
-        queryClient.invalidateQueries({ queryKey: ['tasks', activeWorkspace?.id] });
-      } else {
-        const data = await res.json();
-        alert(data.message || 'Failed to claim task.');
+  const handleClaimTask = (taskId) => {
+    if (!taskId || claimingTaskId) return;
+    setClaimingTaskId(taskId);
+    claimTaskMutation.mutate(taskId, {
+      onSuccess: (resData) => {
+        setClaimingTaskId(null);
+        setToast({
+          message: resData?.message || 'Task assigned to you successfully.',
+          type: 'success'
+        });
+      },
+      onError: (err) => {
+        setClaimingTaskId(null);
+        setToast({
+          message: err?.message || 'Task has already been assigned.',
+          type: 'error'
+        });
       }
-    } catch (err) {
-      console.error('Error claiming task:', err);
-      alert('Error claiming task.');
-    }
+    });
   };
 
   // Filters
@@ -2643,6 +2667,7 @@ export default function Dashboard() {
                             onTouchStart={handleTouchStart}
                             isDragging={touchDragTaskId === task.id}
                             onClaim={handleClaimTask}
+                            isClaiming={claimingTaskId === task.id}
                           />
                         ))}
                         {currentCount === 0 && (
@@ -4617,6 +4642,19 @@ export default function Dashboard() {
             isDragging={false}
             isPreview={true}
           />
+        </div>
+      )}
+
+      {/* Self-Assignment / Global Toast Notification */}
+      {toast && (
+        <div className={`fixed top-5 right-5 z-[9999] px-4 py-3 rounded-xl shadow-xl border text-sm font-medium flex items-center space-x-2 animate-fade-in ${
+          toast.type === 'error'
+            ? 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 bg-card-secondary'
+            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-card-secondary'
+        }`}>
+          <span>{toast.type === 'error' ? '⚠️' : '✅'}</span>
+          <span>{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-3 text-text-secondary hover:text-text-primary border-none bg-transparent cursor-pointer">✕</button>
         </div>
       )}
 

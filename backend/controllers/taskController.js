@@ -2,6 +2,7 @@ import { z } from 'zod';
 import prisma from '../config/prisma.js';
 import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 import { addNotification } from './authController.js';
+import { createAuditLog } from '../repositories/auditLogRepository.js';
 import logger from '../config/logger.js';
 
 // Request Validation Schemas
@@ -368,7 +369,7 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
   return res.status(200).json({ success: true, message: 'Task deleted successfully.', data: null });
 });
 
-// Claim an unassigned task (Members only)
+// Claim an unassigned task (Self-assignment for any active project/workspace member)
 export const claimTask = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const userId = req.user.id;
@@ -377,66 +378,94 @@ export const claimTask = asyncHandler(async (req, res, next) => {
     return next(new AppError('Invalid task ID format.', 400));
   }
 
-  // Atomically claim task inside a transaction to prevent race conditions
-  const result = await prisma.$transaction(async (tx) => {
-    const task = await tx.task.findUnique({
-      where: { id },
-      include: { workspace: true }
-    });
+  // 1. Verify task existence
+  const existingTask = await prisma.task.findUnique({
+    where: { id },
+    include: { workspace: true }
+  });
 
-    if (!task) {
-      throw new AppError('Task not found.', 404);
-    }
+  if (!existingTask) {
+    return next(new AppError('Task not found.', 404));
+  }
 
-    const ws = task.workspace;
-    if (!ws) {
-      throw new AppError('Workspace not found.', 404);
-    }
-
-    const hasAccess = await verifyWorkspaceAccess(ws.id, userId);
+  // 2. Verify active workspace/project access
+  const workspaceId = existingTask.workspaceId || existingTask.workspace?.id;
+  if (workspaceId) {
+    const hasAccess = await verifyWorkspaceAccess(workspaceId, userId);
     if (!hasAccess) {
-      throw new AppError('Forbidden. You do not belong to this workspace.', 403);
+      return next(new AppError('Forbidden. You do not belong to this project/workspace.', 403));
     }
+  }
 
-    if (!req.user.rbacRole) {
-      throw new AppError('Missing role information.', 401);
-    }
-    if (req.user.rbacRole !== 'MEMBER') {
-      throw new AppError('Only Team Members can claim tasks.', 403);
-    }
-
-    if (task.assigneeId !== null) {
-      throw new AppError('Task already claimed.', 409);
-    }
-
-    const updatedTask = await tx.task.update({
-      where: { id },
-      data: { assigneeId: userId },
-      include: { assignee: true }
+  // 3. Pre-check: if already assigned, return 409 Conflict immediately
+  if (existingTask.assigneeId !== null) {
+    return res.status(409).json({
+      success: false,
+      code: 'TASK_ALREADY_ASSIGNED',
+      message: 'Task has already been assigned'
     });
+  }
 
-    return updatedTask;
+  // 4. Perform atomic update (where id = id AND assigneeId = null) to handle concurrent claims
+  const updateResult = await prisma.task.updateMany({
+    where: {
+      id,
+      assigneeId: null
+    },
+    data: {
+      assigneeId: userId,
+      assigneeName: req.user.name
+    }
+  });
+
+  if (updateResult.count === 0) {
+    return res.status(409).json({
+      success: false,
+      code: 'TASK_ALREADY_ASSIGNED',
+      message: 'Task has already been assigned'
+    });
+  }
+
+  // 5. Fetch updated task payload
+  const updatedTask = await prisma.task.findUnique({
+    where: { id },
+    include: { assignee: true }
   });
 
   const mappedTask = {
-    id: result.id.toString(),
-    title: result.title,
-    desc: result.descText,
-    status: result.status,
-    priority: result.priority,
-    epic: result.epic,
-    assignee: result.assignee ? result.assignee.name : null,
-    assigneeId: result.assigneeId ? result.assigneeId.toString() : null,
-    workspaceId: result.workspaceId ? result.workspaceId.toString() : null,
-    createdAt: result.createdAt.toISOString(),
-    completedAt: result.completedAt ? result.completedAt.toISOString() : null
+    id: updatedTask.id.toString(),
+    title: updatedTask.title,
+    desc: updatedTask.descText,
+    status: updatedTask.status,
+    priority: updatedTask.priority,
+    epic: updatedTask.epic,
+    assignee: updatedTask.assignee ? updatedTask.assignee.name : (req.user.name || 'You'),
+    assigneeId: updatedTask.assigneeId ? updatedTask.assigneeId.toString() : userId,
+    workspaceId: updatedTask.workspaceId ? updatedTask.workspaceId.toString() : null,
+    createdAt: updatedTask.createdAt.toISOString(),
+    completedAt: updatedTask.completedAt ? updatedTask.completedAt.toISOString() : null
   };
 
-  logger.info(`[TASK SERVICE] Task ${id} claimed successfully by member ${userId}.`);
+  logger.info(`[TASK SERVICE] Task ${id} claimed successfully by user ${userId}.`);
 
-  await addNotification(`Task "${result.title}" claimed by member ${req.user.name}.`, 'task', req.user.id);
+  // Record audit log
+  await createAuditLog({
+    actorId: userId,
+    targetUserId: userId,
+    action: 'TaskClaimed',
+    resourceType: 'Task',
+    resourceId: id,
+    newValue: `Claimed by ${req.user.name}`
+  });
 
-  return res.status(200).json({ success: true, message: 'Task claimed successfully.', data: mappedTask });
+  await addNotification(`Task "${updatedTask.title}" was claimed by ${req.user.name}.`, 'task', req.user.id);
+
+  return res.status(200).json({
+    success: true,
+    code: 'TASK_CLAIMED_SUCCESS',
+    message: 'Task claimed successfully.',
+    data: mappedTask
+  });
 });
 
 
