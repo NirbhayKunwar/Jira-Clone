@@ -111,7 +111,7 @@ const Card = memo(function Card({ task, onDragStart, onDelete, onTouchStart, isD
       onTouchStart={!isPreview && onTouchStart ? handleCardTouchStart : undefined}
       onTouchMove={!isPreview && onTouchStart ? handleCardTouchMove : undefined}
       onTouchEnd={!isPreview && onTouchStart ? handleCardTouchEnd : undefined}
-      className={`bg-card-secondary p-4.5 rounded-xl border border-border-secondary/40 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-grab active:cursor-grabbing group relative overflow-hidden ${
+      className={`bg-card-secondary p-4.5 rounded-xl border border-border-secondary/40 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-transform transition-opacity duration-150 will-change-transform cursor-grab active:cursor-grabbing group relative overflow-hidden ${
         isDragging ? 'opacity-40 scale-95 border-accent/40 bg-accent-light/5' : ''
       } ${isPreview ? 'pointer-events-none shadow-2xl border-accent/60' : ''}`}
     >
@@ -206,6 +206,79 @@ function EmptyPlaceholder({ text }) {
     </div>
   );
 }
+
+// Memoized Kanban Column Component
+const KanbanColumn = memo(function KanbanColumn({
+  col,
+  columnTasks,
+  wipLimit,
+  isHovered,
+  onDragOver,
+  onDrop,
+  onDragStart,
+  onDelete,
+  onTouchStart,
+  touchDragTaskId,
+  onClaim,
+  claimingTaskId
+}) {
+  const currentCount = columnTasks.length;
+  const wipExceeded = col.hasWipLimit && currentCount > wipLimit;
+
+  return (
+    <div
+      data-column-id={col.id}
+      onDragOver={onDragOver}
+      onDrop={(e) => onDrop(e, col.id)}
+      className={`bg-card-secondary/60 rounded-xl border p-4 flex flex-col w-full md:w-[320px] md:shrink-0 max-h-none md:max-h-[calc(100dvh-280px)] overflow-hidden transition-all duration-300 ${
+        wipExceeded
+          ? 'border-red-500/40 bg-red-500/[0.02]'
+          : isHovered
+          ? 'border-accent bg-accent-light/10 shadow-md scale-[1.01]'
+          : 'border-border-secondary/40'
+      }`}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-2">
+          <span className={`w-2.5 h-2.5 rounded-full ${col.color}`} />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center">
+            {col.name}
+            {col.hasWipLimit && (
+              <span className={`ml-2 px-1.5 py-0.5 rounded text-[8px] font-bold ${wipExceeded ? 'bg-red-500/20 text-red-500' : 'bg-dominant text-text-secondary-muted'}`}>
+                Limit {wipLimit}
+              </span>
+            )}
+          </h3>
+        </div>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
+          wipExceeded
+            ? 'text-red-500 bg-red-500/10 border-red-500/20'
+            : 'text-text-secondary-muted bg-dominant border-border-secondary/60'
+        }`}>
+          {currentCount}
+        </span>
+      </div>
+
+      <div className="space-y-3 overflow-y-auto pr-1 flex-grow scrollbar-thin">
+        {columnTasks.map(task => (
+          <Card
+            key={task.id}
+            task={task}
+            onDragStart={onDragStart}
+            onDelete={onDelete}
+            onTouchStart={onTouchStart}
+            isDragging={touchDragTaskId === task.id}
+            onClaim={onClaim}
+            isClaiming={claimingTaskId === task.id}
+          />
+        ))}
+        {currentCount === 0 && (
+          <EmptyPlaceholder text={`No tasks in ${col.name.toLowerCase()}`} />
+        )}
+      </div>
+    </div>
+  );
+});
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -2633,67 +2706,23 @@ export default function Dashboard() {
 
               {/* Kanban Grid */}
               <div ref={kanbanGridRef} className="flex flex-col md:flex-row overflow-y-auto md:overflow-x-auto md:overflow-y-hidden gap-4 md:gap-6 flex-grow items-stretch md:items-start pb-4 scrollbar-thin w-full min-w-0">
-                {columns.map(col => {
-                  const columnTasks = tasksByColumn[col.id] || [];
-                  const currentCount = columnTasks.length;
-                  const wipExceeded = col.hasWipLimit && currentCount > (activeWorkspace?.wip_limit || 5);
-                  const isHovered = touchDragActive && touchTargetColumnId === col.id;
-                  
-                  return (
-                    <div 
-                      key={col.id}
-                      data-column-id={col.id}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, col.id)}
-                      className={`bg-card-secondary/60 rounded-xl border p-4 flex flex-col w-full md:w-[320px] md:shrink-0 max-h-none md:max-h-[calc(100dvh-280px)] overflow-hidden transition-all duration-300 ${
-                        wipExceeded 
-                          ? 'border-red-500/40 bg-red-500/[0.02]' 
-                          : isHovered
-                          ? 'border-accent bg-accent-light/10 shadow-md scale-[1.01]'
-                          : 'border-border-secondary/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-2">
-                          <span className={`w-2.5 h-2.5 rounded-full ${col.color}`} />
-                          <h3 className="text-xs font-bold uppercase tracking-wider text-text-secondary flex items-center">
-                            {col.name}
-                            {col.hasWipLimit && (
-                              <span className={`ml-2 px-1.5 py-0.5 rounded text-[8px] font-bold ${wipExceeded ? 'bg-red-500/20 text-red-500' : 'bg-dominant text-text-secondary-muted'}`}>
-                                Limit {activeWorkspace?.wip_limit || 5}
-                              </span>
-                            )}
-                          </h3>
-                        </div>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${
-                          wipExceeded 
-                            ? 'text-red-500 bg-red-500/10 border-red-500/20' 
-                            : 'text-text-secondary-muted bg-dominant border-border-secondary/60'
-                        }`}>
-                          {currentCount}
-                        </span>
-                      </div>
-                      
-                      <div className="space-y-3 overflow-y-auto pr-1 flex-grow scrollbar-thin">
-                        {columnTasks.map(task => (
-                          <Card 
-                            key={task.id} 
-                            task={task} 
-                            onDragStart={handleDragStart} 
-                            onDelete={handleDeleteIssue}
-                            onTouchStart={handleTouchStart}
-                            isDragging={touchDragTaskId === task.id}
-                            onClaim={handleClaimTask}
-                            isClaiming={claimingTaskId === task.id}
-                          />
-                        ))}
-                        {currentCount === 0 && (
-                          <EmptyPlaceholder text={`No tasks in ${col.name.toLowerCase()}`} />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                {columns.map(col => (
+                  <KanbanColumn
+                    key={col.id}
+                    col={col}
+                    columnTasks={tasksByColumn[col.id] || []}
+                    wipLimit={activeWorkspace?.wip_limit || 5}
+                    isHovered={touchDragActive && touchTargetColumnId === col.id}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    onDragStart={handleDragStart}
+                    onDelete={handleDeleteIssue}
+                    onTouchStart={handleTouchStart}
+                    touchDragTaskId={touchDragTaskId}
+                    onClaim={handleClaimTask}
+                    claimingTaskId={claimingTaskId}
+                  />
+                ))}
               </div>
 
             </div>

@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
 from bson import ObjectId
@@ -80,12 +81,13 @@ class TaskService:
         }
         created = await self.task_repo.create(doc)
 
-        await self.notification_repo.add_notification(
+        # Non-blocking async notification write
+        asyncio.create_task(self.notification_repo.add_notification(
             message=f"Task '{created['title']}' created by {current_user['name']}.",
             notif_type="task",
             user_id=current_user["id"],
             workspace_id=workspace_id
-        )
+        ))
 
         return {
             "id": created["id"],
@@ -120,20 +122,21 @@ class TaskService:
 
         updated_task = await self.task_repo.find_by_id(task_id)
 
-        await self.audit_repo.log_action(
+        # Non-blocking async audit and notification writes
+        asyncio.create_task(self.audit_repo.log_action(
             action="TaskClaimed",
             actor_id=current_user["id"],
             resource_type="Task",
             resource_id=task_id,
             new_value=f"Claimed by {current_user['name']}"
-        )
+        ))
 
-        await self.notification_repo.add_notification(
+        asyncio.create_task(self.notification_repo.add_notification(
             message=f"Task '{updated_task['title']}' was claimed by {current_user['name']}.",
             notif_type="task",
             user_id=current_user["id"],
             workspace_id=workspace_id
-        )
+        ))
 
         return {
             "id": updated_task["id"],
