@@ -4871,14 +4871,24 @@ export default function Dashboard() {
 
       {/* Self-Assignment / Global Toast Notification */}
       {toast && (
-        <div className={`fixed top-5 right-5 z-[9999] px-4 py-3 rounded-xl shadow-xl border text-sm font-medium flex items-center space-x-2 animate-fade-in ${
+        <div className={`fixed bottom-6 right-6 z-[9999] max-w-md px-4 py-3 rounded-2xl shadow-2xl border text-xs font-semibold flex items-center space-x-3 backdrop-blur-md transition-all duration-300 animate-[slide-up_200ms_ease-out] ${
           toast.type === 'error'
-            ? 'bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400 bg-card-secondary'
-            : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-card-secondary'
+            ? 'bg-card-secondary border-red-500/40 text-red-500 shadow-red-500/10'
+            : 'bg-card-secondary border-emerald-500/40 text-emerald-500 shadow-emerald-500/10'
         }`}>
-          <span>{toast.type === 'error' ? '⚠️' : '✅'}</span>
-          <span>{toast.message}</span>
-          <button onClick={() => setToast(null)} className="ml-3 text-text-secondary hover:text-text-primary border-none bg-transparent cursor-pointer">✕</button>
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+            toast.type === 'error' ? 'bg-red-500/15 text-red-500' : 'bg-emerald-500/15 text-emerald-500'
+          }`}>
+            {toast.type === 'error' ? '⚠️' : '✓'}
+          </div>
+          <span className="leading-normal text-text-secondary">{toast.message}</span>
+          <button 
+            type="button"
+            onClick={() => setToast(null)} 
+            className="ml-2 text-text-secondary-muted hover:text-text-secondary border-none bg-transparent cursor-pointer p-1 rounded-lg transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
       )}
 
