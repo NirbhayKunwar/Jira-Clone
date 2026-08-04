@@ -207,6 +207,27 @@ function EmptyPlaceholder({ text }) {
   );
 }
 
+// Skeleton Loader for Instant FCP (< 100ms)
+function KanbanBoardSkeleton() {
+  return (
+    <div className="flex flex-col md:flex-row gap-4 md:gap-6 flex-grow items-stretch md:items-start pb-4 w-full min-w-0">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="bg-card-secondary/40 rounded-xl border border-border-secondary/30 p-4 flex flex-col w-full md:w-[320px] md:shrink-0 h-[480px] animate-pulse">
+          <div className="flex items-center justify-between mb-4">
+            <div className="h-4 w-24 bg-border-secondary/30 rounded" />
+            <div className="h-4 w-6 bg-border-secondary/30 rounded-full" />
+          </div>
+          <div className="space-y-3 flex-grow">
+            <div className="h-24 bg-border-secondary/20 rounded-xl" />
+            <div className="h-20 bg-border-secondary/20 rounded-xl" />
+            <div className="h-24 bg-border-secondary/20 rounded-xl" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Memoized Kanban Column Component
 const KanbanColumn = memo(function KanbanColumn({
   col,
@@ -372,7 +393,7 @@ export default function Dashboard() {
   const [claimingTaskId, setClaimingTaskId] = useState(null);
 
   // TanStack Query Hooks (Hoisted to prevent TDZ ReferenceErrors in effects)
-  const { data: tasks = [] } = useTasks(activeWorkspace?.id);
+  const { data: tasks = [], isLoading: isLoadingTasks } = useTasks(activeWorkspace?.id);
   const { data: dbUsers = [], refetch: refetchUsers } = useUsers();
 
   const createTaskMutation = useCreateTask(activeWorkspace?.id);
@@ -2705,25 +2726,29 @@ export default function Dashboard() {
               )}
 
               {/* Kanban Grid */}
-              <div ref={kanbanGridRef} className="flex flex-col md:flex-row overflow-y-auto md:overflow-x-auto md:overflow-y-hidden gap-4 md:gap-6 flex-grow items-stretch md:items-start pb-4 scrollbar-thin w-full min-w-0">
-                {columns.map(col => (
-                  <KanbanColumn
-                    key={col.id}
-                    col={col}
-                    columnTasks={tasksByColumn[col.id] || []}
-                    wipLimit={activeWorkspace?.wip_limit || 5}
-                    isHovered={touchDragActive && touchTargetColumnId === col.id}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    onDragStart={handleDragStart}
-                    onDelete={handleDeleteIssue}
-                    onTouchStart={handleTouchStart}
-                    touchDragTaskId={touchDragTaskId}
-                    onClaim={handleClaimTask}
-                    claimingTaskId={claimingTaskId}
-                  />
-                ))}
-              </div>
+              {isLoadingTasks && (!tasks || tasks.length === 0) ? (
+                <KanbanBoardSkeleton />
+              ) : (
+                <div ref={kanbanGridRef} className="flex flex-col md:flex-row overflow-y-auto md:overflow-x-auto md:overflow-y-hidden gap-4 md:gap-6 flex-grow items-stretch md:items-start pb-4 scrollbar-thin w-full min-w-0">
+                  {columns.map(col => (
+                    <KanbanColumn
+                      key={col.id}
+                      col={col}
+                      columnTasks={tasksByColumn[col.id] || []}
+                      wipLimit={activeWorkspace?.wip_limit || 5}
+                      isHovered={touchDragActive && touchTargetColumnId === col.id}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      onDragStart={handleDragStart}
+                      onDelete={handleDeleteIssue}
+                      onTouchStart={handleTouchStart}
+                      touchDragTaskId={touchDragTaskId}
+                      onClaim={handleClaimTask}
+                      claimingTaskId={claimingTaskId}
+                    />
+                  ))}
+                </div>
+              )}
 
             </div>
           )}
