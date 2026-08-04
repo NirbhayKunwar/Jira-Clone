@@ -916,8 +916,9 @@ export default function Dashboard() {
       ...(Array.isArray(customEpics) ? customEpics : [])
     ])].filter(Boolean);
 
-    return combined.length > 0 ? combined.sort((a, b) => a.localeCompare(b)) : DEFAULT_EPICS;
-  }, [DEFAULT_EPICS, customEpics, tasks]);
+    const safeList = combined.filter(epic => !deletedEpics.includes(epic));
+    return safeList.length > 0 ? safeList.sort((a, b) => a.localeCompare(b)) : ['General'];
+  }, [DEFAULT_EPICS, customEpics, tasks, deletedEpics]);
 
   const epicTimelines = useMemo(() => {
     const rangeStart = new Date(dashboardOpenedAt);
@@ -1320,6 +1321,24 @@ export default function Dashboard() {
       }
     });
   }, [deleteTaskMutation]);
+
+  // Delete Epic
+  const handleDeleteEpic = useCallback((epicToDelete) => {
+    setConfirmModalData({
+      title: `Delete ${epicToDelete} Epic`,
+      message: `Are you sure you want to delete the "${epicToDelete}" epic? It will be removed from your roadmap and task dropdowns.`,
+      confirmText: 'Delete Epic',
+      isDanger: true,
+      onConfirm: () => {
+        setDeletedEpics(prev => [...prev, epicToDelete]);
+        setCustomEpics(prev => prev.filter(e => e !== epicToDelete));
+        setToast({
+          message: `Epic "${epicToDelete}" deleted successfully.`,
+          type: 'success'
+        });
+      }
+    });
+  }, []);
 
   // Add Team Member
   const handleAddMember = async (e) => {
@@ -3213,9 +3232,22 @@ export default function Dashboard() {
                                 <ChevronRight className={`w-3.5 h-3.5 mr-1 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} />
                                 {epic}
                               </span>
-                              <span className="text-[10px] text-text-secondary-muted font-semibold">
-                                {doneCount}/{totalCount} issues
-                              </span>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-[10px] text-text-secondary-muted font-semibold">
+                                  {doneCount}/{totalCount} issues
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteEpic(epic);
+                                  }}
+                                  className="p-1 rounded text-text-secondary-muted hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                                  title={`Delete ${epic} Epic`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
                             {/* Progress bar */}
                             <div className="mt-2 flex items-center space-x-2">
