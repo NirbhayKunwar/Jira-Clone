@@ -895,6 +895,7 @@ export default function Dashboard() {
   
   const [expandedEpic, setExpandedEpic] = useState(null);
   const [customEpics, setCustomEpics] = useState([]);
+  const [deletedEpics, setDeletedEpics] = useState([]);
   const [epicTimelineOverrides, setEpicTimelineOverrides] = useState({});
 
   const months = useMemo(() => {
