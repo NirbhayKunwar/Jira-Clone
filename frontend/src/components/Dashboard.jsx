@@ -50,7 +50,7 @@ const isAssignedToUser = (task, currentUser) => {
 };
 
 // Kanban Card Item
-function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview, onClaim, isClaiming }) {
+const Card = React.memo(function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview, onClaim, isClaiming }) {
   const { user } = useAuthStore();
   const canDeleteOrEdit = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || isAssignedToUser(task, user);
 
@@ -87,16 +87,6 @@ function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview
       case 'High': return 'text-red-500 bg-red-500/10 border-red-500/20';
       case 'Medium': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
       default: return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
-    }
-  };
-
-  const getEpicStyle = (epic) => {
-    switch(epic) {
-      case 'Design System': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/15';
-      case 'DevOps & Security': return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/15';
-      case 'Integrations': return 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/15';
-      case 'Tech Stack Upgrade': return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/15';
-      default: return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/15';
     }
   };
 
@@ -196,7 +186,7 @@ function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview
 
     </div>
   );
-}
+});
 
 // Column Empty State
 function EmptyPlaceholder({ text }) {
@@ -1026,13 +1016,13 @@ export default function Dashboard() {
   };
 
   // Drag and Drop Logic
-  const handleDragStart = (e, taskId) => {
+  const handleDragStart = useCallback((e, taskId) => {
     e.dataTransfer.setData('text/plain', taskId);
-  };
+  }, []);
 
-  const handleDragOver = (e) => {
+  const handleDragOver = useCallback((e) => {
     e.preventDefault();
-  };
+  }, []);
 
   const handleDrop = async (e, targetStatus) => {
     e.preventDefault();
@@ -1084,7 +1074,7 @@ export default function Dashboard() {
   };
 
   // Delete Issue
-  const handleDeleteIssue = async (taskId) => {
+  const handleDeleteIssue = useCallback(async (taskId) => {
     if (window.confirm('Are you sure you want to delete this issue?')) {
       deleteTaskMutation.mutate(taskId, {
         onError: (err) => {
@@ -1093,7 +1083,7 @@ export default function Dashboard() {
         }
       });
     }
-  };
+  }, [deleteTaskMutation]);
 
   // Add Team Member
   const handleAddMember = async (e) => {
@@ -1191,7 +1181,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleClaimTask = (taskId) => {
+  const handleClaimTask = useCallback((taskId) => {
     if (!taskId || claimingTaskId) return;
     setClaimingTaskId(taskId);
     claimTaskMutation.mutate(taskId, {
@@ -1210,7 +1200,7 @@ export default function Dashboard() {
         });
       }
     });
-  };
+  }, [claimingTaskId, claimTaskMutation]);
 
   // Filters
   const safeTaskList = Array.isArray(tasks) ? tasks : [];
@@ -1248,6 +1238,19 @@ export default function Dashboard() {
     }
     return list;
   }, [filteredTasks, boardFilter]);
+
+  const tasksByColumn = useMemo(() => {
+    const map = {};
+    const list = Array.isArray(processedTasks) ? processedTasks : [];
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i];
+      if (t && t.status) {
+        if (!map[t.status]) map[t.status] = [];
+        map[t.status].push(t);
+      }
+    }
+    return map;
+  }, [processedTasks]);
 
   // Calculate Metrics
   const totalTasks = safeTaskList.length;
@@ -2621,7 +2624,7 @@ export default function Dashboard() {
               {/* Kanban Grid */}
               <div ref={kanbanGridRef} className="flex flex-col md:flex-row overflow-y-auto md:overflow-x-auto md:overflow-y-hidden gap-4 md:gap-6 flex-grow items-stretch md:items-start pb-4 scrollbar-thin w-full min-w-0">
                 {columns.map(col => {
-                  const columnTasks = (Array.isArray(processedTasks) ? processedTasks : []).filter(t => t && t.status === col.id);
+                  const columnTasks = tasksByColumn[col.id] || [];
                   const currentCount = columnTasks.length;
                   const wipExceeded = col.hasWipLimit && currentCount > (activeWorkspace?.wip_limit || 5);
                   const isHovered = touchDragActive && touchTargetColumnId === col.id;

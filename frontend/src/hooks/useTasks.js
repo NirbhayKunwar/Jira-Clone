@@ -19,10 +19,8 @@ export function useTasks(workspaceId) {
       return getApiList(await response.json(), 'Tasks');
     },
     enabled: !!workspaceId && !!user,
-    // Tasks are live-board data — keep stale window short so moves/assignments
-    // are reflected quickly, but avoid a fetch on every component mount.
-    staleTime: 10_000,  // 10 seconds
-    gcTime: 3 * 60_000  // hold in cache 3 min
+    staleTime: 60_000,   // 1 minute stale time to prevent unnecessary network refetches
+    gcTime: 5 * 60_000   // hold in memory 5 minutes
   });
 }
 
@@ -41,8 +39,46 @@ export function useCreateTask(workspaceId) {
       }
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
+
+    // Optimistic Update — task appears instantly on board < 5ms without waiting for API roundtrip
+    onMutate: async (newTaskData) => {
+      await queryClient.cancelQueries({ queryKey: ['tasks', workspaceId] });
+      const previousTasks = queryClient.getQueryData(['tasks', workspaceId]) || [];
+
+      const tempTask = {
+        id: `temp-${Date.now()}`,
+        title: newTaskData.title,
+        desc: newTaskData.desc || '',
+        status: newTaskData.status || 'todo',
+        priority: newTaskData.priority || 'Medium',
+        epic: newTaskData.epic || 'General',
+        assignee: newTaskData.assignee || 'You',
+        assigneeId: newTaskData.assigneeId || null,
+        workspaceId,
+        createdAt: new Date().toISOString()
+      };
+
+      queryClient.setQueryData(
+        ['tasks', workspaceId],
+        [tempTask, ...previousTasks]
+      );
+
+      return { previousTasks, tempId: tempTask.id };
+    },
+
+    onSuccess: (response, newTaskData, context) => {
+      const realTask = response?.data?.task || response?.data;
+      if (realTask && context?.tempId) {
+        queryClient.setQueryData(['tasks', workspaceId], (oldTasks = []) =>
+          oldTasks.map((t) => (t.id === context.tempId ? realTask : t))
+        );
+      }
+    },
+
+    onError: (err, newTaskData, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['tasks', workspaceId], context.previousTasks);
+      }
     }
   });
 }
@@ -63,20 +99,22 @@ export function useUpdateTaskStatus(workspaceId) {
       return response.json();
     },
 
-    // Optimistic Update — board moves feel instant
+    // Optimistic Update — drag-and-drop card move is 60 FPS instant
     onMutate: async ({ taskId, status }) => {
-      // Cancel outgoing queries to avoid overwriting our optimistic state
       await queryClient.cancelQueries({ queryKey: ['tasks', workspaceId] });
-
-      // Snapshot previous tasks for potential rollback
       const previousTasks = queryClient.getQueryData(['tasks', workspaceId]);
 
-      // Immediately update the card's column in the UI
       if (Array.isArray(previousTasks)) {
         queryClient.setQueryData(
           ['tasks', workspaceId],
           previousTasks.map((task) =>
-            task.id === taskId ? { ...task, status } : task
+            task.id === taskId
+              ? {
+                  ...task,
+                  status,
+                  completedAt: status === 'done' ? new Date().toISOString() : null
+                }
+              : task
           )
         );
       }
@@ -84,16 +122,19 @@ export function useUpdateTaskStatus(workspaceId) {
       return { previousTasks };
     },
 
-    onError: (err, variables, context) => {
-      // Roll back to the pre-mutation snapshot on error
-      if (context?.previousTasks) {
-        queryClient.setQueryData(['tasks', workspaceId], context.previousTasks);
+    onSuccess: (response, { taskId }) => {
+      const updatedTask = response?.data?.task || response?.data;
+      if (updatedTask && taskId) {
+        queryClient.setQueryData(['tasks', workspaceId], (oldTasks = []) =>
+          oldTasks.map((t) => (t.id === taskId ? { ...t, ...updatedTask } : t))
+        );
       }
     },
 
-    onSettled: () => {
-      // Always re-sync with the server to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
+    onError: (err, variables, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['tasks', workspaceId], context.previousTasks);
+      }
     }
   });
 }
@@ -113,7 +154,6 @@ export function useDeleteTask(workspaceId) {
       return response.json();
     },
 
-    // Optimistic deletion — card disappears immediately without waiting for the server
     onMutate: async (taskId) => {
       await queryClient.cancelQueries({ queryKey: ['tasks', workspaceId] });
       const previousTasks = queryClient.getQueryData(['tasks', workspaceId]);
@@ -132,10 +172,6 @@ export function useDeleteTask(workspaceId) {
       if (context?.previousTasks) {
         queryClient.setQueryData(['tasks', workspaceId], context.previousTasks);
       }
-    },
-
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
     }
   });
 }
@@ -156,8 +192,32 @@ export function useClaimTask(workspaceId) {
       return response.json();
     },
 
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tasks', workspaceId] });
+    onMutate: async (taskId) => {
+      await queryClient.cancelQueries({ queryKey: ['tasks', workspaceId] });
+      const previousTasks = queryClient.getQueryData(['tasks', workspaceId]);
+
+      if (Array.isArray(previousTasks)) {
+        queryClient.setQueryData(
+          ['tasks', workspaceId],
+          previousTasks.map((t) => (t.id === taskId ? { ...t, assignee: 'You' } : t))
+        );
+      }
+      return { previousTasks };
+    },
+
+    onSuccess: (response, taskId) => {
+      const claimedTask = response?.data;
+      if (claimedTask && taskId) {
+        queryClient.setQueryData(['tasks', workspaceId], (oldTasks = []) =>
+          oldTasks.map((t) => (t.id === taskId ? { ...t, ...claimedTask } : t))
+        );
+      }
+    },
+
+    onError: (err, taskId, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['tasks', workspaceId], context.previousTasks);
+      }
     }
   });
 }

@@ -76,3 +76,44 @@ async def claim_task(
         message="Task claimed successfully.",
         data=claimed
     )
+
+@router.put("/{id}", response_model=ApiResponse[dict])
+async def update_task(
+    id: str,
+    payload: TaskUpdateSchema,
+    current_user: dict = Depends(get_current_user),
+    service: TaskService = Depends(get_task_service)
+):
+    updated = await service.update_task(id, payload.model_dump(exclude_unset=True), current_user)
+
+    await ws_manager.broadcast({
+        "event": "TASK_UPDATED",
+        "taskId": id,
+        "task": updated
+    })
+
+    return ApiResponse(
+        success=True,
+        message="Task updated successfully.",
+        data={"task": updated}
+    )
+
+@router.delete("/{id}", response_model=ApiResponse[dict])
+async def delete_task(
+    id: str,
+    current_user: dict = Depends(get_current_user),
+    service: TaskService = Depends(get_task_service)
+):
+    await service.delete_task(id, current_user)
+
+    await ws_manager.broadcast({
+        "event": "TASK_DELETED",
+        "taskId": id
+    })
+
+    return ApiResponse(
+        success=True,
+        message="Task deleted successfully.",
+        data=None
+    )
+

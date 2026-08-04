@@ -147,3 +147,59 @@ class TaskService:
             "workspaceId": workspace_id,
             "createdAt": str(updated_task.get("created_at", ""))
         }
+
+    async def update_task(self, task_id: str, update_data: Dict[str, Any], current_user: Dict[str, Any]) -> Dict[str, Any]:
+        task = await self.task_repo.find_by_id(task_id)
+        if not task:
+            raise AppException("Task not found.", status_code=404, code="TASK_NOT_FOUND")
+
+        workspace_id = str(task["workspace_id"])
+        has_access = await self.workspace_repo.is_user_workspace_member(workspace_id, current_user["id"])
+        if not has_access:
+            raise AppException("Forbidden. You do not belong to this workspace.", status_code=403, code="FORBIDDEN")
+
+        mongo_update = {"updated_at": datetime.now(timezone.utc)}
+        if "title" in update_data and update_data["title"] is not None:
+            mongo_update["title"] = update_data["title"]
+        if "desc" in update_data and update_data["desc"] is not None:
+            mongo_update["desc_text"] = update_data["desc"]
+        if "status" in update_data and update_data["status"] is not None:
+            mongo_update["status"] = update_data["status"]
+            mongo_update["completed_at"] = datetime.now(timezone.utc) if update_data["status"] == "done" else None
+        if "priority" in update_data and update_data["priority"] is not None:
+            mongo_update["priority"] = update_data["priority"]
+        if "epic" in update_data and update_data["epic"] is not None:
+            mongo_update["epic"] = update_data["epic"]
+
+        updated = await self.task_repo.update(task_id, mongo_update)
+        
+        assignee_val = updated.get("assignee") or updated.get("assignee_name")
+        if updated.get("assignee_id") and str(updated["assignee_id"]) == str(current_user["id"]):
+            assignee_val = "You"
+
+        return {
+            "id": updated["id"],
+            "title": updated.get("title", ""),
+            "desc": updated.get("desc_text") or updated.get("desc", ""),
+            "status": updated.get("status", "todo"),
+            "priority": updated.get("priority", "Medium"),
+            "epic": updated.get("epic", "General"),
+            "assignee": assignee_val,
+            "assigneeId": str(updated["assignee_id"]) if updated.get("assignee_id") else None,
+            "workspaceId": workspace_id,
+            "createdAt": updated.get("created_at").isoformat() if isinstance(updated.get("created_at"), datetime) else str(updated.get("created_at", "")),
+            "completedAt": updated.get("completed_at").isoformat() if isinstance(updated.get("completed_at"), datetime) else None
+        }
+
+    async def delete_task(self, task_id: str, current_user: Dict[str, Any]) -> bool:
+        task = await self.task_repo.find_by_id(task_id)
+        if not task:
+            raise AppException("Task not found.", status_code=404, code="TASK_NOT_FOUND")
+
+        workspace_id = str(task["workspace_id"])
+        has_access = await self.workspace_repo.is_user_workspace_member(workspace_id, current_user["id"])
+        if not has_access:
+            raise AppException("Forbidden. You do not belong to this workspace.", status_code=403, code="FORBIDDEN")
+
+        return await self.task_repo.update(task_id, {"deleted": True, "updated_at": datetime.now(timezone.utc)})
+
