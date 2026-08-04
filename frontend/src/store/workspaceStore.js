@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { API_URL } from '../config/api';
+import { API_URL, getAuthHeaders } from '../config/api';
 import { useAuthStore } from './authStore';
 
 export const useWorkspaceStore = create((set, get) => {
@@ -33,18 +33,18 @@ export const useWorkspaceStore = create((set, get) => {
       if (!currentUser) return;
       set({ isLoadingWorkspaces: true });
       try {
-        const token = localStorage.getItem('jira_token');
         const response = await fetch(`${API_URL}/api/workspaces`, {
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : ''
-          }
+          headers: getAuthHeaders(),
+          credentials: 'include'
         });
+
         if (response.status === 401) {
           useAuthStore.getState().logout();
           if (onViewChange) onViewChange('/auth');
           set({ isLoadingWorkspaces: false, workspaceError: null });
           return;
         }
+
         if (response.status === 403) {
           const resJson = await response.json();
           const message = resJson.message || '';
@@ -56,15 +56,23 @@ export const useWorkspaceStore = create((set, get) => {
           }
           return;
         }
+
         if (response.ok) {
           const resJson = await response.json();
-          const workspacesList = Array.isArray(resJson.data) ? resJson.data : (Array.isArray(resJson) ? resJson : []);
+          let workspacesList = [];
+          if (Array.isArray(resJson.data)) {
+            workspacesList = resJson.data;
+          } else if (resJson.data && Array.isArray(resJson.data.workspaces)) {
+            workspacesList = resJson.data.workspaces;
+          } else if (Array.isArray(resJson)) {
+            workspacesList = resJson;
+          }
+
           set({ workspaces: workspacesList, isLoadingWorkspaces: false, workspaceError: null });
 
           if (!currentUser.hasConfiguredWorkspace) {
             if (onViewChange) onViewChange('/workspace-setup');
           } else {
-            // Check if saved workspace still exists
             const savedWS = get().activeWorkspace;
             const exists = savedWS ? workspacesList.some(w => w.id === savedWS.id) : false;
             
@@ -93,12 +101,10 @@ export const useWorkspaceStore = create((set, get) => {
 
     deleteWorkspace: async (id, currentUser, onViewChange) => {
       try {
-        const token = localStorage.getItem('jira_token');
         const response = await fetch(`${API_URL}/api/workspaces/${id}`, {
           method: 'DELETE',
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : ''
-          }
+          headers: getAuthHeaders(),
+          credentials: 'include'
         });
         if (response.ok) {
           const updated = get().workspaces.filter(w => String(w.id) !== String(id));

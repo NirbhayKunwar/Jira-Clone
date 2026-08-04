@@ -7,8 +7,9 @@ export const API_URL = _getApiUrl();
 
 export const getAuthHeaders = () => {
   const token = localStorage.getItem('jira_token');
+  const validToken = token && token !== 'null' && token !== 'undefined' ? token : '';
   return {
     'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : ''
+    ...(validToken ? { 'Authorization': `Bearer ${validToken}` } : {})
   };
 };

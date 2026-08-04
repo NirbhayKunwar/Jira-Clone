@@ -12,11 +12,15 @@ async def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme),
     db = Depends(get_database)
 ) -> Dict[str, Any]:
-    # Check cookie first if header token not provided
+    # Clean string representation of invalid tokens
+    if token in ["null", "undefined", "", "None"]:
+        token = None
+
+    # Check cookie fallback if Bearer header token not provided or invalid string
     if not token:
         token = request.cookies.get("jira_token")
 
-    if not token:
+    if not token or token in ["null", "undefined", "", "None"]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required. Missing token."

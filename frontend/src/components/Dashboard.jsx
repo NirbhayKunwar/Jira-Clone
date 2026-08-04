@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import React, { memo, useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Kanban, BarChart3, Users, LogOut, Sun, Moon, Plus, Search, 
@@ -50,7 +50,7 @@ const isAssignedToUser = (task, currentUser) => {
 };
 
 // Kanban Card Item
-const Card = React.memo(function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview, onClaim, isClaiming }) {
+const Card = memo(function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview, onClaim, isClaiming }) {
   const { user } = useAuthStore();
   const canDeleteOrEdit = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || isAssignedToUser(task, user);
 
