@@ -90,6 +90,16 @@ const Card = memo(function Card({ task, onDragStart, onDelete, onTouchStart, isD
     }
   };
 
+  const getEpicStyle = (epic) => {
+    switch(epic) {
+      case 'Design System': return 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20';
+      case 'DevOps & Security': return 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20';
+      case 'Integrations': return 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20';
+      case 'Tech Stack Upgrade': return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+      case 'General': default: return 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20';
+    }
+  };
+
   if (!task) return null;
 
   const isUnassigned = !task.assigneeId && (!task.assignee || task.assignee === 'Unassigned');
