@@ -276,7 +276,7 @@ export default function Dashboard() {
   const defaultStatus = useMemo(() => (activeWorkspace?.template_type === 'scrum' ? 'backlog' : 'todo'), [activeWorkspace?.template_type]);
   const [newStatus, setNewStatus] = useState(defaultStatus);
   const [newPriority, setNewPriority] = useState('Medium');
-  const [newEpic, setNewEpic] = useState('');
+  const [newEpic, setNewEpic] = useState('General');
   const [newAssignee, setNewAssignee] = useState('You');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
@@ -687,13 +687,17 @@ export default function Dashboard() {
     return result;
   }, []);
 
-  const epicsList = useMemo(() => (
-    [...new Set([
+  const DEFAULT_EPICS = useMemo(() => ['General', 'Design System', 'DevOps & Security', 'Integrations', 'Tech Stack Upgrade'], []);
+
+  const epicsList = useMemo(() => {
+    const combined = [...new Set([
+      ...DEFAULT_EPICS,
       ...(Array.isArray(tasks) ? tasks : []).map(task => task?.epic?.trim()).filter(Boolean),
       ...(Array.isArray(customEpics) ? customEpics : [])
-    ])]
-      .sort((a, b) => a.localeCompare(b))
-  ), [customEpics, tasks]);
+    ])].filter(Boolean);
+
+    return combined.length > 0 ? combined.sort((a, b) => a.localeCompare(b)) : DEFAULT_EPICS;
+  }, [DEFAULT_EPICS, customEpics, tasks]);
 
   const epicTimelines = useMemo(() => {
     const rangeStart = new Date(dashboardOpenedAt);
@@ -4277,12 +4281,12 @@ export default function Dashboard() {
       {/* 3. Create Issue Dialog Modal */}
       {showCreateModal && (
         <div ref={createModalRef} role="dialog" aria-modal="true" aria-labelledby="issue-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 overflow-y-auto z-50 animate-[fade-in_150ms_ease-out]">
-          <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 overflow-hidden relative my-auto">
+          <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 relative my-auto max-h-[90vh] flex flex-col">
             {/* Accent border */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent to-accent-hover" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl bg-gradient-to-r from-accent to-accent-hover" />
             
             {/* Header */}
-            <div className="px-6 py-5 border-b border-border-secondary/40 flex justify-between items-center mt-1.5">
+            <div className="px-6 py-5 border-b border-border-secondary/40 flex justify-between items-center mt-1.5 shrink-0">
               <h3 id="issue-modal-title" className="font-display font-extrabold text-lg text-text-secondary">Create a New Issue</h3>
               <button 
                 onClick={() => setShowCreateModal(false)}
@@ -4294,7 +4298,7 @@ export default function Dashboard() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleCreateIssue} className="p-6 space-y-4">
+            <form onSubmit={handleCreateIssue} className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label htmlFor="issue-title" className="block text-xs font-semibold text-text-secondary mb-1.5">Summary / Title</label>
                 <input
@@ -4328,7 +4332,7 @@ export default function Dashboard() {
                     id="issue-status"
                     value={newStatus}
                     onChange={(e) => setNewStatus(e.target.value)}
-                    className="block w-full px-3 py-2 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                   >
                     {columns.map(col => (
                       <option key={col.id} value={col.id}>{col.name}</option>
@@ -4342,7 +4346,7 @@ export default function Dashboard() {
                     id="issue-assignee"
                     value={newAssignee}
                     onChange={(e) => setNewAssignee(e.target.value)}
-                    className="block w-full px-3 py-2 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                   >
                     <option value="You">You (Default)</option>
                     <option value="">Unassigned</option>
@@ -4362,7 +4366,7 @@ export default function Dashboard() {
                     id="issue-priority"
                     value={newPriority}
                     onChange={(e) => setNewPriority(e.target.value)}
-                    className="block w-full px-3 py-2 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                   >
                     <option value="High">🔴 High</option>
                     <option value="Medium">🟡 Medium</option>
@@ -4374,11 +4378,11 @@ export default function Dashboard() {
                   <label htmlFor="issue-epic" className="block text-xs font-semibold text-text-secondary mb-1.5">Epic Category</label>
                   <select
                     id="issue-epic"
-                    value={newEpic}
+                    value={newEpic || 'General'}
                     onChange={(e) => setNewEpic(e.target.value)}
-                    className="block w-full px-3 py-2 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                   >
-                    {epicsList.map(epic => (
+                    {(epicsList && epicsList.length > 0 ? epicsList : ['General', 'Design System', 'DevOps & Security', 'Integrations', 'Tech Stack Upgrade']).map(epic => (
                       <option key={epic} value={epic}>{epic}</option>
                     ))}
                   </select>
