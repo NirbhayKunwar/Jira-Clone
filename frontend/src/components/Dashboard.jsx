@@ -301,6 +301,130 @@ const KanbanColumn = memo(function KanbanColumn({
   );
 });
 
+// Modal for Creating New Epics without Native Browser Prompts
+function CreateEpicModal({ isOpen, onClose, onCreate }) {
+  const [epicName, setEpicName] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (epicName.trim()) {
+      onCreate(epicName.trim());
+      setEpicName('');
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-[fade-in_150ms_ease-out]">
+      <div 
+        className="bg-card-secondary border border-border-secondary/80 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-[scale-up_150ms_ease-out]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-border-secondary/40 pb-3">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-accent/15 border border-accent/30 flex items-center justify-center text-accent">
+              <Plus className="w-4 h-4" />
+            </div>
+            <h3 className="text-base font-bold text-text-secondary">Create New Epic</h3>
+          </div>
+          <button 
+            type="button"
+            onClick={onClose}
+            className="text-text-secondary-muted hover:text-text-secondary p-1 rounded-lg transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="epic-name-modal-input" className="block text-xs font-bold text-text-secondary-muted mb-1.5 uppercase tracking-wider">
+              Epic Name <span className="text-red-400">*</span>
+            </label>
+            <input
+              id="epic-name-modal-input"
+              type="text"
+              required
+              autoFocus
+              value={epicName}
+              onChange={(e) => setEpicName(e.target.value)}
+              placeholder="e.g. Mobile Redesign, Auth Upgrade"
+              className="w-full px-3.5 py-2.5 bg-dominant border border-border-secondary/80 rounded-xl text-xs text-text-secondary focus:outline-none focus:border-accent transition-colors shadow-inner"
+            />
+          </div>
+
+          <div className="flex items-center justify-end space-x-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-text-secondary-muted hover:text-text-secondary bg-dominant-offset hover:bg-dominant border border-border-secondary/60 rounded-xl transition-all cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!epicName.trim()}
+              className="px-5 py-2 text-xs font-bold text-white bg-accent hover:bg-accent-hover rounded-xl shadow-md transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Create Epic
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Custom Reusable Confirmation Modal
+function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confirmText = 'Confirm', isDanger = true }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-[fade-in_150ms_ease-out]">
+      <div 
+        className="bg-card-secondary border border-border-secondary/80 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-[scale-up_150ms_ease-out]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start space-x-3">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+            isDanger ? 'bg-red-500/15 text-red-500 border border-red-500/30' : 'bg-accent/15 text-accent border border-accent/30'
+          }`}>
+            {isDanger ? <AlertTriangle className="w-5 h-5" /> : <Info className="w-5 h-5" />}
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-text-secondary">{title || 'Confirm Action'}</h3>
+            <p className="text-xs text-text-secondary-muted mt-1 leading-relaxed">{message}</p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end space-x-3 pt-2 border-t border-border-secondary/30">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold text-text-secondary-muted hover:text-text-secondary bg-dominant-offset hover:bg-dominant border border-border-secondary/60 rounded-xl transition-all cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className={`px-4 py-2 text-xs font-bold text-white rounded-xl shadow-md transition-all cursor-pointer ${
+              isDanger ? 'bg-red-500 hover:bg-red-600' : 'bg-accent hover:bg-accent-hover'
+            }`}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -388,9 +512,11 @@ export default function Dashboard() {
   const touchLastCoordsRef = useRef({ x: 0, y: 0 });
   const kanbanGridRef = useRef(null);
 
-  // Toast & Self-Assignment States
+  // Toast, Modal & Self-Assignment States
   const [toast, setToast] = useState(null);
   const [claimingTaskId, setClaimingTaskId] = useState(null);
+  const [showCreateEpicModal, setShowCreateEpicModal] = useState(false);
+  const [confirmModalData, setConfirmModalData] = useState(null);
 
   // TanStack Query Hooks (Hoisted to prevent TDZ ReferenceErrors in effects)
   const { data: tasks = [], isLoading: isLoadingTasks } = useTasks(activeWorkspace?.id);
@@ -1179,14 +1305,20 @@ export default function Dashboard() {
 
   // Delete Issue
   const handleDeleteIssue = useCallback(async (taskId) => {
-    if (window.confirm('Are you sure you want to delete this issue?')) {
-      deleteTaskMutation.mutate(taskId, {
-        onError: (err) => {
-          console.error('Error deleting task:', err);
-          alert('Error deleting task. Make sure the backend is running.');
-        }
-      });
-    }
+    setConfirmModalData({
+      title: 'Delete Issue',
+      message: 'Are you sure you want to delete this issue? This action cannot be undone.',
+      confirmText: 'Delete Issue',
+      isDanger: true,
+      onConfirm: () => {
+        deleteTaskMutation.mutate(taskId, {
+          onError: (err) => {
+            console.error('Error deleting task:', err);
+            setToast({ message: 'Error deleting task. Make sure the backend is running.', type: 'error' });
+          }
+        });
+      }
+    });
   }, [deleteTaskMutation]);
 
   // Add Team Member
@@ -3030,19 +3162,7 @@ export default function Dashboard() {
                   <p className="text-xs text-text-secondary-muted mt-0.5">Plan and track your epics across a quarterly timeline. Click columns to adjust epic schedules.</p>
                 </div>
                 <button
-                  onClick={() => {
-                    const newEpicName = prompt('Enter new Epic name:');
-                    if (newEpicName && newEpicName.trim()) {
-                      const name = newEpicName.trim();
-                      if (!epicsList.includes(name)) {
-                        setCustomEpics(prev => [...prev, name]);
-                        setEpicTimelineOverrides(prev => ({
-                          ...prev,
-                          [name]: { start: 1, end: 3, color: 'bg-indigo-500' }
-                        }));
-                      }
-                    }
-                  }}
+                  onClick={() => setShowCreateEpicModal(true)}
                   className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -4738,6 +4858,35 @@ export default function Dashboard() {
         project={projectMembersModalState.project}
         workspaceId={activeWorkspace?.id}
         workspaceMembers={workspaceMembersList}
+      />
+
+      {/* Custom Epics & Confirm Modals */}
+      <CreateEpicModal
+        isOpen={showCreateEpicModal}
+        onClose={() => setShowCreateEpicModal(false)}
+        onCreate={(name) => {
+          if (!epicsList.includes(name)) {
+            setCustomEpics(prev => [...prev, name]);
+            setEpicTimelineOverrides(prev => ({
+              ...prev,
+              [name]: { start: 1, end: 3, color: 'bg-indigo-500' }
+            }));
+            setToast({
+              message: `Epic "${name}" created successfully.`,
+              type: 'success'
+            });
+          }
+        }}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmModalData}
+        onClose={() => setConfirmModalData(null)}
+        onConfirm={() => confirmModalData?.onConfirm?.()}
+        title={confirmModalData?.title}
+        message={confirmModalData?.message}
+        confirmText={confirmModalData?.confirmText}
+        isDanger={confirmModalData?.isDanger}
       />
     </div>
   );
