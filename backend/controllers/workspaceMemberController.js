@@ -173,9 +173,46 @@ export const inviteWorkspaceMember = async (req, res, next) => {
     });
 
     if (pendingInvite) {
-      return res.status(400).json({
-        success: false,
-        message: 'An active pending invitation already exists for this email.'
+      // Refresh token and expiration date on existing pending invitation
+      const newToken = crypto.randomBytes(32).toString('hex');
+      const newExpiresAt = new Date();
+      newExpiresAt.setDate(newExpiresAt.getDate() + 7);
+
+      const updatedInvite = await prisma.invitation.update({
+        where: { id: pendingInvite.id },
+        data: {
+          token: newToken,
+          expiresAt: newExpiresAt,
+          workspaceRole,
+          teamId,
+          teamRole,
+          projectId,
+          projectRole,
+          invitedById: req.user.id
+        }
+      });
+
+      try {
+        await sendTeamInviteEmail({
+          to: updatedInvite.email,
+          name: updatedInvite.email.split('@')[0],
+          invitedByName: req.user.name || req.user.email,
+          isSignup: true
+        });
+      } catch (emailErr) {
+        console.error('[WORKSPACE INVITE EMAIL ERROR]', emailErr);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Invitation re-sent successfully.',
+        data: {
+          id: updatedInvite.id,
+          email: updatedInvite.email,
+          workspaceRole: updatedInvite.workspaceRole,
+          expiresAt: updatedInvite.expiresAt,
+          token: updatedInvite.token
+        }
       });
     }
 
