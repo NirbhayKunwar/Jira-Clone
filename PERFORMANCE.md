@@ -36,6 +36,56 @@ Before applying any optimization to this repository:
 
 ---
 
+## Database Index Policy
+
+Before creating an index:
+1. Capture `explain("executionStats")`.
+2. Confirm `COLLSCAN` or slow `IXSCAN`.
+3. Verify the query is part of a real production workflow.
+4. Measure performance before and after index creation.
+5. Document the rationale and index definition in the repository.
+
+Before removing an index:
+1. Verify it is unused via database telemetry.
+2. Inspect production query patterns across services.
+3. Measure write performance impact on high-throughput collections.
+
+---
+
+## React Performance Guidelines
+
+Before using `React.memo`:
+- Verify unnecessary re-renders using the **React DevTools Profiler**.
+- Stabilize props using `useMemo` or `useCallback` where appropriate.
+- Avoid passing inline objects, array literals, or inline arrow functions to memoized components.
+
+Avoid:
+- Expensive filtering or sorting operations inside render bodies (wrap in `useMemo`).
+- Unnecessary Context updates that re-render deep component trees.
+- Full Zustand store subscriptions when granular selectors (e.g. `useAuthStore(s => s.user)`) are sufficient.
+
+---
+
+## API Performance Standards
+
+### GET Endpoints
+- Return only required fields via explicit Prisma/MongoDB projections.
+- Use projection to eliminate internal or sensitive fields.
+- Use cursor/offset pagination for large collections.
+
+### POST / PUT / PATCH Endpoints
+- Return only the updated resource DTO.
+- Avoid returning or refetching entire parent collections after single-item mutations.
+
+### DELETE Endpoints
+- Prefer soft-delete patterns where appropriate for data integrity.
+
+### Queries & Async Operations
+- Use `Promise.all()` only for truly independent async operations.
+- Eliminate $N+1$ query patterns by fetching relations in unified queries or batching lookups.
+
+---
+
 ## Repository Performance Budget
 
 All PRs, refactors, and feature additions are evaluated against these strict performance SLAs:
@@ -43,13 +93,65 @@ All PRs, refactors, and feature additions are evaluated against these strict per
 | Metric / Target Area | SLA Target | Measurement Method |
 | :--- | :--- | :--- |
 | **Initial Dashboard Interactive (TTI)** | **$< 800\text{ ms}$** | Chrome DevTools Performance Trace |
-| **API Latency ($P_{95}$)** | **$< 200\text{ ms}$** | Express Logger / Uvicorn Access Trace |
-| **Database Query Execution** | **$< 50\text{ ms}$** | MongoDB `explain("executionStats")` |
-| **First Contentful Paint (FCP)** | **$< 1.0\text{ s}$** | Lighthouse / Web Vitals Observer |
+| **API Latency ($P_{95}$)** | **$< 200\text{ ms}$** | Express request timing middleware + Pino logs |
+| **Database Query Execution** | **$< 50\text{ ms}$** | MongoDB `explain("executionStats")` / Prisma Log |
+| **First Contentful Paint (FCP)** | **$< 1.0\text{ s}$** | Web Vitals / Lighthouse |
 | **Largest Contentful Paint (LCP)** | **$< 2.5\text{ s}$** | Chrome Performance Panel |
-| **Drag & Drop Frame Rate** | **$60\text{ FPS}$ ($16.6\text{ms/frame}$)** | Chrome DevTools Frame Renderer |
+| **Drag & Drop Frame Rate** | **$60\text{ FPS}$ ($16.6\text{ms/frame}$)** | Chrome Frame Renderer |
 | **Duplicate Queries per Endpoint** | **$0$** | Prisma Log Inspector |
 | **Unindexed Collection Scans (`COLLSCAN`)** | **$0$** (for common production queries) | MongoDB Atlas Execution Log |
+
+---
+
+## Frontend Bundle Budget
+
+- **Initial JavaScript (GZip)**: **$< 250\text{ KB}$**
+- **Largest Lazy-Loaded Chunk**: **$< 100\text{ KB}$**
+- **CSS Bundle (GZip)**: **$< 50\text{ KB}$**
+
+Every new third-party dependency must be justified based on utility vs. bundle cost. Run `npm run build` in `frontend/` before merging any pull request.
+
+---
+
+## Performance CI Gate
+
+Every Pull Request and deployment must pass:
+- `npm test` cleanly without failures.
+- `npm run build` cleanly without bundler compilation warnings.
+- Code linting and static analysis checks.
+- Prisma schema generation (`prisma generate`).
+- Zero new failing unit/integration tests.
+- Zero duplicate database queries introduced on API endpoints.
+- Zero new `COLLSCAN` queries for common production workflows.
+- Initial bundle size increase $\le 10\%$ unless explicitly justified.
+- Any performance budget regression must be documented and approved.
+
+---
+
+## Observability
+
+Monitor:
+- Request latency ($P_{50}$, $P_{95}$, $P_{99}$)
+- Error rate and exception tracebacks
+- Process memory usage and CPU utilization
+- Database query execution duration
+- Slow endpoints and slow aggregation pipelines
+
+Use **Pino** for structured logging in Express (`backend/config/logger.js`). Keep log outputs JSON-structured and machine-readable.
+
+---
+
+## Engineering Principle
+
+> **Performance is a feature.**
+>
+> Every optimization must be:
+> - **measurable**
+> - **reproducible**
+> - **documented**
+> - **maintainable**
+>
+> Clean, readable, maintainable code takes priority over premature micro-optimizations unless profiling demonstrates a measurable user benefit.
 
 ---
 
