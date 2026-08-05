@@ -253,8 +253,8 @@ const getEmailConfig = () => {
 const createGmailTransporter = (emailUser, emailPass) => nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: emailUser,
-    pass: emailPass
+    user: emailUser ? emailUser.trim() : '',
+    pass: emailPass ? emailPass.replace(/\s+/g, '').trim() : ''
   }
 });
 
