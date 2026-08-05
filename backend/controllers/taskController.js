@@ -30,7 +30,7 @@ const updateTaskSchema = z.object({
   workspaceId: isTest ? z.string().optional() : z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid workspace ID format').optional()
 });
 
-const verifyWorkspaceAccess = async (workspaceId, userId) => {
+const verifyWorkspaceAccess = async (workspaceId, userId, existingWs = null) => {
   if (!workspaceId) return false;
   
   if (prisma.workspaceMember) {
@@ -44,19 +44,18 @@ const verifyWorkspaceAccess = async (workspaceId, userId) => {
     if (member) return true;
   }
 
-  if (prisma.workspace) {
-    const ws = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
-    });
-    if (ws) {
-      if (ws.ownerId === userId) return true;
-      if (prisma.user) {
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { teamOwnerId: true }
-        });
-        if (user && user.teamOwnerId === ws.ownerId) return true;
-      }
+  const ws = existingWs || (prisma.workspace ? await prisma.workspace.findUnique({
+    where: { id: workspaceId }
+  }) : null);
+
+  if (ws) {
+    if (ws.ownerId === userId) return true;
+    if (prisma.user) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { teamOwnerId: true }
+      });
+      if (user && user.teamOwnerId === ws.ownerId) return true;
     }
   }
 
@@ -98,7 +97,7 @@ export const getTasks = asyncHandler(async (req, res, next) => {
     return next(new AppError('Workspace not found.', 404));
   }
 
-  if (!(await verifyWorkspaceAccess(ws.id, req.user.id))) {
+  if (!(await verifyWorkspaceAccess(ws.id, req.user.id, ws))) {
     return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
   }
 
