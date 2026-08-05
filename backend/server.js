@@ -22,13 +22,12 @@ import logger from './config/logger.js';
 // Load environment variables
 dotenv.config();
 
-// Fail Fast Startup check: Validate all required environment variables
-const requiredEnv = ['DATABASE_URL', 'JWT_SECRET'];
-for (const envVar of requiredEnv) {
-  if (!process.env[envVar]) {
-    console.error(`FATAL: Missing required environment variable: ${envVar}`);
-    process.exit(1);
-  }
+// Startup check: Validate required environment variables gracefully
+if (!process.env.DATABASE_URL) {
+  console.warn('[WARN] DATABASE_URL is not set in environment variables');
+}
+if (!process.env.JWT_SECRET) {
+  console.warn('[WARN] JWT_SECRET is not set in environment variables. Using fallback key.');
 }
 
 const app = express();
