@@ -2,9 +2,10 @@ const NEON_HOST_SUFFIX = '.neon.tech';
 
 export function getRuntimeDatabaseUrl(databaseUrl = process.env.DATABASE_URL) {
   if (!databaseUrl) return databaseUrl;
+  const cleanUrl = String(databaseUrl).trim().replace(/^["']|["']$/g, '');
   try {
-    const url = new URL(databaseUrl);
-    if (!url.hostname.endsWith(NEON_HOST_SUFFIX)) return databaseUrl;
+    const url = new URL(cleanUrl);
+    if (!url.hostname.endsWith(NEON_HOST_SUFFIX)) return cleanUrl;
 
     if (!url.searchParams.has('connect_timeout')) {
       url.searchParams.set('connect_timeout', '15');
@@ -18,6 +19,6 @@ export function getRuntimeDatabaseUrl(databaseUrl = process.env.DATABASE_URL) {
 
     return url.toString();
   } catch {
-    return databaseUrl;
+    return cleanUrl;
   }
 }
