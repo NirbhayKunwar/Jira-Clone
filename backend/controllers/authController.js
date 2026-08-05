@@ -75,6 +75,75 @@ export const addNotification = async (text, type = 'info', userId = null, title 
   }
 };
 
+export const claimPendingInvitationsForUser = async (userId, userEmail) => {
+  if (!userId || !userEmail || !prisma.invitation) return;
+  try {
+    const normalizedEmail = userEmail.toLowerCase().trim();
+    const pendingInvites = await prisma.invitation.findMany({
+      where: {
+        email: { equals: normalizedEmail, mode: 'insensitive' },
+        status: 'PENDING'
+      }
+    });
+
+    for (const inv of pendingInvites) {
+      if (inv.expiresAt && new Date(inv.expiresAt) < new Date()) continue;
+
+      let wsMember = await prisma.workspaceMember.findFirst({
+        where: {
+          workspaceId: inv.workspaceId,
+          userId: userId
+        }
+      });
+
+      if (!wsMember) {
+        wsMember = await prisma.workspaceMember.create({
+          data: {
+            workspaceId: inv.workspaceId,
+            userId: userId,
+            role: inv.workspaceRole || 'MEMBER',
+            status: 'ACTIVE'
+          }
+        });
+      } else if (wsMember.status !== 'ACTIVE') {
+        wsMember = await prisma.workspaceMember.update({
+          where: { id: wsMember.id },
+          data: { status: 'ACTIVE', role: inv.workspaceRole || 'MEMBER' }
+        });
+      }
+
+      if (inv.teamId && wsMember) {
+        await prisma.teamMember.create({
+          data: {
+            teamId: inv.teamId,
+            workspaceMemberId: wsMember.id,
+            role: inv.teamRole || 'FULLSTACK_ENGINEER'
+          }
+        }).catch(() => {});
+      }
+
+      if (inv.projectId && wsMember) {
+        await prisma.projectMember.create({
+          data: {
+            projectId: inv.projectId,
+            workspaceMemberId: wsMember.id,
+            role: inv.projectRole || 'DEVELOPER'
+          }
+        }).catch(() => {});
+      }
+
+      await prisma.invitation.update({
+        where: { id: inv.id },
+        data: { status: 'ACCEPTED' }
+      }).catch(() => {});
+
+      logger.info(`[INVITATION CLAIM] Automatically claimed invitation for ${userEmail} in workspace ${inv.workspaceId}`);
+    }
+  } catch (err) {
+    logger.error(`[INVITATION CLAIM ERROR] Error claiming invitations for ${userEmail}:`, err);
+  }
+};
+
 export const getNotifications = async (req, res) => {
   try {
     const userId = req.user ? req.user.id : null;
@@ -388,6 +457,7 @@ export const signUp = async (req, res) => {
       }
     });
 
+    await claimPendingInvitationsForUser(newUser.id, newUser.email);
     await addNotification(`User ${newUser.name} registered successfully.`, 'member', newUser.id);
     return sendTokens(res, newUser, 201, 'User registered successfully.');
   } catch (error) {
@@ -426,6 +496,7 @@ export const signIn = async (req, res) => {
       req.rateLimit.resetKey();
     }
 
+    await claimPendingInvitationsForUser(user.id, user.email);
     return sendTokens(res, user, 200, 'Logged in successfully.');
   } catch (error) {
     if (error instanceof z.ZodError) {

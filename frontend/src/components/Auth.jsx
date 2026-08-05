@@ -176,6 +176,23 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
 
       setLoading(false);
       login(data.user, data.token);
+
+      const inviteToken = queryParams.get('token');
+      if (inviteToken) {
+        try {
+          await fetch(`${API_URL}/api/workspaces/invitations/accept`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${data.token}`
+            },
+            body: JSON.stringify({ token: inviteToken })
+          });
+        } catch {
+          // Fallback silently if auto-claimed upstream
+        }
+      }
+
       if (onSuccess) onSuccess(data.user);
 
     } catch (err) {
