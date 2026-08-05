@@ -349,6 +349,23 @@ class CentralEventBus extends EventEmitter {
         logger.error('[EVENT BUS ERROR] member.removed_from_workspace listener error:', err);
       }
     });
+
+    // 10. Invitation Sent
+    this.on('invitation.sent', async (data) => {
+      try {
+        const { invitation, actorId } = data;
+        const inviter = await prisma.user.findUnique({ where: { id: actorId } });
+        
+        const { sendTeamInviteEmail } = await import('../controllers/authController.js');
+        await sendTeamInviteEmail({
+          to: invitation.email,
+          invitedByName: inviter?.name || inviter?.email || 'Workspace Admin',
+          isSignup: true
+        });
+      } catch (err) {
+        logger.error('[EVENT BUS ERROR] invitation.sent listener error:', err);
+      }
+    });
   }
 }
 
