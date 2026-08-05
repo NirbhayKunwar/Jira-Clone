@@ -1,7 +1,5 @@
-import pkg from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { getRuntimeDatabaseUrl } from './databaseUrl.js';
-
-const { PrismaClient } = pkg;
 
 const databaseUrl = getRuntimeDatabaseUrl();
 const globalForPrisma = globalThis;
