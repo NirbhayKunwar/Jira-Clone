@@ -81,7 +81,7 @@ export const claimPendingInvitationsForUser = async (userId, userEmail) => {
     const normalizedEmail = userEmail.toLowerCase().trim();
     const pendingInvites = await prisma.invitation.findMany({
       where: {
-        email: { equals: normalizedEmail, mode: 'insensitive' },
+        email: normalizedEmail,
         status: 'PENDING'
       }
     });

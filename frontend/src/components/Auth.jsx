@@ -168,7 +168,14 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         body: JSON.stringify(body)
       });
 
-      const data = await response.json();
+      let data = {};
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw new Error(text || 'Server error occurred. Please try again.');
+      }
 
       if (!response.ok) {
         throw new Error(data.message || 'Authentication failed. Please verify your details.');

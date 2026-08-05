@@ -70,8 +70,8 @@ export const getWorkspaceMembers = async (req, res, next) => {
       ? {
           user: {
             OR: [
-              { name: { contains: search, mode: 'insensitive' } },
-              { email: { contains: search, mode: 'insensitive' } }
+              { name: { contains: search } },
+              { email: { contains: search } }
             ]
           }
         }
@@ -181,7 +181,7 @@ export const inviteWorkspaceMember = async (req, res, next) => {
 
     // Check if target email belongs to an existing registered User in the database
     const registeredUser = await prisma.user.findFirst({
-      where: { email: { equals: email.trim(), mode: 'insensitive' } }
+      where: { email: email.trim().toLowerCase() }
     });
 
     if (registeredUser) {
