@@ -9,7 +9,7 @@ router.use(apiLimiter);
 
 // Workspace CRUD Endpoints
 router.get('/', verifyToken, getWorkspaces);
-router.post('/', verifyToken, requireAdminOrLeader, createWorkspace);
+router.post('/', verifyToken, createWorkspace);
 router.get('/:id', verifyToken, verifyWorkspaceAccess, getWorkspaceById);
 router.delete('/:id', verifyToken, verifyWorkspaceAccess, requireAdminOrLeader, deleteWorkspace);
 
