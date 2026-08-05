@@ -261,7 +261,7 @@ const escapeHtml = (value = '') => String(value)
   .replace(/"/g, '&quot;')
   .replace(/'/g, '&#39;');
 
-const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword, isSignup = false }) => {
+export const sendTeamInviteEmail = async ({ to, name, invitedByName, temporaryPassword, isSignup = false }) => {
   const { emailUser, emailPass, isMockMode } = getEmailConfig();
   const appUrl = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
   
