@@ -151,15 +151,16 @@ registerRoutes('/api/v1');
 // Global Centralized Error Handler Middleware
 app.use(globalErrorHandler);
 
-// Initialize DB and start server
-initializeDatabase().then(() => {
+// Initialize DB (non-blocking for Vercel serverless functions)
+initializeDatabase().catch(err => {
+  logger.error('Failed to initialize database connection:', err);
+});
+
+if (process.env.VERCEL !== '1' && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     logger.info(`Jira Clone API Server is running on port ${PORT}`);
   });
-}).catch(err => {
-  logger.error('Failed to initialize database:', err);
-  process.exit(1);
-});
+}
 
 // Intercept exit signals to perform clean shutdown
 const gracefulShutdown = async (signal) => {

@@ -1,13 +1,28 @@
 import prisma from './prisma.js';
 
+let isSeeded = false;
+
 export const initializeDatabase = async () => {
   try {
     console.log('[DATABASE] Verifying MongoDB Atlas connection...');
     await prisma.$connect();
     console.log('[DATABASE] Connected to MongoDB Atlas successfully.');
 
+    // Fast-path for serverless cold starts: connect immediately without blocking
+    if (isSeeded) return;
+
+    // Run seeding asynchronously in background without blocking serverless function boot
+    isSeeded = true;
+    runSeedingLogic().catch(err => console.error('[DATABASE SEED ERROR]', err));
+  } catch (error) {
+    console.error('[DATABASE] Failed to connect to MongoDB Atlas:', error);
+    throw error;
+  }
+};
+
+async function runSeedingLogic() {
+  try {
     // Self-healing: promote all existing standalone users (no teamOwnerId) to ADMIN
-    // so they are not locked out of creating workspaces or inviting members.
     const standaloneMembers = await prisma.user.findMany({
       where: { rbacRole: 'MEMBER' },
       select: { id: true, teamOwnerId: true }
@@ -50,7 +65,6 @@ export const initializeDatabase = async () => {
     // Map default permissions to OWNER/ADMIN WorkspaceRoles
     const allPerms = await prisma.permission.findMany();
     for (const wp of allPerms) {
-      // Owner gets all
       const existingOwnerPerm = await prisma.workspaceRolePermission.findFirst({
         where: { role: 'OWNER', permissionId: wp.id }
       });
@@ -60,7 +74,6 @@ export const initializeDatabase = async () => {
         });
       }
 
-      // Admin gets all except delete
       if (wp.name !== 'workspace.delete') {
         const existingAdminPerm = await prisma.workspaceRolePermission.findFirst({
           where: { role: 'ADMIN', permissionId: wp.id }
@@ -72,7 +85,6 @@ export const initializeDatabase = async () => {
         }
       }
 
-      // Member gets invite, sprint management, task assignment, and comment creation
       if (['workspace.invite', 'sprint.manage', 'task.assign', 'comment.create'].includes(wp.name)) {
         const existingMemberPerm = await prisma.workspaceRolePermission.findFirst({
           where: { role: 'MEMBER', permissionId: wp.id }
@@ -84,7 +96,6 @@ export const initializeDatabase = async () => {
         }
       }
 
-      // Guest gets comment creation
       if (wp.name === 'comment.create') {
         const existingGuestPerm = await prisma.workspaceRolePermission.findFirst({
           where: { role: 'GUEST', permissionId: wp.id }
@@ -97,7 +108,6 @@ export const initializeDatabase = async () => {
       }
     }
 
-    // Seed Team Role permissions
     const teamPerms = await prisma.permission.findMany({
       where: { name: { in: ['team.manage', 'team.invite'] } }
     });
@@ -113,8 +123,7 @@ export const initializeDatabase = async () => {
     }
 
     console.log('[DATABASE] Seeded permission models and defaults successfully.');
-  } catch (error) {
-    console.error('[DATABASE] Failed to connect to MongoDB Atlas:', error);
-    throw error;
+  } catch (err) {
+    console.error('[DATABASE SEED ERROR]', err);
   }
-};
+}
