@@ -101,8 +101,6 @@ app.use(express.json());
 const CACHEABLE_GET_PATHS = [
   '/api/workspaces',
   '/api/v1/workspaces',
-  '/api/tasks',
-  '/api/v1/tasks',
   '/api/goals',
   '/api/v1/goals',
   '/api/teams',
