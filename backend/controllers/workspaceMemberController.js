@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import eventBus from '../config/eventBus.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { isValidObjectId } from '../middleware/rbac.js';
+import { sendTeamInviteEmail } from './authController.js';
 
 // Schemas for input validation
 const inviteSchema = z.object({
@@ -255,7 +256,19 @@ export const inviteWorkspaceMember = async (req, res, next) => {
       }
     });
 
-    // Emit event for Audit Log & Notifications (mock email inside subscriber)
+    // Directly send the workspace invite email via Nodemailer / Gmail SMTP
+    try {
+      await sendTeamInviteEmail({
+        to: invitation.email,
+        name: invitation.email.split('@')[0],
+        invitedByName: req.user.name || req.user.email,
+        isSignup: true
+      });
+    } catch (emailErr) {
+      console.error('[WORKSPACE INVITE EMAIL ERROR]', emailErr);
+    }
+
+    // Emit event for Audit Log & Notifications
     const clientDetails = getClientDetails(req);
     eventBus.emit('invitation.sent', {
       invitation,
