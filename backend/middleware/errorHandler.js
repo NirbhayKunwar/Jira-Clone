@@ -20,19 +20,16 @@ export const asyncHandler = (fn) => {
 
 // Global centralized Error Middleware
 export const globalErrorHandler = (err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.status = err.status || 'error';
+  const statusCode = err.statusCode || 500;
+  const requestId = req.headers['x-request-id'] || req.headers['x-vercel-id'] || `req_${Date.now()}`;
 
-  // Log detailed error internally
-  logger.error('[SERVER ERROR]', err);
+  logger.error({ err, requestId, url: req.originalUrl }, '[SERVER ERROR]');
 
-  // Return clean JSON payload to user
-  return res.status(err.statusCode).json({
+  return res.status(statusCode).json({
     success: false,
     message: err.message || 'Internal Server Error. Please contact support.',
-    error: process.env.NODE_ENV === 'development' ? {
-      stack: err.stack,
-      ...err
-    } : {}
+    code: err.code || (statusCode >= 500 ? 'AUTH_LOGIN_FAILED' : 'BAD_REQUEST'),
+    requestId,
+    timestamp: new Date().toISOString()
   });
 };
