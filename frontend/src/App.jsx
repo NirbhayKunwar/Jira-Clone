@@ -31,13 +31,11 @@ const Auth = lazy(() => import('./components/Auth'));
 const Dashboard      = lazy(() => import('./components/Dashboard'));
 const WorkspaceSetup = lazy(() => import('./components/WorkspaceSetup'));
 
+import AppSplash from './components/common/AppSplash';
+
 // ─── Shared Loading Fallback ──────────────────────────────────────────────
 function PageSpinner() {
-  return (
-    <div className="min-h-screen bg-dominant flex items-center justify-center">
-      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  return <AppSplash />;
 }
 
 // ─── Route Guards ─────────────────────────────────────────────────────────

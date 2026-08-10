@@ -23,6 +23,8 @@ import ProfileDrawer from '../features/members/components/ProfileDrawer';
 import AuditTimeline from '../features/audit/components/AuditTimeline';
 import ProjectMembersModal from '../features/projects/components/ProjectMembersModal';
 
+import TabSkeleton from './common/TabSkeleton';
+
 // Lazy-loaded sub-panels
 const ProfileSettings = lazy(() => import('./ProfileSettings'));
 const ScheduleCalendar = lazy(() => import('./ScheduleCalendar'));
@@ -4482,13 +4484,13 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'profile' && (
-            <Suspense fallback={<div className="p-8 text-center text-text-secondary animate-pulse">Loading Profile Settings...</div>}>
+            <Suspense fallback={<TabSkeleton />}>
               <ProfileSettings />
             </Suspense>
           )}
 
           {activeTab === 'calendar' && (
-            <Suspense fallback={<div className="p-8 text-center text-text-secondary animate-pulse">Loading Calendar Schedule...</div>}>
+            <Suspense fallback={<TabSkeleton />}>
               <ScheduleCalendar activeWorkspace={activeWorkspace} />
             </Suspense>
           )}
