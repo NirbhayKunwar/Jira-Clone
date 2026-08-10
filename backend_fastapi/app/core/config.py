@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     
     # Environment
     ENVIRONMENT: str = os.getenv("NODE_ENV", "development")
-    PORT: int = int(os.getenv("PORT", "5000"))
+    PORT: int = int(os.getenv("PORT", "8000"))
     
     # MongoDB Atlas
     DATABASE_URL: str = os.getenv(

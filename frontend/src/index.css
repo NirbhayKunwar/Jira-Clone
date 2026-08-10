@@ -282,14 +282,15 @@ body {
   outline-offset: 2px;
 }
 
-/* Reduced Motion (WCAG AA) */
-@media (prefers-reduced-motion: reduce) {
-  *, ::before, ::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
+/* Layout Containment & Hardware Compositing Optimizations */
+.kanban-column-container {
+  contain: layout style paint;
 }
+
+.kanban-card-item {
+  contain: content;
+  will-change: transform;
+}
+
 
 

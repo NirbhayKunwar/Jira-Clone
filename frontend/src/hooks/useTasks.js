@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_URL, getAuthHeaders } from '../config/api';
 import { getApiList } from '../config/apiResponse';
 import { useAuthStore } from '../store/authStore';
+import { useBoardStore } from '../store/boardStore';
 
 export function useTasks(workspaceId) {
   const { user } = useAuthStore();
@@ -16,7 +17,9 @@ export function useTasks(workspaceId) {
       if (!response.ok) {
         throw new Error('Failed to fetch tasks');
       }
-      return getApiList(await response.json(), 'Tasks');
+      const tasks = getApiList(await response.json(), 'Tasks');
+      useBoardStore.getState().setTasks(tasks);
+      return tasks;
     },
     enabled: !!workspaceId && !!user,
     staleTime: 60_000,   // 1 minute stale time to prevent unnecessary network refetches

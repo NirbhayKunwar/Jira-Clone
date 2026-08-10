@@ -182,7 +182,9 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       }
 
       setLoading(false);
-      login(data.user, data.token);
+      const userPayload = data.data?.user || data.user;
+      const tokenPayload = data.data?.token || data.token;
+      login(userPayload, tokenPayload);
 
       const inviteToken = queryParams.get('token');
       if (inviteToken) {

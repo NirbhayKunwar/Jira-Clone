@@ -11,10 +11,27 @@ class TaskRepository(BaseRepository):
     async def get_workspace_tasks(self, workspace_id: str) -> List[Dict[str, Any]]:
         if not ObjectId.is_valid(workspace_id):
             return []
-        cursor = self.collection.find({
-            "workspace_id": ObjectId(workspace_id),
-            "deleted": {"$ne": True}
-        }).sort("created_at", -1)
+        cursor = self.collection.find(
+            {
+                "workspace_id": ObjectId(workspace_id),
+                "deleted": {"$ne": True}
+            },
+            projection={
+                "_id": 1,
+                "title": 1,
+                "desc": 1,
+                "status": 1,
+                "priority": 1,
+                "epic": 1,
+                "assignee": 1,
+                "assignee_id": 1,
+                "assignee_name": 1,
+                "workspace_id": 1,
+                "created_at": 1,
+                "updated_at": 1,
+                "completed_at": 1
+            }
+        ).sort([("workspace_id", 1), ("deleted", 1), ("created_at", -1)])
         
         docs = await cursor.to_list(length=500)
         return [self._to_id_str(doc) for doc in docs]
