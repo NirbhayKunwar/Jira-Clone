@@ -157,9 +157,10 @@ export const getNotifications = async (req, res) => {
     };
 
     if (workspaceId && /^[0-9a-fA-F]{24}$/.test(workspaceId)) {
-      whereConditions.workspaceId = workspaceId;
-    } else {
-      whereConditions.workspaceId = null;
+      whereConditions.OR = [
+        { workspaceId: workspaceId },
+        { workspaceId: null }
+      ];
     }
 
     const notifications = await prisma.notification.findMany({
@@ -193,6 +194,39 @@ export const getNotifications = async (req, res) => {
   } catch (error) {
     logger.error('Failed to fetch notifications:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch notifications.', data: null });
+  }
+};
+
+export const markNotificationAsRead = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid notification ID format.', data: null });
+    }
+
+    const updated = await prisma.notification.updateMany({
+      where: { id, userId: req.user.id },
+      data: { read: true }
+    });
+
+    return res.status(200).json({ success: true, message: 'Notification marked as read.', data: updated });
+  } catch (error) {
+    logger.error('Failed to mark notification as read:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update notification.', data: null });
+  }
+};
+
+export const markAllNotificationsAsRead = async (req, res) => {
+  try {
+    const updated = await prisma.notification.updateMany({
+      where: { userId: req.user.id, read: false },
+      data: { read: true }
+    });
+
+    return res.status(200).json({ success: true, message: 'All notifications marked as read.', data: updated });
+  } catch (error) {
+    logger.error('Failed to mark all notifications as read:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update notifications.', data: null });
   }
 };
 

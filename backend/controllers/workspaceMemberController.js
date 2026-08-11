@@ -750,32 +750,36 @@ export const getWorkspaceAuditLogs = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
     
-    // Find all audit logs in workspace resources or related users
+    // Find all audit logs associated with the active workspace
     const auditLogs = await prisma.auditLog.findMany({
       where: {
         OR: [
+          { resourceId: workspaceId },
           { resourceType: 'Workspace', resourceId: workspaceId },
-          {
-            resourceType: 'Team',
-            resourceId: {
-              in: (
-                await prisma.team.findMany({
-                  where: { ownerId: req.user.id }, // Simple check
-                  select: { id: true }
-                })
-              ).map(t => t.id)
-            }
-          }
+          { resourceType: { in: ['Task', 'Team', 'Project', 'Member', 'Workspace'] } }
         ]
       },
       include: {
-        actor: { select: { name: true, email: true } },
+        actor: { select: { name: true, email: true, role: true } },
         targetUser: { select: { name: true, email: true } }
       },
-      orderBy: { timestamp: 'desc' }
+      orderBy: { timestamp: 'desc' },
+      take: 100
     });
 
-    res.status(200).json({ success: true, data: auditLogs });
+    const mapped = auditLogs.map(log => ({
+      id: log.id.toString(),
+      action: log.action,
+      resourceType: log.resourceType,
+      resourceId: log.resourceId,
+      oldValue: log.oldValue,
+      newValue: log.newValue,
+      timestamp: log.timestamp,
+      actor: log.actor ? { name: log.actor.name, email: log.actor.email, role: log.actor.role } : null,
+      targetUser: log.targetUser ? { name: log.targetUser.name, email: log.targetUser.email } : null
+    }));
+
+    res.status(200).json({ success: true, data: mapped });
   } catch (error) {
     next(error);
   }
@@ -786,22 +790,34 @@ export const getWorkspaceActivity = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
     
-    // Get activity feed using audit logs and tasks
     const logs = await prisma.auditLog.findMany({
       where: {
         OR: [
-          { resourceType: 'Workspace', resourceId: workspaceId },
-          { resourceType: 'Project', project: { workspaceId } }
+          { resourceId: workspaceId },
+          { resourceType: { in: ['Task', 'Team', 'Project', 'Member', 'Workspace'] } }
         ]
       },
       include: {
-        actor: { select: { name: true, email: true } }
+        actor: { select: { name: true, email: true, role: true } },
+        targetUser: { select: { name: true, email: true } }
       },
       orderBy: { timestamp: 'desc' },
-      take: 20
+      take: 30
     });
 
-    res.status(200).json({ success: true, data: logs });
+    const mapped = logs.map(log => ({
+      id: log.id.toString(),
+      action: log.action,
+      resourceType: log.resourceType,
+      resourceId: log.resourceId,
+      oldValue: log.oldValue,
+      newValue: log.newValue,
+      timestamp: log.timestamp,
+      actor: log.actor ? { name: log.actor.name, email: log.actor.email } : null,
+      targetUser: log.targetUser ? { name: log.targetUser.name, email: log.targetUser.email } : null
+    }));
+
+    res.status(200).json({ success: true, data: mapped });
   } catch (error) {
     next(error);
   }

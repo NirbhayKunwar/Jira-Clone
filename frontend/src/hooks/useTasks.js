@@ -224,3 +224,51 @@ export function useClaimTask(workspaceId) {
     }
   });
 }
+
+export function useAssignTask(workspaceId) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ taskId, assigneeId, assigneeName }) => {
+      const response = await fetch(`${API_URL}/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ assigneeId, assignee: assigneeName })
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to re-assign task');
+      }
+      return response.json();
+    },
+
+    onMutate: async ({ taskId, assigneeId, assigneeName }) => {
+      await queryClient.cancelQueries({ queryKey: ['tasks', workspaceId] });
+      const previousTasks = queryClient.getQueryData(['tasks', workspaceId]);
+
+      if (Array.isArray(previousTasks)) {
+        queryClient.setQueryData(
+          ['tasks', workspaceId],
+          previousTasks.map((t) => (t.id === taskId ? { ...t, assigneeId, assignee: assigneeName } : t))
+        );
+      }
+      return { previousTasks };
+    },
+
+    onSuccess: (response, { taskId }) => {
+      const updatedTask = response?.data?.task || response?.data;
+      if (updatedTask && taskId) {
+        queryClient.setQueryData(['tasks', workspaceId], (oldTasks = []) =>
+          oldTasks.map((t) => (t.id === taskId ? { ...t, ...updatedTask } : t))
+        );
+      }
+    },
+
+    onError: (err, variables, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['tasks', workspaceId], context.previousTasks);
+      }
+    }
+  });
+}
+
