@@ -6,18 +6,18 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "5000:5000"
+      - "8000:8000"
     environment:
-      - PORT=5000
+      - PORT=8000
       - NODE_ENV=production
       - DATABASE_URL=mongodb+srv://nirbhay22_db_user:zuJSxpiB1fg7DxpE@cluster0.1znibl0.mongodb.net/jira_clone?retryWrites=true&w=majority&appName=Cluster0
       - DATABASE_NAME=jira_clone
-      - JWT_SECRET=Jira_Clone_my_Project_2026
+      - JWT_SECRET=Jira_Clone_my_Project_2026_super_secure_key_32bytes
       - JWT_REFRESH_SECRET=Jira_Clone_my_Project_2026_refresh
       - GOOGLE_CLIENT_ID=304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
