@@ -9,11 +9,12 @@
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Prisma](https://img.shields.io/badge/Prisma-5.18-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-An ultra-high performance, full-stack agile project management platform inspired by **Atlassian Jira** and **Linear**. Built with a **60 FPS zero-reflow rendering engine**, $O(1)$ normalized state architecture, Web Worker off-thread background processing, LexoRank fractional indexing, and a unified dual-backend microservice structure (Node.js Single Write Authority + FastAPI Async/WebSocket Engine).
+An ultra-high performance, full-stack agile project management platform inspired by **Atlassian Jira** and **Linear**. Built with a **60 FPS zero-reflow rendering engine**, $O(1)$ normalized state architecture, Web Worker off-thread background processing, LexoRank fractional indexing, Docker Compose multi-container orchestration, and a unified dual-backend microservice structure (Node.js Single Write Authority + FastAPI Async/WebSocket Engine).
 
 </div>
 
@@ -42,6 +43,7 @@ Evaluated against strict production budgets:
 | **API Response ($P_{95}$)** | < 200 ms | **< 15 ms** | Fine-grained Redis Caching + Covered Indexes |
 | **DOM Tree Size** | < 500 nodes | **~180 nodes** | Viewport Windowing (`@tanstack/react-virtual`) |
 | **Initial Boot CLS** | 0.00 | **0.00** | Zero-Layout-Shift Skeleton Screens (`AppSplash`) |
+| **Layout Scroll Integrity** | 100% Locked | **Sticky Sidebar + Viewport Scroll** | Viewport Height Locking (`h-dvh overflow-hidden`) |
 
 ---
 
@@ -102,15 +104,16 @@ erDiagram
 - 🔑 **Authentication & SSO**: Passwords (bcrypt) + Google OAuth 2.0 Verification + Cryptographic OTP Reset.
 - 🏢 **Multi-Tenant Workspace Isolation**: Boundary queries enforcing `workspaceId` tenant scoping.
 - 🛡️ **Role-Based Access Control (RBAC)**: Enforces permissions for `OWNER`, `ADMIN`, `LEADER`, `MEMBER`, `GUEST`.
-- 📋 **Interactive Kanban & Backlog**: Drag-and-drop columns, LexoRank re-ordering, priority filters, and real-time search.
+- 📋 **Interactive Kanban & Backlog**: Drag-and-drop columns, LexoRank re-ordering, priority filters, interactive assignee popover selector, and real-time search.
 - 🎯 **OKRs & Goal Tracking**: Objectives tracker with progress indicators, status badges, and sub-goal targets.
 - 🗺️ **Roadmap & Gantt Planning**: Visual timeline planner mapping development Epics and milestones.
 - 👥 **Teams Directory**: Custom department management, workload allocation, and task assignment.
-- 🔔 **Notifications & Audit Timeline**: In-app notifications feed with read/unread toggle and chronological activity logs.
+- 🔔 **Notifications & Audit Timeline**: In-app notifications feed with read/unread toggle (`PATCH /api/notifications/:id/read`), read-all action, and fixed chronological activity log timeline.
 
-### 🎨 Theme System & UX Polish
+### 🎨 Theme System & Layout Polish
 - 🌙 **Light, Dark & OS System Auto-Detect**: Zero-FOUC inline pre-boot theme injection.
 - 🎨 **4 Color Palettes**: `Atlassian Blue`, `Emerald Forest`, `Cyberpunk Neon`, and `Sunset Amber`.
+- 🖼️ **Viewport Height Locking**: `h-dvh overflow-hidden` layout container with `xl:sticky xl:top-0` navigation sidebar, eliminating blank space when scrolling long views.
 - 📱 **Mobile Responsive**: Dynamic Viewport Height (`100dvh`), `visualViewport` soft-keyboard adaptation, and 44px touch targets.
 - ⚡ **Zero-CLS Skeletons**: Integrated `AppSplash`, `TabSkeleton`, and `KanbanBoardSkeleton` components.
 
@@ -130,6 +133,7 @@ erDiagram
 | `PUT` | `/api/tasks/:id` | Node.js | Bearer JWT | Update task fields, status, or assignee |
 | `GET` | `/api/notifications` | Node.js | Bearer JWT | Fetch user in-app notifications |
 | `PATCH`| `/api/notifications/:id/read` | Node.js | Bearer JWT | Mark notification as read |
+| `PATCH`| `/api/notifications/read-all` | Node.js | Bearer JWT | Mark all notifications as read |
 | `GET` | `/fastapi/tasks?workspaceId=<id>`| FastAPI | Bearer JWT | Fast-path async task query with Redis cache |
 | `WS` | `/ws/:workspaceId` | FastAPI | WS Token | WebSocket real-time delta broadcast |
 
@@ -141,6 +145,7 @@ erDiagram
 Jira-Clone/
 ├── README.md                           # Master Monorepo Documentation
 ├── PERFORMANCE.md                      # Official Performance SLA & Engineering Guide
+├── docker-compose.yml                  # Root Multi-Container Docker Compose Manifest
 ├── vercel.json                         # Vercel Monorepo Unified Configuration
 ├── requirements.txt                    # Root Python dependencies for Vercel
 ├── api/                                # Vercel Serverless Handlers
@@ -153,6 +158,8 @@ Jira-Clone/
 │   ├── prisma/                         # MongoDB Schema & covered index definitions
 │   └── tests/                          # Vitest integration test suite (31 tests)
 ├── backend_fastapi/                    # FastAPI Async Engine & WebSockets
+│   ├── Dockerfile                      # Production Dockerfile listening on Port 8000
+│   ├── docker-compose.yml              # FastAPI standalone compose manifest
 │   ├── app/
 │   │   ├── api/                        # FastAPI v1 endpoints & WebSocket manager
 │   │   ├── core/                       # Safe index creation & configuration
@@ -160,6 +167,7 @@ Jira-Clone/
 │   │   └── schemas/                    # Pydantic V2 ConfigDict schemas
 │   └── tests/                          # Pytest integration test suite (5 tests)
 └── frontend/                           # React 19 + Vite 8 Web Application
+    ├── Dockerfile                      # Nginx production web container
     ├── src/
     │   ├── components/                 # Core page views & Kanban board components
     │   ├── hooks/                      # Custom hooks (useTasks, useZeroReflowAutoScroll)
@@ -171,15 +179,31 @@ Jira-Clone/
 
 ---
 
-## 🚀 Local Development Quickstart
+## 🛠️ Local Development Quickstart
 
-### 1. Clone & Configure Environment Variables
+### Option A: Launch via Docker Compose (Recommended)
+
+Run the entire multi-container architecture (MongoDB 7.0, Redis 7.2, Node backend, FastAPI engine, and Nginx frontend) with a single command:
 
 ```bash
-git clone https://github.com/NirbhayKunwar/Jira-Clone.git
-cd Jira-Clone
+docker-compose up -d --build
 ```
 
+To view real-time container logs:
+```bash
+docker-compose logs -f
+```
+
+To stop containers and clean volumes:
+```bash
+docker-compose down -v
+```
+
+---
+
+### Option B: Run Services Manually
+
+#### 1. Configure Environment Variables
 Copy template configuration files:
 * **Node Backend**: `backend/.env.example` $\rightarrow$ `backend/.env`
 * **FastAPI Backend**: `backend_fastapi/.env`
@@ -198,16 +222,16 @@ DATABASE_NAME="jira_clone"
 JWT_SECRET="Jira_Clone_my_Project_2026_super_secure_key_32bytes"
 ```
 
-### 2. Launch Services
+#### 2. Launch Individual Services
 
-#### Terminal 1: Node.js Express API Server (Port 5000)
+##### Terminal 1: Node.js Express API Server (Port 5000)
 ```bash
 cd backend
 npm install
 npm run dev
 ```
 
-#### Terminal 2: FastAPI Async Engine (Port 8000)
+##### Terminal 2: FastAPI Async Engine (Port 8000)
 ```bash
 cd backend_fastapi
 python -m venv venv
@@ -216,7 +240,7 @@ pip install -r requirements.txt
 python -m uvicorn app.main:app --port 8000 --reload
 ```
 
-#### Terminal 3: React 19 Web App (Port 5173)
+##### Terminal 3: React 19 Web App (Port 5173)
 ```bash
 cd frontend
 npm install

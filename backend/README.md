@@ -31,7 +31,8 @@ MongoDB collections mapped via Prisma ORM:
 * **Workspace**: Multi-tenant workspace container with covered indexes (`key`, `owner_id`).
 * **User**: Credential storage, Google OAuth binding (`google_id`), and token versioning (`tokenVersion`).
 * **Task**: Prioritization, Kanban status columns, covered indexes `@@index([workspaceId, status, priority])` and `@@index([workspaceId, deleted, createdAt])`.
-* **IdempotencyKey**: Prevents duplicate API mutations on network retries.
+* **Notification**: In-app notifications feed with `read`, `type`, `userId`, `workspaceId`.
+* **AuditLog**: Chronological administrative and task activity event trail.
 
 ---
 
@@ -49,8 +50,14 @@ MongoDB collections mapped via Prisma ORM:
 ### Tasks (`/api/tasks`)
 * `GET /api/tasks?workspaceId=<id>` — Fetches tasks scoped to active workspace.
 * `POST /api/tasks` — Creates new task.
-* `PUT /api/tasks/:id` — Modifies task status, priority, or assignee.
+* `PUT /api/tasks/:id` — Modifies task status, priority, or assignee (`assigneeId`).
 * `DELETE /api/tasks/:id` — Soft-deletes task.
+
+### Notifications & Activity (`/api/notifications`, `/api/workspaces/:workspaceId/activity`)
+* `GET /api/notifications` — Fetches user notifications for workspace and account.
+* `PATCH /api/notifications/:id/read` — Marks single notification as read.
+* `PATCH /api/notifications/read-all` — Marks all notifications as read.
+* `GET /api/workspaces/:workspaceId/activity` — Fetches workspace activity feed.
 
 ---
 
