@@ -1975,8 +1975,9 @@ export default function Dashboard() {
                       );
                     })}
                     {(Array.isArray(workspaces) ? workspaces : []).filter(ws => ws && ws.template_type === 'kanban').length === 0 && (
-                      <div className="text-[10px] text-text-secondary-muted/65 italic pl-5 py-1">
-                        No Kanban boards
+                      <div className="text-[10px] text-text-secondary-muted/65 pl-5 py-1 flex items-center space-x-1.5 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-border-secondary/60"></span>
+                        <span>No Kanban boards</span>
                       </div>
                     )}
                   </div>
@@ -2013,8 +2014,9 @@ export default function Dashboard() {
                       );
                     })}
                     {(Array.isArray(workspaces) ? workspaces : []).filter(ws => ws && ws.template_type === 'scrum').length === 0 && (
-                      <div className="text-[10px] text-text-secondary-muted/65 italic pl-5 py-1">
-                        No Scrum boards
+                      <div className="text-[10px] text-text-secondary-muted/65 pl-5 py-1 flex items-center space-x-1.5 font-medium">
+                        <span className="w-1.5 h-1.5 rounded-full bg-border-secondary/60"></span>
+                        <span>No Scrum boards</span>
                       </div>
                     )}
                   </div>
@@ -2141,24 +2143,24 @@ export default function Dashboard() {
         </div>
 
         {/* Sidebar Footer — Pinned User Account & Sign Out */}
-        <div className="p-3 border-t border-border-secondary/40 bg-card-secondary mt-auto pb-safe">
-          <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-dominant-offset/30 border border-border-secondary/30">
-            <div className="flex items-center space-x-2.5 min-w-0">
+        <div className="p-3 border-t border-border-secondary/40 bg-card-secondary mt-auto pb-safe w-full min-w-0 box-border overflow-hidden">
+          <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-dominant-offset/30 border border-border-secondary/30 w-full min-w-0 overflow-hidden">
+            <div className="flex items-center space-x-2.5 min-w-0 flex-1 overflow-hidden">
               <div className="w-8 h-8 rounded-full bg-accent/20 border border-accent/30 text-accent font-bold flex items-center justify-center text-xs flex-shrink-0">
                 {getUserInitials()}
               </div>
-              <div className="truncate">
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="text-xs font-bold text-text-secondary truncate leading-tight">
                   {user?.name || 'User'}
                 </p>
-                <p className="text-[10px] text-text-secondary-muted truncate leading-tight mt-0.5">
+                <p className="text-[10px] text-text-secondary-muted truncate leading-tight mt-0.5" title={user?.email}>
                   {user?.email || 'user@jira.clone'}
                 </p>
               </div>
             </div>
             <button
               onClick={onLogout}
-              className="p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer border-none bg-transparent flex-shrink-0 touch-target"
+              className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer border-none bg-transparent flex-shrink-0"
               title="Sign Out"
               aria-label="Sign Out of Account"
             >
