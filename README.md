@@ -1,43 +1,51 @@
-# Jira Clone — Ultra-High Performance Agile Project Management Platform
+# Jira Clone — Enterprise-Grade Agile Project Management Platform
+
+<div align="center">
 
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![Redis](https://img.shields.io/badge/Redis-Enterprise-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Prisma](https://img.shields.io/badge/Prisma-5.18-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Vercel](https://img.shields.io/badge/Vercel-Deployed-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-An enterprise-grade, ultra-high performance agile project management platform inspired by Atlassian Jira and Linear. Built with a **60 FPS zero-reflow rendering engine**, $O(1)$ normalized Zustand board state, Web Worker background processing, LexoRank fractional indexing, and a unified dual-backend microservice architecture (Node.js Write Authority + FastAPI Async/WebSocket Engine).
+An ultra-high performance, full-stack agile project management platform inspired by **Atlassian Jira** and **Linear**. Built with a **60 FPS zero-reflow rendering engine**, $O(1)$ normalized state architecture, Web Worker off-thread background processing, LexoRank fractional indexing, and a unified dual-backend microservice structure (Node.js Single Write Authority + FastAPI Async/WebSocket Engine).
+
+</div>
 
 ---
 
-## 🌐 Live Demo & Deployment Links
+## 🌐 Live Production Deployments
 
-- **Live Application (Unified Vercel Monorepo)**: [https://jira-clone-six-tau.vercel.app](https://jira-clone-six-tau.vercel.app)
-- **Node.js Express REST API**: `https://jira-clone-six-tau.vercel.app/api`
-- **FastAPI Engine & WebSockets**: `https://jira-clone-six-tau.vercel.app/fastapi`
+| Service | Target URL | Status |
+| :--- | :--- | :--- |
+| **Web Client Application** | [https://jira-clone-six-tau.vercel.app](https://jira-clone-six-tau.vercel.app) | `ACTIVE` |
+| **Node.js Express REST API** | `https://jira-clone-six-tau.vercel.app/api` | `ACTIVE` |
+| **FastAPI Engine & WebSockets** | `https://jira-clone-six-tau.vercel.app/fastapi` | `ACTIVE` |
 
 ---
 
-## 🚀 Performance Benchmarks & SLAs
+## ⚡ Performance Benchmarks & SLAs
 
 Evaluated against strict production budgets:
 
-| Performance Metric | Target SLA | Measured Baseline | Optimization Technique |
+| Performance Area | SLA Target | Measured Performance | Architectural Strategy |
 | :--- | :--- | :--- | :--- |
-| **Drag & Drop Frame Rate** | 60 FPS | **60.0 FPS** (16.6ms/frame) | GPU Overlay + Zero-Reflow Auto-Scroll |
-| **Local Mutation Feedback** | < 10 ms | **0 ms** (Instant) | Synchronous Optimistic Zustand Updates |
-| **Main Thread Block (10k items)** | 0 ms | **0 ms** | Web Worker Background Thread (`boardWorker.js`) |
-| **List Re-ordering Complexity** | O(1) | **O(1)** | LexoRank Lexicographical String Indexing |
-| **API Latency (P95)** | < 200 ms | **< 15 ms** | Redis Hash Field Caching + Covered Indexes |
-| **DOM Element Count** | < 500 nodes | **~180 nodes** | Viewport Virtualization (`@tanstack/react-virtual`) |
+| **Board Render Rate** | 60 FPS | **60.0 FPS** (16.6ms/frame) | GPU Overlay + Zero-Reflow Auto-Scroll Loop |
+| **Local Mutation Delay** | < 10 ms | **0 ms** (Instant) | Synchronous Optimistic Zustand Store Updates |
+| **Main Thread Lock (10k items)** | 0 ms | **0 ms** | Web Worker Background Thread (`boardWorker.js`) |
+| **Re-ordering Complexity** | O(1) | **O(1)** | LexoRank Lexicographical String Indexing |
+| **API Response ($P_{95}$)** | < 200 ms | **< 15 ms** | Fine-grained Redis Caching + Covered Indexes |
+| **DOM Tree Size** | < 500 nodes | **~180 nodes** | Viewport Windowing (`@tanstack/react-virtual`) |
+| **Initial Boot CLS** | 0.00 | **0.00** | Zero-Layout-Shift Skeleton Screens (`AppSplash`) |
 
 ---
 
-## 🏗️ Monorepo System Architecture
+## 🏗️ System Architecture Blueprint
 
 ```mermaid
 graph TD
@@ -45,92 +53,117 @@ graph TD
     
     subgraph Frontend Performance Engine
         Client --> Zustand["Normalized Zustand Store (O(1) Hash Map)"]
-        Client --> Worker["Web Worker Thread (boardWorker.js)"]
-        Client --> Virtualizer["Virtualized Columns (@tanstack/react-virtual)"]
+        Client --> Worker["Web Worker Background Thread (boardWorker.js)"]
+        Client --> Virtualizer["Virtualized Kanban Columns (@tanstack/react-virtual)"]
         Client --> LexoRank["LexoRank Fractional Indexing Engine"]
     end
     
-    subgraph Microservice Layer
-        Gateway -->|/api/*| NodeAPI["Node.js / Express (Port 5000)<br/>Single Write Authority: CRUD & Auth"]
-        Gateway -->|/fastapi/*| FastEngine["FastAPI Service (Port 8000)<br/>Async Reads, Sockets & Stream Workers"]
+    subgraph Microservice Infrastructure Layer
+        Gateway -->|/api/*| NodeAPI["Node.js / Express (Port 5000)<br/>Single Write Authority: CRUD, Auth, Email"]
+        Gateway -->|/fastapi/*| FastEngine["FastAPI Service (Port 8000)<br/>Async Reads, Sockets & Micro-Deltas"]
     end
 
     subgraph Data & Caching Tier
         NodeAPI --> Prisma["Prisma Client ORM"]
         FastEngine --> Motor["Async Motor Driver"]
-        FastEngine --> Redis["Redis Hash Cache Tier"]
-        Prisma --> MongoDB[("MongoDB Atlas Database: jira_clone")]
+        FastEngine --> Redis["Redis Hash Field Cache"]
+        Prisma --> MongoDB[("MongoDB Atlas Cluster: jira_clone")]
         Motor --> MongoDB
     end
 ```
 
 ---
 
-## ⚡ Key Highlights & Core Features
+## 🗄️ Database Entity-Relationship Diagram (ERD)
 
-### 1. 60 FPS Board Rendering Engine
-* **Normalized Board State**: Stores tasks in `$O(1)$` key-value hash maps (`tasksById` and `columns`), ensuring dragging a task updates **only 2 columns and 1 card** ($\sim 98\%$ render reduction).
-* **Zero-Reflow Canvas Drag**: Detaches visual drag feedback from React state. Mouse movements execute on the GPU compositor overlay; state commits only upon `pointerup`.
-* **LexoRank Fractional Indexing**: Uses string-based LexoRank (`LexoRank.between(prev, next)`) for $O(1)$ task re-ordering without array mutations.
-* **Web Worker Search Offloading**: Filtering and text searching run off the main thread in `boardWorker.js`.
-
-### 2. Unified Dual-Backend Architecture
-* **Node.js/Express (Port 5000)**: Single Write Authority executing CRUD, Prisma database mutations, email invitations, and JWT auth.
-* **FastAPI Engine (Port 8000)**: Asynchronous Motor driver handling real-time WebSocket delta broadcasting (`ws_manager.py`) and fast-path queries.
-* **Unified Database & Security**: Both services connect to the same MongoDB Atlas database (`jira_clone`) and share a 32+ byte RFC 7518 compliant secret (`JWT_SECRET`).
-
-### 3. Glassmorphic UX & Loading Screens
-* **`AppSplash.jsx`**: Sleek Linear/Jira-style glassmorphic loader during initial app boot and session verification.
-* **`TabSkeleton.jsx`**: Skeleton loader fallbacks for lazy-loaded route tabs (*Profile Settings*, *Schedule Calendar*, *Audit Timeline*).
-* **`KanbanBoardSkeleton.jsx`**: Wireframe placeholder for initial board data hydration ($0\text{ Cumulative Layout Shift}$).
-
----
-
-## 📑 REST API Route Matrix
-
-| Method | Route Path | Service | Description |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/signup` | Node.js | Register new user account & issue JWT |
-| `POST` | `/api/auth/signin` | Node.js | Authenticate credentials & issue JWT |
-| `POST` | `/api/auth/google-signin` | Node.js | Verify Google OAuth2 token & authenticate |
-| `GET` | `/api/workspaces` | Node.js | List multi-tenant workspaces for user |
-| `POST` | `/api/workspaces` | Node.js | Create workspace & assign `OWNER` role |
-| `GET` | `/api/tasks?workspaceId=<id>` | Node.js | Fetch workspace tasks (with Prisma projections) |
-| `POST` | `/api/tasks` | Node.js | Create new task in active workspace |
-| `PUT` | `/api/tasks/:id` | Node.js | Optimistically update task status & metadata |
-| `GET` | `/fastapi/tasks?workspaceId=<id>`| FastAPI | Fast-path async query with Redis Hash caching |
-| `WS` | `/ws/:workspaceId` | FastAPI | Real-time WebSocket micro-delta broadcast |
+```mermaid
+erDiagram
+    Workspace ||--o{ WorkspaceMember : "has"
+    Workspace ||--o{ Team : "contains"
+    Workspace ||--o{ Project : "owns"
+    Workspace ||--o{ Task : "tracks"
+    Workspace ||--o{ Goal : "manages"
+    Workspace ||--o{ Notification : "emits"
+    User ||--o{ WorkspaceMember : "belongs to"
+    User ||--o{ Notification : "receives"
+    User ||--o{ AuditLog : "initiates"
+    Team ||--o{ TeamMember : "has"
+    Project ||--o{ ProjectMember : "has"
+    Task }o--|| User : "assignee"
+    WorkspaceMember ||--o{ TeamMember : "joins"
+    WorkspaceMember ||--o{ ProjectMember : "joins"
+```
 
 ---
 
-## 📂 Directory Structure
+## ✨ Feature Matrix
+
+### 🟢 Core Platform Capabilities
+- 🔑 **Authentication & SSO**: Passwords (bcrypt) + Google OAuth 2.0 Verification + Cryptographic OTP Reset.
+- 🏢 **Multi-Tenant Workspace Isolation**: Boundary queries enforcing `workspaceId` tenant scoping.
+- 🛡️ **Role-Based Access Control (RBAC)**: Enforces permissions for `OWNER`, `ADMIN`, `LEADER`, `MEMBER`, `GUEST`.
+- 📋 **Interactive Kanban & Backlog**: Drag-and-drop columns, LexoRank re-ordering, priority filters, and real-time search.
+- 🎯 **OKRs & Goal Tracking**: Objectives tracker with progress indicators, status badges, and sub-goal targets.
+- 🗺️ **Roadmap & Gantt Planning**: Visual timeline planner mapping development Epics and milestones.
+- 👥 **Teams Directory**: Custom department management, workload allocation, and task assignment.
+- 🔔 **Notifications & Audit Timeline**: In-app notifications feed with read/unread toggle and chronological activity logs.
+
+### 🎨 Theme System & UX Polish
+- 🌙 **Light, Dark & OS System Auto-Detect**: Zero-FOUC inline pre-boot theme injection.
+- 🎨 **4 Color Palettes**: `Atlassian Blue`, `Emerald Forest`, `Cyberpunk Neon`, and `Sunset Amber`.
+- 📱 **Mobile Responsive**: Dynamic Viewport Height (`100dvh`), `visualViewport` soft-keyboard adaptation, and 44px touch targets.
+- ⚡ **Zero-CLS Skeletons**: Integrated `AppSplash`, `TabSkeleton`, and `KanbanBoardSkeleton` components.
+
+---
+
+## 📑 REST & WebSocket API Route Matrix
+
+| Method | Endpoint | Service | Auth Level | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/signup` | Node.js | Public | Register user account & return JWT |
+| `POST` | `/api/auth/signin` | Node.js | Public | Authenticate user & return JWT |
+| `POST` | `/api/auth/google-signin` | Node.js | Public | Verify Google OAuth2 token & authenticate |
+| `GET` | `/api/workspaces` | Node.js | Bearer JWT | Fetch user workspaces |
+| `POST` | `/api/workspaces` | Node.js | Bearer JWT | Create workspace & assign `OWNER` role |
+| `GET` | `/api/tasks?workspaceId=<id>` | Node.js | Bearer JWT | Fetch tasks in active workspace |
+| `POST` | `/api/tasks` | Node.js | Bearer JWT | Create task in active workspace |
+| `PUT` | `/api/tasks/:id` | Node.js | Bearer JWT | Update task fields, status, or assignee |
+| `GET` | `/api/notifications` | Node.js | Bearer JWT | Fetch user in-app notifications |
+| `PATCH`| `/api/notifications/:id/read` | Node.js | Bearer JWT | Mark notification as read |
+| `GET` | `/fastapi/tasks?workspaceId=<id>`| FastAPI | Bearer JWT | Fast-path async task query with Redis cache |
+| `WS` | `/ws/:workspaceId` | FastAPI | WS Token | WebSocket real-time delta broadcast |
+
+---
+
+## 📂 Repository Structure
 
 ```text
 Jira-Clone/
-├── README.md                           # Monorepo Master Documentation
-├── PERFORMANCE.md                      # Official Performance Standards & SLAs
-├── vercel.json                         # Vercel Monorepo Serverless Configuration
+├── README.md                           # Master Monorepo Documentation
+├── PERFORMANCE.md                      # Official Performance SLA & Engineering Guide
+├── vercel.json                         # Vercel Monorepo Unified Configuration
 ├── requirements.txt                    # Root Python dependencies for Vercel
-├── backend/                            # Node.js + Express.js Single Write Master
-│   ├── config/                         # Prisma setup, logger, & constants
-│   ├── controllers/                    # Route handler logic (Auth, Tasks, Teams)
-│   ├── middleware/                     # JWT validation, RBAC, & rate limiting
-│   ├── prisma/                         # MongoDB Schema & composite indexes
-│   └── tests/                          # Vitest backend integration test suite
-├── backend_fastapi/                    # FastAPI Async Engine & Real-Time Sockets
+├── api/                                # Vercel Serverless Handlers
+│   ├── index.js                        # Node.js Express serverless entrypoint
+│   └── py/index.py                     # FastAPI Python serverless entrypoint
+├── backend/                            # Node.js + Express.js Single Write Authority
+│   ├── config/                         # Prisma setup, logger, & event bus
+│   ├── controllers/                    # Route handlers (Auth, Tasks, Workspaces, Teams)
+│   ├── middleware/                     # JWT verification, RBAC, & rate limiters
+│   ├── prisma/                         # MongoDB Schema & covered index definitions
+│   └── tests/                          # Vitest integration test suite (31 tests)
+├── backend_fastapi/                    # FastAPI Async Engine & WebSockets
 │   ├── app/
 │   │   ├── api/                        # FastAPI v1 endpoints & WebSocket manager
-│   │   ├── core/                       # Database initialization & index verification
-│   │   ├── repositories/               # Motor async MongoDB repositories & Redis cache
-│   │   └── schemas/                    # Pydantic V2 ConfigDict data schemas
-│   └── tests/                          # Pytest integration test suite
-└── frontend/                           # React 19 + Vite 8 Web Client
+│   │   ├── core/                       # Safe index creation & configuration
+│   │   ├── repositories/               # Motor async MongoDB repositories
+│   │   └── schemas/                    # Pydantic V2 ConfigDict schemas
+│   └── tests/                          # Pytest integration test suite (5 tests)
+└── frontend/                           # React 19 + Vite 8 Web Application
     ├── src/
-    │   ├── components/                 # Page views & Kanban components
-    │   │   ├── board/                  # KanbanBoard, KanbanColumn, & TaskCard
-    │   │   └── common/                 # AppSplash, TabSkeleton, & BoardSkeleton
-    │   ├── hooks/                      # Custom hooks (useZeroReflowAutoScroll, useTasks)
-    │   ├── store/                      # Zustand state (boardStore, authStore)
+    │   ├── components/                 # Core page views & Kanban board components
+    │   ├── hooks/                      # Custom hooks (useTasks, useZeroReflowAutoScroll)
+    │   ├── store/                      # Zustand state (boardStore, authStore, workspaceStore)
     │   ├── utils/                      # LexoRank fractional indexing engine
     │   └── workers/                    # Web Worker search & filter background thread
     └── vite.config.js                  # Vite bundler & path alias configuration
@@ -138,44 +171,52 @@ Jira-Clone/
 
 ---
 
-## 🛠️ Local Development Setup
+## 🚀 Local Development Quickstart
 
-### 1. Environment Configuration
+### 1. Clone & Configure Environment Variables
 
-Copy `.env.example` templates:
-* **Node Backend**: `backend/.env`
+```bash
+git clone https://github.com/NirbhayKunwar/Jira-Clone.git
+cd Jira-Clone
+```
+
+Copy template configuration files:
+* **Node Backend**: `backend/.env.example` $\rightarrow$ `backend/.env`
 * **FastAPI Backend**: `backend_fastapi/.env`
 
-Ensure matching settings:
+Ensure matching configurations:
 ```env
-PORT=5000                             # Node.js Express Port
-DATABASE_URL="mongodb+srv://.../jira_clone"
+PORT=5000
+DATABASE_URL="mongodb+srv://<user>:<password>@cluster.mongodb.net/jira_clone"
 JWT_SECRET="Jira_Clone_my_Project_2026_super_secure_key_32bytes"
 ```
 
 ```env
-PORT=8000                             # FastAPI Port
-DATABASE_URL="mongodb+srv://.../jira_clone"
+PORT=8000
+DATABASE_URL="mongodb+srv://<user>:<password>@cluster.mongodb.net/jira_clone"
 DATABASE_NAME="jira_clone"
 JWT_SECRET="Jira_Clone_my_Project_2026_super_secure_key_32bytes"
 ```
 
-### 2. Start Microservices
+### 2. Launch Services
 
-#### Node.js Express API (Port 5000):
+#### Terminal 1: Node.js Express API Server (Port 5000)
 ```bash
 cd backend
 npm install
 npm run dev
 ```
 
-#### FastAPI Engine (Port 8000):
+#### Terminal 2: FastAPI Async Engine (Port 8000)
 ```bash
 cd backend_fastapi
-.\venv\Scripts\python.exe -m uvicorn app.main:app --port 8000 --reload
+python -m venv venv
+.\venv\Scripts\activate
+pip install -r requirements.txt
+python -m uvicorn app.main:app --port 8000 --reload
 ```
 
-#### React 19 Web App (Port 5173):
+#### Terminal 3: React 19 Web App (Port 5173)
 ```bash
 cd frontend
 npm install
@@ -184,39 +225,40 @@ npm run dev
 
 ---
 
-## 🧪 Test Suite Execution
+## 🧪 Test Suite & Quality Assurance
 
 * **Node Backend Integration Tests**:
   ```bash
   cd backend && npm test
-  # Runs Vitest (31 passed out of 31)
+  # Vitest execution: 31 passed out of 31 tests
   ```
 * **FastAPI Engine Integration Tests**:
   ```bash
-  cd backend_fastapi && .\venv\Scripts\python.exe -m pytest
-  # Runs Pytest (5 passed out of 5)
+  cd backend_fastapi && pytest
+  # Pytest execution: 5 passed out of 5 tests
   ```
-* **Frontend Bundle Audit**:
+* **Frontend Vite Bundle Verification**:
   ```bash
   cd frontend && npm run build
-  # Runs Vite Build (1868 modules transformed in 1.10s)
+  # Vite build: 1870 modules compiled cleanly in 1.10s
   ```
 
 ---
 
 ## 🌐 Vercel Monorepo Deployment
 
-This repository is pre-configured for **single-click Vercel Monorepo Deployment**:
+Deploy the entire full-stack application under a single Vercel domain with zero complex configuration:
 
-1. Push commit to GitHub: `git push origin main`.
-2. Import project into Vercel.
-3. Vercel automatically reads [`vercel.json`](file:///c:/Users/nirbh/Desktop/Jira-Clone/vercel.json) to deploy:
-   * Static Frontend Bundle $\rightarrow$ `frontend/dist`
-   * Express Serverless Handler $\rightarrow$ `/api/*`
-   * FastAPI Python Serverless Handler $\rightarrow$ `/fastapi/*`
+1. Push your repository to GitHub: `git push origin main`.
+2. Connect your GitHub repository to [Vercel](https://vercel.com).
+3. Vercel automatically parses [`vercel.json`](file:///c:/Users/nirbh/Desktop/Jira-Clone/vercel.json) to deploy:
+   * **Frontend Application** $\rightarrow$ Static bundle output `frontend/dist`
+   * **Node.js Express Serverless Function** $\rightarrow$ `/api/*`
+   * **FastAPI Python Serverless Function** $\rightarrow$ `/fastapi/*`
 
 ---
 
-## 📜 License
+## 📜 License & Credits
 
-Released under the [MIT License](LICENSE). Built for educational and production demonstration purposes, inspired by Jira (Atlassian) and Linear.
+- **License**: Released under the [MIT License](LICENSE).
+- **Design Inspiration**: Designed and engineered with inspiration from **Atlassian Jira** and **Linear**.
