@@ -1117,7 +1117,7 @@ export const deleteAccount = async (req, res) => {
       logger.warn(`Workspace member removal warning during user deletion: ${e.message}`);
     }
 
-    // Step 4: Clean up user notifications, invitations, and uploaded attachment files
+    // Step 4: Clean up user notifications, invitations, and uploaded files/attachments
     try {
       await prisma.notification.deleteMany({
         where: { userId: currentUserId }
