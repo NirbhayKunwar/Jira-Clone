@@ -51,7 +51,7 @@ export const verifyGoogleIdToken = async (credential) => {
   };
 };
 
-export const handleGoogleLogin = async ({ credential, ipAddress, userAgent }) => {
+export const handleGoogleLogin = async ({ credential, ipAddress, userAgent, autoRegister = false }) => {
   let googleUser;
   try {
     googleUser = await verifyGoogleIdToken(credential);
@@ -66,13 +66,33 @@ export const handleGoogleLogin = async ({ credential, ipAddress, userAgent }) =>
     throw err;
   }
 
-  const { sub, email, picture } = googleUser;
+  const { sub, email, picture, name } = googleUser;
 
   // Search DB for existing user
-  const user = await userRepository.findByEmail(email);
+  let user = await userRepository.findByEmail(email);
 
-  // Rule 1, 3, 7: Never create user automatically from Google OAuth
+  // Auto-register user if requested or throw AccountNotFoundError if not found
   if (!user) {
+    if (autoRegister) {
+      user = await userRepository.createGoogleUser({
+        email,
+        name,
+        googleId: sub,
+        avatarUrl: picture
+      });
+      await auditLogRepository.createAuditLog({
+        actorId: user.id,
+        targetUserId: user.id,
+        action: 'GoogleAccountCreated',
+        resourceType: 'User',
+        newValue: 'Created new user account via Google OAuth',
+        ipAddress,
+        userAgent
+      });
+      logger.info(`[GOOGLE AUTH] Auto-created user account for ${email} via Google SSO`);
+      return user;
+    }
+
     await auditLogRepository.createAuditLog({
       action: 'GoogleLoginFailed',
       resourceType: 'User',

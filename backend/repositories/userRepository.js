@@ -35,6 +35,19 @@ export const linkGoogleAccount = async (userId, googleId, avatarUrl = null) => {
   });
 };
 
+export const createGoogleUser = async ({ email, name, googleId, avatarUrl = null }) => {
+  return await prisma.user.create({
+    data: {
+      email: email.toLowerCase(),
+      name: name || email.split('@')[0],
+      googleId,
+      avatarUrl: avatarUrl || null,
+      authProvider: 'GOOGLE',
+      status: 'ACTIVE'
+    }
+  });
+};
+
 export const updateUser = async (id, data) => {
   return await prisma.user.update({
     where: { id },

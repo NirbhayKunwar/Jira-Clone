@@ -228,15 +228,21 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          credential: jwtToken
+          credential: jwtToken,
+          autoRegister: isSignUp || true // Auto-register Google OAuth users seamlessly
         })
       });
  
       const backendData = await backendRes.json();
  
       if (!backendRes.ok) {
+        const message = backendData.message || 'Google Sign-In backend verification failed.';
+        if (backendData.code === 'ACCOUNT_NOT_FOUND') {
+          setIsSignUp(true);
+          throw new Error('No account found for this Google email. We switched you to Sign Up to create your account!');
+        }
         const detail = backendData.error?.message ? `: ${backendData.error.message}` : '';
-        throw new Error(`${backendData.message || 'Google Sign-In backend verification failed.'}${detail}`);
+        throw new Error(`${message}${detail}`);
       }
  
       setGoogleLoading(false);
@@ -247,7 +253,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       setGoogleLoading(false);
       setError(err.message || 'An error occurred during Google Sign-In processing. Make sure the server is running.');
     }
-  }, [login, onSuccess]);
+  }, [login, onSuccess, isSignUp]);
 
   useEffect(() => {
     const initializeGoogle = () => {

@@ -32,7 +32,8 @@ const changePasswordSchema = z.object({
 });
 
 const googleSignInSchema = z.object({
-  credential: z.string()
+  credential: z.string(),
+  autoRegister: z.boolean().optional()
 });
 
 const updateProfileSchema = z.object({
@@ -1075,10 +1076,11 @@ export const deleteUser = async (req, res) => {
 export const googleSignIn = async (req, res) => {
   try {
     const body = googleSignInSchema.parse(req.body);
-    const { credential } = body;
+    const { credential, autoRegister } = body;
 
     const user = await handleGoogleLogin({
       credential,
+      autoRegister,
       ipAddress: req.ip,
       userAgent: req.headers['user-agent']
     });
