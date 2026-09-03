@@ -61,7 +61,7 @@ enum RecordStatus {
 model Workspace {
   id              String            @id @default(auto()) @map("_id") @db.ObjectId
   name            String
-  key             String            @unique
+  key             String
   templateType    String            @map("template_type")
   boardName       String            @map("board_name")
   description     String?
@@ -76,6 +76,9 @@ model Workspace {
   projects        Project[]
   workspaceMembers WorkspaceMember[]
   invitations     Invitation[]
+
+  @@unique([ownerId, key])
+  @@index([key])
   teams           Team[]
 
   @@index([ownerId])

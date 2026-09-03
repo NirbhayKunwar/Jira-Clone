@@ -102,6 +102,14 @@ export const createWorkspace = asyncHandler(async (req, res, next) => {
   const { name, key, template_type, board_name, description, sprint_duration, wip_limit } = body;
   const normalizedKey = key.toUpperCase().trim();
 
+  // Check if current user already owns a workspace with this project key
+  const existingUserWorkspace = await prisma.workspace.findFirst({
+    where: { ownerId: req.user.id, key: normalizedKey }
+  });
+  if (existingUserWorkspace) {
+    return next(new AppError(`You already have a workspace with project key "${normalizedKey}". Please choose a different key for your new project.`, 400));
+  }
+
   try {
     const { w } = await prisma.$transaction(async (tx) => {
       const workspaceRecord = await tx.workspace.create({
@@ -142,6 +150,11 @@ export const createWorkspace = asyncHandler(async (req, res, next) => {
         }
       });
 
+      await tx.user.update({
+        where: { id: req.user.id },
+        data: { hasConfiguredWorkspace: true }
+      });
+
       return { w: workspaceRecord };
     });
 
@@ -162,7 +175,7 @@ export const createWorkspace = asyncHandler(async (req, res, next) => {
     return res.status(201).json({ success: true, message: 'Workspace created successfully.', data: mapped });
   } catch (error) {
     if (error.code === 'P2002') {
-      return next(new AppError('A project with this key already exists. Please choose a different key.', 400));
+      return next(new AppError('You already have a workspace with this project key. Please choose a different key.', 400));
     }
     return next(error);
   }

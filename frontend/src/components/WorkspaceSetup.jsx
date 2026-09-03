@@ -114,8 +114,11 @@ export default function WorkspaceSetup() {
         setWorkspaces([...currentWorkspaces, newWorkspace]);
         setActiveWorkspace(newWorkspace);
 
-        // Update user config in DB if needed
-        if (user && !user.hasConfiguredWorkspace) {
+        // Update user config in state & DB
+        if (user) {
+          const updatedUserObj = { ...user, hasConfiguredWorkspace: true };
+          updateProfile(updatedUserObj);
+
           try {
             const token = localStorage.getItem('jira_token');
             const profileRes = await fetch(`${API_URL}/api/auth/profile`, {
@@ -132,14 +135,17 @@ export default function WorkspaceSetup() {
             });
             if (profileRes.ok) {
               const updatedData = await profileRes.json();
-              updateProfile(updatedData.user);
+              const fetchedUser = updatedData?.data?.user || updatedData?.user;
+              if (fetchedUser) {
+                updateProfile(fetchedUser);
+              }
             }
           } catch (profileErr) {
             console.error('Error updating user configuration state:', profileErr);
           }
         }
 
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }, 1500);
 
     } catch (err) {
