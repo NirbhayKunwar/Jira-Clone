@@ -150,13 +150,18 @@ export const createWorkspace = asyncHandler(async (req, res, next) => {
         }
       });
 
-      await tx.user.update({
+      return { w: workspaceRecord };
+    });
+
+    // Update user configuration state outside transaction to prevent MongoDB write conflicts
+    try {
+      await prisma.user.update({
         where: { id: req.user.id },
         data: { hasConfiguredWorkspace: true }
       });
-
-      return { w: workspaceRecord };
-    });
+    } catch (userErr) {
+      logger.warn(`[WORKSPACE SERVICE] Could not update hasConfiguredWorkspace for user ${req.user.id}: ${userErr.message}`);
+    }
 
     logger.info(`[WORKSPACE SERVICE] Created workspace and membership via Prisma transaction: ${w.name} (${w.key})`);
 

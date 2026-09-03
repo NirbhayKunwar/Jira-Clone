@@ -1073,6 +1073,52 @@ export const deleteUser = async (req, res) => {
   }
 };
 
+export const deleteAccount = async (req, res) => {
+  try {
+    const currentUserId = req.user ? req.user.id : null;
+    if (!currentUserId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized.', data: null });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: currentUserId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.', data: null });
+    }
+
+    // Clean up memberships, tasks, and delete user account
+    await prisma.$transaction([
+      prisma.task.updateMany({
+        where: { assigneeId: currentUserId },
+        data: { assigneeId: null }
+      }),
+      prisma.workspaceMember.deleteMany({
+        where: { userId: currentUserId }
+      }),
+      prisma.user.delete({
+        where: { id: currentUserId }
+      })
+    ]);
+
+    logger.info(`[USER SERVICE] Self-account deletion completed for user ${user.email} (${currentUserId})`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Your workspace account has been permanently deleted.',
+      data: null
+    });
+  } catch (error) {
+    logger.error('Delete Self Account Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete account. Please try again.',
+      data: null
+    });
+  }
+};
+
 export const googleSignIn = async (req, res) => {
   try {
     const body = googleSignInSchema.parse(req.body);

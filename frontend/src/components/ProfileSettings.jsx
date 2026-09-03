@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Briefcase, MapPin, Key, ShieldCheck, CheckCircle2, AlertCircle, Camera, Eye, EyeOff, Plus, Trash2, Link } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Mail, Briefcase, MapPin, Key, ShieldCheck, CheckCircle2, AlertCircle, Camera, Eye, EyeOff, Plus, Trash2, Link, AlertTriangle, Loader2 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuthStore } from '../store/authStore';
 
@@ -19,9 +20,16 @@ const LinkedinIcon = (props) => (
 );
 
 export default function ProfileSettings() {
-  const { user, updateProfile } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, updateProfile, logout } = useAuthStore();
   // Account Details States
   const [name, setName] = useState(user?.name || '');
+
+  // Delete Account States
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [role, setRole] = useState(user?.role || 'Full Stack Engineer');
   const [dept, setDept] = useState(user?.dept || 'Core Engineering');
   const [location, setLocation] = useState(user?.location || '');
@@ -254,6 +262,36 @@ export default function ProfileSettings() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') return;
+    setIsDeletingAccount(true);
+    setDeleteError('');
+
+    try {
+      const token = localStorage.getItem('jira_token');
+      const response = await fetch(`${API_URL}/api/auth/account`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
+        }
+      });
+
+      const resJson = await response.json();
+      if (!response.ok) {
+        throw new Error(resJson.message || 'Failed to delete account.');
+      }
+
+      setIsDeletingAccount(false);
+      setShowDeleteModal(false);
+      logout();
+      navigate('/auth', { replace: true });
+    } catch (err) {
+      console.error('Account Deletion Error:', err);
+      setDeleteError(err.message || 'An error occurred while deleting your account.');
+      setIsDeletingAccount(false);
+    }
+  };
 
   // Get User Avatar Initials
   const getUserInitials = () => {
@@ -678,6 +716,35 @@ export default function ProfileSettings() {
             </form>
           </div>
 
+          {/* Section 3: Danger Zone — Delete Account */}
+          <div className="bg-red-500/5 p-6 rounded-xl border border-red-500/20 shadow-sm space-y-4">
+            <h4 className="font-bold text-red-600 dark:text-red-400 text-sm border-b border-red-500/20 pb-3 flex items-center space-x-2">
+              <Trash2 className="w-4.5 h-4.5 text-red-500" />
+              <span>Danger Zone</span>
+            </h4>
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h5 className="text-xs font-bold text-text-secondary">Delete Account</h5>
+                <p className="text-[11px] text-text-secondary-muted mt-0.5">
+                  Permanently delete your user profile, workspace memberships, and personal data from Jira Clone.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(true);
+                  setDeleteConfirmText('');
+                  setDeleteError('');
+                }}
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500 hover:text-white text-red-600 dark:text-red-400 text-xs font-bold rounded-lg border border-red-500/20 hover:border-transparent transition-all cursor-pointer flex items-center justify-center space-x-1.5 whitespace-nowrap min-h-[38px]"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Account</span>
+              </button>
+            </div>
+          </div>
+
         </div>
 
         {/* Right Column: Cards */}
@@ -830,6 +897,73 @@ export default function ProfileSettings() {
         </div>
 
       </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-[fade-in_150ms_ease-out]">
+          <div className="w-full max-w-md bg-card-secondary border border-border-secondary rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-center space-x-3 text-red-500">
+              <div className="p-2.5 rounded-full bg-red-500/10 border border-red-500/20">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-text-secondary">Delete Workspace Account</h3>
+                <p className="text-xs text-text-secondary-muted">This action is permanent and cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-dominant text-xs text-text-secondary space-y-2 border border-border-secondary/60">
+              <p className="font-semibold text-text-secondary">Deleting your account will:</p>
+              <ul className="list-disc pl-4 space-y-1 text-text-secondary-muted text-[11px]">
+                <li>Permanently remove your user credentials and profile.</li>
+                <li>Remove your workspace memberships and project roles.</li>
+                <li>Unassign all tasks assigned to your user account.</li>
+              </ul>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-text-secondary mb-1.5">
+                Type <span className="font-mono text-red-500 font-bold">DELETE</span> to confirm:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-red-500/50"
+              />
+            </div>
+
+            {deleteError && (
+              <p className="text-xs text-red-500 font-semibold">{deleteError}</p>
+            )}
+
+            <div className="flex justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                  setDeleteError('');
+                }}
+                className="px-4 py-2 text-xs font-bold text-text-secondary hover:bg-dominant rounded-lg border border-border-secondary transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount}
+                onClick={handleDeleteAccount}
+                className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer"
+              >
+                {isDeletingAccount && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Confirm Account Deletion</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
