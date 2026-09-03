@@ -97,7 +97,7 @@ model User {
   linkedinUrl            String?           @map("linkedin_url")
   websiteUrl             String?           @map("workspace_url") // Keep schema-level map compatibility
   otherLinks             String?           @map("other_links")
-  googleId               String?           @unique @map("google_id")
+  googleId               String?           @map("google_id")
   avatarUrl              String?           @map("avatar_url")
   status                 RecordStatus      @default(ACTIVE)
   hasConfiguredWorkspace Boolean?          @default(false) @map("has_configured_workspace")
@@ -120,6 +120,7 @@ model User {
   ledTeams               Team[]            @relation("TeamLead")
 
   @@index([teamOwnerId])
+  @@index([googleId])
   @@map("users")
 }
 

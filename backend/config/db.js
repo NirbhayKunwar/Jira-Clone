@@ -22,6 +22,17 @@ export const initializeDatabase = async () => {
 
 async function runSeedingLogic() {
   try {
+    // Self-healing: Drop legacy single-field unique index key_1 on workspaces if present
+    try {
+      await prisma.$runCommandRaw({
+        dropIndexes: 'workspaces',
+        index: 'key_1'
+      });
+      console.log('[DATABASE] Self-healed: Dropped legacy global unique index key_1 on workspaces collection.');
+    } catch (indexErr) {
+      // Legacy index already dropped or non-existent
+    }
+
     // Self-healing: promote all existing standalone users (no teamOwnerId) to ADMIN
     const standaloneMembers = await prisma.user.findMany({
       where: { rbacRole: 'MEMBER' },
