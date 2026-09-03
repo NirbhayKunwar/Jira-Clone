@@ -1117,7 +1117,7 @@ export const deleteAccount = async (req, res) => {
       logger.warn(`Workspace member removal warning during user deletion: ${e.message}`);
     }
 
-    // Step 4: Clean up user notifications and invitations
+    // Step 4: Clean up user notifications, invitations, and uploaded attachment files
     try {
       await prisma.notification.deleteMany({
         where: { userId: currentUserId }
@@ -1125,8 +1125,11 @@ export const deleteAccount = async (req, res) => {
       await prisma.invitation.deleteMany({
         where: { inviterId: currentUserId }
       });
+      await prisma.attachment.deleteMany({
+        where: { uploaderId: currentUserId }
+      });
     } catch (e) {
-      logger.warn(`Notification/invitation removal warning during user deletion: ${e.message}`);
+      logger.warn(`Notification/invitation/attachment removal warning during user deletion: ${e.message}`);
     }
 
     // Step 5: Delete user record from database
