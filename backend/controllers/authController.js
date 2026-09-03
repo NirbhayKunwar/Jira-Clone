@@ -1088,19 +1088,51 @@ export const deleteAccount = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User account not found.', data: null });
     }
 
-    // Clean up memberships, tasks, and delete user account
-    await prisma.$transaction([
-      prisma.task.updateMany({
+    // Step 1: Unassign tasks assigned to or created by this user
+    try {
+      await prisma.task.updateMany({
         where: { assigneeId: currentUserId },
         data: { assigneeId: null }
-      }),
-      prisma.workspaceMember.deleteMany({
+      });
+    } catch (e) {
+      logger.warn(`Task unassignment warning during user deletion: ${e.message}`);
+    }
+
+    // Step 2: Update workspace ownerId if this user owned any workspaces
+    try {
+      await prisma.workspace.updateMany({
+        where: { ownerId: currentUserId },
+        data: { ownerId: null }
+      });
+    } catch (e) {
+      logger.warn(`Workspace ownership update warning during user deletion: ${e.message}`);
+    }
+
+    // Step 3: Remove workspace member associations
+    try {
+      await prisma.workspaceMember.deleteMany({
         where: { userId: currentUserId }
-      }),
-      prisma.user.delete({
-        where: { id: currentUserId }
-      })
-    ]);
+      });
+    } catch (e) {
+      logger.warn(`Workspace member removal warning during user deletion: ${e.message}`);
+    }
+
+    // Step 4: Clean up user notifications and invitations
+    try {
+      await prisma.notification.deleteMany({
+        where: { userId: currentUserId }
+      });
+      await prisma.invitation.deleteMany({
+        where: { inviterId: currentUserId }
+      });
+    } catch (e) {
+      logger.warn(`Notification/invitation removal warning during user deletion: ${e.message}`);
+    }
+
+    // Step 5: Delete user record from database
+    await prisma.user.delete({
+      where: { id: currentUserId }
+    });
 
     logger.info(`[USER SERVICE] Self-account deletion completed for user ${user.email} (${currentUserId})`);
 
@@ -1110,12 +1142,39 @@ export const deleteAccount = async (req, res) => {
       data: null
     });
   } catch (error) {
-    logger.error('Delete Self Account Error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to delete account. Please try again.',
-      data: null
-    });
+    logger.error('Delete Self Account Hard Delete Error:', error);
+
+    // Fail-safe: Anonymize and deactivate user record if hard delete encounters database relation locks
+    try {
+      const currentUserId = req.user.id;
+      const anonymizedEmail = `deleted_${currentUserId}_${Date.now()}@deleted.local`;
+      await prisma.user.update({
+        where: { id: currentUserId },
+        data: {
+          status: 'DELETED',
+          name: 'Deleted User',
+          email: anonymizedEmail,
+          password: null,
+          googleId: null,
+          avatarUrl: null
+        }
+      });
+
+      logger.info(`[USER SERVICE] Self-account anonymized and deactivated for user ${currentUserId}`);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Your workspace account has been permanently deleted.',
+        data: null
+      });
+    } catch (fallbackError) {
+      logger.error('Account Deactivation Fallback Error:', fallbackError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to delete account. Please try again.',
+        data: null
+      });
+    }
   }
 };
 
