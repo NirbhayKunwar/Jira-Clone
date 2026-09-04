@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { API_URL } from '../config/api';
@@ -23,6 +23,14 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
+
+  const viewRef = useRef(view);
+  const agreeTermsRef = useRef(agreeTerms);
+
+  useEffect(() => {
+    viewRef.current = view;
+    agreeTermsRef.current = agreeTerms;
+  }, [view, agreeTerms]);
 
   const handleClose = () => {
     if (onClose) {
@@ -224,7 +232,10 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         return;
       }
 
-      if (view === 'signup' && !agreeTerms) {
+      const currentView = viewRef.current;
+      const currentAgreeTerms = agreeTermsRef.current;
+
+      if (currentView === 'signup' && !currentAgreeTerms) {
         setError('You must accept the Terms of Service and Privacy Policy to create an account.');
         return;
       }
@@ -233,9 +244,9 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       setError('');
       setSuccess('');
       
-      // On Sign In tab (view === 'login'), autoRegister is strictly FALSE so Google Sign-In will NOT auto-signup a new user.
-      // On Sign Up tab (view === 'signup'), autoRegister is TRUE.
-      const isAutoRegister = view === 'signup';
+      // On Sign In tab (currentView === 'login'), autoRegister is strictly FALSE so Google Sign-In will NOT auto-signup a new user.
+      // On Sign Up tab (currentView === 'signup'), autoRegister is TRUE.
+      const isAutoRegister = currentView === 'signup';
 
       // Send Google raw credential to backend endpoint for secure verification
       const backendRes = await fetch(`${API_URL}/api/auth/google-signin`, {
@@ -266,7 +277,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       setGoogleLoading(false);
       setError(err.message || 'An error occurred during Google Sign-In processing. Make sure the server is running.');
     }
-  }, [login, onSuccess, view, agreeTerms]);
+  }, [login, onSuccess]);
 
   useEffect(() => {
     const initializeGoogle = () => {
