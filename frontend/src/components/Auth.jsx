@@ -22,6 +22,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
   const [email, setEmail] = useState(initialEmailVal);
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [agreeTerms, setAgreeTerms] = useState(false);
 
   const handleClose = () => {
     if (onClose) {
@@ -150,6 +151,10 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       setError('Full name is required');
       return;
     }
+    if (view === 'signup' && !agreeTerms) {
+      setError('You must accept the Terms of Service and Privacy Policy to create an account.');
+      return;
+    }
 
     setLoading(true);
     
@@ -218,18 +223,27 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         setError('No credential returned from Google.');
         return;
       }
+
+      if (view === 'signup' && !agreeTerms) {
+        setError('You must accept the Terms of Service and Privacy Policy to create an account.');
+        return;
+      }
  
       setGoogleLoading(true);
       setError('');
       setSuccess('');
       
+      // On Sign In tab (view === 'login'), autoRegister is strictly FALSE so Google Sign-In will NOT auto-signup a new user.
+      // On Sign Up tab (view === 'signup'), autoRegister is TRUE.
+      const isAutoRegister = view === 'signup';
+
       // Send Google raw credential to backend endpoint for secure verification
       const backendRes = await fetch(`${API_URL}/api/auth/google-signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           credential: jwtToken,
-          autoRegister: view === 'signup' || true // Auto-register Google OAuth users seamlessly
+          autoRegister: isAutoRegister
         })
       });
  
@@ -238,8 +252,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       if (!backendRes.ok) {
         const message = backendData.message || 'Google Sign-In backend verification failed.';
         if (backendData.code === 'ACCOUNT_NOT_FOUND') {
-          setView('signup');
-          throw new Error('No account found for this Google email. We switched you to Sign Up to create your account!');
+          throw new Error('No account exists with this Google email. Please switch to the Sign Up tab to create your account.');
         }
         const detail = backendData.error?.message ? `: ${backendData.error.message}` : '';
         throw new Error(`${message}${detail}`);
@@ -253,7 +266,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       setGoogleLoading(false);
       setError(err.message || 'An error occurred during Google Sign-In processing. Make sure the server is running.');
     }
-  }, [login, onSuccess, view]);
+  }, [login, onSuccess, view, agreeTerms]);
 
   useEffect(() => {
     const initializeGoogle = () => {
@@ -568,10 +581,12 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                       id="terms"
                       type="checkbox"
                       required
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
                       className="h-4 w-4 mt-0.5 rounded border-border-secondary text-accent focus:ring-accent accent-accent bg-dominant cursor-pointer"
                     />
-                    <label htmlFor="terms" className="ml-2 block text-xs text-text-secondary-muted leading-relaxed">
-                      I agree to the <a href="#" onClick={(e) => e.preventDefault()} className="text-accent hover:underline">Terms of Service</a> and <a href="#" onClick={(e) => e.preventDefault()} className="text-accent hover:underline">Privacy Policy</a>.
+                    <label htmlFor="terms" className="ml-2 block text-xs text-text-secondary-muted leading-relaxed cursor-pointer select-none">
+                      I agree to the <a href="#" onClick={(e) => e.preventDefault()} className="text-accent hover:underline font-semibold">Terms of Service</a> and <a href="#" onClick={(e) => e.preventDefault()} className="text-accent hover:underline font-semibold">Privacy Policy</a>.
                     </label>
                   </div>
                 ) : (
@@ -601,17 +616,17 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                   {loading ? (
                     <>
                       <Loader2 className="w-4.5 h-4.5 mr-2 animate-spin" />
-                      <span>Processing...</span>
+                      <span>Sending OTP...</span>
                     </>
                   ) : (
                     <>
-                      <span>{forgotStep === 1 ? 'Send OTP Verification' : 'Reset Password'}</span>
+                      <span>{forgotStep === 1 ? 'Send Verification OTP' : 'Update Password'}</span>
                       <ArrowRight className="w-4 h-4 ml-1.5" />
                     </>
                   )}
                 </button>
 
-                <div className="text-center pt-2">
+                <div className="text-center pt-1">
                   <button
                     type="button"
                     onClick={() => {
@@ -621,6 +636,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                       setNewPassword('');
                       setError('');
                       setSuccess('');
+                      setAgreeTerms(false);
                     }}
                     className="text-xs font-bold text-accent hover:text-accent-hover hover:underline focus:outline-none cursor-pointer border-none bg-transparent"
                   >
@@ -672,6 +688,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                   onClick={() => {
                     setError('');
                     setSuccess('');
+                    setAgreeTerms(false);
                     setView(view === 'login' ? 'signup' : 'login');
                   }}
                   className="font-bold text-accent hover:text-accent-hover focus:outline-none cursor-pointer"
