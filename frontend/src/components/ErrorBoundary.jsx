@@ -13,9 +13,22 @@ class ErrorBoundary extends Component {
   componentDidCatch(error, errorInfo) {
     this.setState({ errorInfo });
     console.error('[React Error Boundary Caught]', error, errorInfo);
+
+    // Auto-recover from dynamic import / chunk loading errors after new Vercel deployments
+    const isChunkLoadError =
+      error &&
+      (error.name === 'ChunkLoadError' ||
+        error.message?.includes('Failed to fetch dynamically imported module') ||
+        error.message?.includes('Importing a module script failed'));
+
+    if (isChunkLoadError && !sessionStorage.getItem('chunk_retry')) {
+      sessionStorage.setItem('chunk_retry', 'true');
+      window.location.reload();
+    }
   }
 
   handleReset = () => {
+    sessionStorage.removeItem('chunk_retry');
     this.setState({ hasError: false, error: null, errorInfo: null });
   };
 

@@ -12,24 +12,48 @@ import { useTheme } from './hooks/useTheme';
 // Each page is a separate async chunk so authenticated users never download
 // landing-page code, and anonymous users never download Dashboard code.
 
+// Safe lazy wrapper that auto-reloads the page when Vercel deployments update chunk hashes
+function safeLazy(importFn) {
+  return lazy(async () => {
+    try {
+      const component = await importFn();
+      sessionStorage.removeItem('chunk_retry');
+      return component;
+    } catch (error) {
+      const isChunkLoadError =
+        error &&
+        (error.name === 'ChunkLoadError' ||
+          error.message?.includes('Failed to fetch dynamically imported module') ||
+          error.message?.includes('Importing a module script failed'));
+
+      if (isChunkLoadError && !sessionStorage.getItem('chunk_retry')) {
+        sessionStorage.setItem('chunk_retry', 'true');
+        window.location.reload();
+        return new Promise(() => {});
+      }
+      throw error;
+    }
+  });
+}
+
 // Landing page sections — grouped in one chunk so a single network request
 // fetches the whole landing page after the first paint.
-const Navbar              = lazy(() => import('./components/Navbar'));
-const Hero                = lazy(() => import('./components/Hero'));
-const InteractiveShowcase = lazy(() => import('./components/InteractiveShowcase'));
-const TeamTabs            = lazy(() => import('./components/TeamTabs'));
-const FeaturesGrid        = lazy(() => import('./components/FeaturesGrid'));
-const Integrations        = lazy(() => import('./components/Integrations'));
-const Testimonials        = lazy(() => import('./components/Testimonials'));
-const FAQ                 = lazy(() => import('./components/FAQ'));
-const Footer              = lazy(() => import('./components/Footer'));
+const Navbar              = safeLazy(() => import('./components/Navbar'));
+const Hero                = safeLazy(() => import('./components/Hero'));
+const InteractiveShowcase = safeLazy(() => import('./components/InteractiveShowcase'));
+const TeamTabs            = safeLazy(() => import('./components/TeamTabs'));
+const FeaturesGrid        = safeLazy(() => import('./components/FeaturesGrid'));
+const Integrations        = safeLazy(() => import('./components/Integrations'));
+const Testimonials        = safeLazy(() => import('./components/Testimonials'));
+const FAQ                 = safeLazy(() => import('./components/FAQ'));
+const Footer              = safeLazy(() => import('./components/Footer'));
 
 // Auth — separate chunk, loaded only on /auth /login /signup
-const Auth = lazy(() => import('./components/Auth'));
+const Auth = safeLazy(() => import('./components/Auth'));
 
 // Protected app pages
-const Dashboard      = lazy(() => import('./components/Dashboard'));
-const WorkspaceSetup = lazy(() => import('./components/WorkspaceSetup'));
+const Dashboard      = safeLazy(() => import('./components/Dashboard'));
+const WorkspaceSetup = safeLazy(() => import('./components/WorkspaceSetup'));
 
 import AppSplash from './components/common/AppSplash';
 
