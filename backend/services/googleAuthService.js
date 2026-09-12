@@ -14,12 +14,27 @@ export const verifyGoogleIdToken = async (credential) => {
     throw new InvalidTokenError('Google ID token is required.');
   }
 
-  const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
-  if (!verifyRes.ok) {
-    throw new InvalidTokenError('Google SSO token verification failed.');
+  let verifyRes;
+  try {
+    verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+  } catch (netErr) {
+    logger.error('[GOOGLE VERIFICATION ERROR] Network failure connecting to Google OAuth servers:', netErr);
+    throw new InvalidTokenError('Unable to connect to Google OAuth servers for verification.');
   }
 
-  const payload = await verifyRes.json();
+  if (!verifyRes.ok) {
+    let errBody;
+    try { errBody = await verifyRes.json(); } catch {}
+    const detail = errBody?.error_description || errBody?.error || 'Google SSO token verification failed.';
+    throw new InvalidTokenError(`Google SSO token verification failed: ${detail}`);
+  }
+
+  let payload;
+  try {
+    payload = await verifyRes.json();
+  } catch (jsonErr) {
+    throw new InvalidTokenError('Invalid response payload from Google OAuth server.');
+  }
 
   // Validate issuer (iss)
   const validIssuers = ['accounts.google.com', 'https://accounts.google.com'];

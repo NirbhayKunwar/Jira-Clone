@@ -71,7 +71,7 @@ app.use(cors(corsOptions));
 app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginOpenerPolicy: { policy: "unsafe-none" }
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
 }));
 
 // Parse Cookie headers for secure HttpOnly cookie auth

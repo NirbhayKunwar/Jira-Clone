@@ -1210,7 +1210,7 @@ export const googleSignIn = async (req, res) => {
       });
     }
 
-    if (error instanceof AppError || (error.statusCode && error.code)) {
+    if (error.statusCode || error.code || error.isOperational || error instanceof AppError) {
       return res.status(error.statusCode || 400).json({
         success: false,
         code: error.code || 'AUTHENTICATION_ERROR',
