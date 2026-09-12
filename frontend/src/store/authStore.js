@@ -4,6 +4,10 @@ export const useAuthStore = create((set) => {
   // Safe initializers for server environments or local storage
   const getInitialUser = () => {
     try {
+      // Purge insecure legacy token if present in localStorage
+      if (typeof window !== 'undefined' && localStorage.getItem('jira_token')) {
+        localStorage.removeItem('jira_token');
+      }
       const saved = localStorage.getItem('jira_current_user');
       return saved ? JSON.parse(saved) : null;
     } catch {
@@ -19,15 +23,11 @@ export const useAuthStore = create((set) => {
     return localStorage.getItem('mode') || 'system';
   };
 
-  const getInitialToken = () => {
-    return localStorage.getItem('jira_token') || null;
-  };
-
   return {
     user: getInitialUser(),
     theme: getInitialTheme(),
     mode: getInitialMode(),
-    token: getInitialToken(),
+    token: null,
 
     setUser: (user) => {
       if (user) {
@@ -39,12 +39,8 @@ export const useAuthStore = create((set) => {
     },
 
     setToken: (token) => {
-      if (token) {
-        localStorage.setItem('jira_token', token);
-      } else {
-        localStorage.removeItem('jira_token');
-      }
-      set({ token });
+      // Deprecated token setter; auth relies on secure HttpOnly cookies
+      set({ token: null });
     },
 
     setTheme: (theme) => {
@@ -60,10 +56,12 @@ export const useAuthStore = create((set) => {
       });
     },
 
-    login: (user, token) => {
+    login: (user) => {
       localStorage.setItem('jira_current_user', JSON.stringify(user));
-      localStorage.setItem('jira_token', token);
-      set({ user, token });
+      if (localStorage.getItem('jira_token')) {
+        localStorage.removeItem('jira_token');
+      }
+      set({ user, token: null });
     },
 
     logout: () => {

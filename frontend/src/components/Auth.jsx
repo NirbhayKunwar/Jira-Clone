@@ -282,8 +282,8 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
   useEffect(() => {
     const initializeGoogle = () => {
       if (window.google) {
-        const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com";
-        if (!googleInitialized) {
+        const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+        if (googleClientId && !googleInitialized) {
           window.google.accounts.id.initialize({
             client_id: googleClientId,
             callback: handleCredentialResponse

@@ -71,7 +71,7 @@ export const getEvents = asyncHandler(async (req, res, next) => {
   if (!(await verifyWorkspaceAccess(ws.id, req.user.id))) {
     return next(new AppError('Forbidden. Access to this workspace is denied.', 403));
   }
-  
+
   const events = await prisma.scheduleEvent.findMany({
     where: { workspaceId: parsedWorkspaceId },
     orderBy: { eventDate: 'asc' }
@@ -106,6 +106,13 @@ export const createEvent = asyncHandler(async (req, res, next) => {
 
   if (!(await verifyWorkspaceAccess(ws.id, req.user.id))) {
     return next(new AppError('Forbidden. Access to this workspace is denied.', 403));
+  }
+
+  const member = await prisma.workspaceMember.findFirst({
+    where: { workspaceId: ws.id, userId: req.user.id, status: 'ACTIVE' }
+  });
+  if (ws.ownerId !== req.user.id && !['OWNER', 'ADMIN'].includes(member?.role)) {
+    return next(new AppError('Forbidden. Workspace Owner or Admin role required to create events.', 403));
   }
 
   const e = await prisma.scheduleEvent.create({
@@ -164,6 +171,13 @@ export const deleteEvent = asyncHandler(async (req, res, next) => {
     }
   }
 
+  const member = await prisma.workspaceMember.findFirst({
+    where: { workspaceId: targetWorkspaceId, userId: req.user.id, status: 'ACTIVE' }
+  });
+  if (eventCheck.workspace?.ownerId !== req.user.id && !['OWNER', 'ADMIN'].includes(member?.role)) {
+    return next(new AppError('Forbidden. Workspace Owner or Admin role required to delete events.', 403));
+  }
+
   await prisma.scheduleEvent.delete({
     where: { id: eventId }
   });
@@ -174,5 +188,3 @@ export const deleteEvent = asyncHandler(async (req, res, next) => {
 
   return res.status(200).json({ success: true, message: 'Event deleted successfully.', data: null });
 });
-
-

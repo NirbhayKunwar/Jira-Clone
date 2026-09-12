@@ -22,12 +22,12 @@ import logger from './config/logger.js';
 // Load environment variables
 dotenv.config();
 
-// Startup check: Validate required environment variables gracefully
-if (!process.env.DATABASE_URL) {
-  console.warn('[WARN] DATABASE_URL is not set in environment variables');
+// Startup check: Fail safely if required JWT secret is missing (except in test mode)
+if (!process.env.JWT_SECRET && process.env.NODE_ENV !== 'test') {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set. Application cannot start safely.');
 }
-if (!process.env.JWT_SECRET) {
-  console.warn('[WARN] JWT_SECRET is not set in environment variables. Using fallback key.');
+if (!process.env.DATABASE_URL && process.env.NODE_ENV !== 'test') {
+  console.warn('[WARN] DATABASE_URL is not set in environment variables');
 }
 
 const app = express();
@@ -35,40 +35,30 @@ app.set('trust proxy', 1);
 
 // ─── Compression ──────────────────────────────────────────────────────────
 // Compress all responses >1 kB with gzip (brotli in Node 18+).
-// Reduces JSON payload sizes by ~70-80% over the wire, cutting network time
-// for every API response without any code changes to controllers.
 app.use(compression({ level: 6, threshold: 1024 }));
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS with whitelist configuration
+// Enable CORS with explicit whitelist configuration
 const parseOrigins = (value = '') => value
   .split(',')
   .map(origin => origin.trim())
   .filter(Boolean);
 
 const clientOrigins = [
+  ...parseOrigins(process.env.CORS_ORIGINS),
   ...parseOrigins(process.env.CLIENT_URL),
   ...parseOrigins(process.env.FRONTEND_URL),
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
   'http://localhost:5173',
   'http://localhost:3000',
-  'http://localhost:5000'
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
 ].filter(Boolean);
+
 const corsWhitelist = [...new Set(clientOrigins)];
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    const isAllowedOrigin = corsWhitelist.includes(origin);
-    let isAllowedVercelPreview = false;
-
-    try {
-      isAllowedVercelPreview = process.env.NODE_ENV === 'production'
-        && /\.vercel\.app$/.test(new URL(origin).hostname);
-    } catch {
-      isAllowedVercelPreview = false;
-    }
-
-    if (isAllowedOrigin || isAllowedVercelPreview || process.env.NODE_ENV !== 'production') {
+    if (corsWhitelist.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -108,12 +98,25 @@ const CACHEABLE_GET_PATHS = [
   '/api/v1/schedule-events',
 ];
 
+const NON_CACHEABLE_SUB_RESOURCES = [
+  '/audit-logs',
+  '/members',
+  '/invitations',
+  '/activity',
+  '/workspace-members'
+];
+
 app.use((req, res, next) => {
-  if (req.method === 'GET' && CACHEABLE_GET_PATHS.some(p => req.path.startsWith(p))) {
-    // private: don't share between users in a shared CDN cache
-    // max-age=10: browser may serve cached response for up to 10 s
-    // stale-while-revalidate=30: after 10 s, serve stale while fetching fresh in background
-    res.set('Cache-Control', 'private, max-age=10, stale-while-revalidate=30');
+  if (req.method === 'GET') {
+    const isPathMatched = CACHEABLE_GET_PATHS.some(p => req.path.startsWith(p));
+    const isSubResource = NON_CACHEABLE_SUB_RESOURCES.some(s => req.path.includes(s));
+
+    if (isPathMatched && !isSubResource) {
+      // private: don't share between users in a shared CDN cache
+      // max-age=10: browser may serve cached response for up to 10 s
+      // stale-while-revalidate=30: after 10 s, serve stale while fetching fresh in background
+      res.set('Cache-Control', 'private, max-age=10, stale-while-revalidate=30');
+    }
   }
   next();
 });
@@ -133,12 +136,12 @@ app.get('/ready', (req, res) => {
 const registerRoutes = (routerPath) => {
   app.use(`${routerPath}/auth`, authRoutes);
   app.use(`${routerPath}/tasks`, taskRoutes);
-  app.use(`${routerPath}/workspaces`, workspaceMembersRoutes); // Mounts invitations and member operations under workspaces
-  app.use(`${routerPath}/workspace-members`, workspaceMembersRoutes); // Mount alias for workspace-members
   app.use(`${routerPath}/workspaces`, workspaceRoutes);
+  app.use(`${routerPath}/workspaces`, workspaceMembersRoutes);
+  app.use(`${routerPath}/workspace-members`, workspaceMembersRoutes);
   app.use(`${routerPath}/goals`, goalRoutes);
-  app.use(`${routerPath}/teams`, teamMembersRoutes); // Mounts team details/members under teams
   app.use(`${routerPath}/teams`, teamRoutes);
+  app.use(`${routerPath}/teams`, teamMembersRoutes);
   app.use(`${routerPath}/schedule-events`, scheduleEventRoutes);
   app.use(`${routerPath}/notifications`, notificationsRoutes);
   app.use(`${routerPath}/members`, membersRoutes);

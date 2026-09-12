@@ -153,13 +153,6 @@ const TaskCard = memo(function TaskCard({
       </div>
     </div>
   );
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.taskId === nextProps.taskId &&
-    prevProps.isDragging === nextProps.isDragging &&
-    prevProps.isPreview === nextProps.isPreview &&
-    prevProps.isClaiming === nextProps.isClaiming
-  );
 });
 
 TaskCard.displayName = 'TaskCard';

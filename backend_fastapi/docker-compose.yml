@@ -10,11 +10,11 @@ services:
     environment:
       - PORT=8000
       - NODE_ENV=production
-      - DATABASE_URL=mongodb+srv://nirbhay22_db_user:zuJSxpiB1fg7DxpE@cluster0.1znibl0.mongodb.net/jira_clone?retryWrites=true&w=majority&appName=Cluster0
-      - DATABASE_NAME=jira_clone
-      - JWT_SECRET=Jira_Clone_my_Project_2026_super_secure_key_32bytes
-      - JWT_REFRESH_SECRET=Jira_Clone_my_Project_2026_refresh
-      - GOOGLE_CLIENT_ID=304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com
+      - DATABASE_URL=${DATABASE_URL:-mongodb://mongodb:27017/jira_clone}
+      - DATABASE_NAME=${DATABASE_NAME:-jira_clone}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
     restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]

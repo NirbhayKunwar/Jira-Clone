@@ -5,30 +5,14 @@ services:
     image: mongo:7.0
     container_name: jira-clone-mongodb
     restart: always
-    ports:
-      - "27017:27017"
     environment:
-      MONGO_INITDB_DATABASE: jira_clone
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-change_me_in_prod}
+      MONGO_INITDB_DATABASE: ${DATABASE_NAME:-jira_clone}
     volumes:
       - mongodata:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - jira-network
-
-  redis:
-    image: redis:7.2-alpine
-    container_name: jira-clone-redis
-    restart: always
-    ports:
-      - "6379:6379"
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "mongosh", "-u", "${MONGO_INITDB_ROOT_USERNAME:-admin}", "-p", "${MONGO_INITDB_ROOT_PASSWORD:-change_me_in_prod}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,15 +30,13 @@ services:
     environment:
       PORT: 5000
       NODE_ENV: production
-      DATABASE_URL: mongodb://mongodb:27017/jira_clone
-      DATABASE_NAME: jira_clone
-      JWT_SECRET: Jira_Clone_my_Project_2026_super_secure_key_32bytes
-      JWT_REFRESH_SECRET: Jira_Clone_my_Project_2026_refresh
-      REDIS_URL: redis://redis:6379
+      DATABASE_URL: ${DATABASE_URL:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-change_me_in_prod}@mongodb:27017/${DATABASE_NAME:-jira_clone}?authSource=admin}
+      DATABASE_NAME: ${DATABASE_NAME:-jira_clone}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
     depends_on:
       mongodb:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks:
       - jira-network
@@ -70,15 +52,13 @@ services:
     environment:
       PORT: 8000
       NODE_ENV: production
-      DATABASE_URL: mongodb://mongodb:27017/jira_clone
-      DATABASE_NAME: jira_clone
-      JWT_SECRET: Jira_Clone_my_Project_2026_super_secure_key_32bytes
-      JWT_REFRESH_SECRET: Jira_Clone_my_Project_2026_refresh
-      REDIS_URL: redis://redis:6379
+      DATABASE_URL: ${DATABASE_URL:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD:-change_me_in_prod}@mongodb:27017/${DATABASE_NAME:-jira_clone}?authSource=admin}
+      DATABASE_NAME: ${DATABASE_NAME:-jira_clone}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
     depends_on:
       mongodb:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks:
       - jira-network
@@ -103,8 +83,6 @@ services:
 
 volumes:
   mongodata:
-    driver: local
-  redisdata:
     driver: local
 
 networks:

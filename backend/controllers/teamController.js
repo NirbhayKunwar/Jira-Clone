@@ -132,6 +132,10 @@ export const createTeam = asyncHandler(async (req, res, next) => {
     if (!member) {
       return next(new AppError('Forbidden. You do not belong to this workspace.', 403));
     }
+
+    if (!['OWNER', 'ADMIN'].includes(member.role)) {
+      return next(new AppError('Forbidden. Workspace Owner or Admin role required to create teams.', 403));
+    }
   }
 
   if (workspaceId) {
@@ -360,5 +364,3 @@ export const deleteTeam = asyncHandler(async (req, res, next) => {
 
   return res.status(200).json({ success: true, message: 'Team archived successfully.', data: null });
 });
-
-

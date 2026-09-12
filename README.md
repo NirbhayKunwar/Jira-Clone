@@ -7,7 +7,6 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![Redis](https://img.shields.io/badge/Redis-Cache-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Prisma](https://img.shields.io/badge/Prisma-5.18-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
@@ -40,7 +39,7 @@ Evaluated against strict production budgets:
 | **Local Mutation Delay** | < 10 ms | **0 ms** (Instant) | Synchronous Optimistic Zustand Store Updates |
 | **Main Thread Lock (10k items)** | 0 ms | **0 ms** | Web Worker Background Thread (`boardWorker.js`) |
 | **Re-ordering Complexity** | O(1) | **O(1)** | LexoRank Lexicographical String Indexing |
-| **API Response ($P_{95}$)** | < 200 ms | **< 15 ms** | Fine-grained Redis Caching + Covered Indexes |
+| **API Response ($P_{95}$)** | < 200 ms | **< 15 ms** | Async Mongo Driver + Covered Indexes |
 | **DOM Tree Size** | < 500 nodes | **~180 nodes** | Viewport Windowing (`@tanstack/react-virtual`) |
 | **Initial Boot CLS** | 0.00 | **0.00** | Zero-Layout-Shift Skeleton Screens (`AppSplash`) |
 | **Layout Scroll Integrity** | 100% Locked | **Sticky Sidebar + Viewport Scroll** | Viewport Height Locking (`h-dvh overflow-hidden`) |
@@ -65,10 +64,9 @@ graph TD
         Gateway -->|/fastapi/*| FastEngine["FastAPI Service (Port 8000)<br/>Async Reads, Sockets & Micro-Deltas"]
     end
 
-    subgraph Data & Caching Tier
+    subgraph Data Tier
         NodeAPI --> Prisma["Prisma Client ORM"]
         FastEngine --> Motor["Async Motor Driver"]
-        FastEngine --> Redis["Redis Hash Field Cache"]
         Prisma --> MongoDB[("MongoDB Atlas Cluster: jira_clone")]
         Motor --> MongoDB
     end
@@ -134,7 +132,7 @@ erDiagram
 | `GET` | `/api/notifications` | Node.js | Bearer JWT | Fetch user in-app notifications |
 | `PATCH`| `/api/notifications/:id/read` | Node.js | Bearer JWT | Mark notification as read |
 | `PATCH`| `/api/notifications/read-all` | Node.js | Bearer JWT | Mark all notifications as read |
-| `GET` | `/fastapi/tasks?workspaceId=<id>`| FastAPI | Bearer JWT | Fast-path async task query with Redis cache |
+| `GET` | `/fastapi/tasks?workspaceId=<id>`| FastAPI | Bearer JWT | Fast-path async task query via Motor driver |
 | `WS` | `/ws/:workspaceId` | FastAPI | WS Token | WebSocket real-time delta broadcast |
 
 ---

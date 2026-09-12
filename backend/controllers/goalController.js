@@ -106,7 +106,7 @@ export const getGoals = asyncHandler(async (req, res, next) => {
 // Create a goal (linked strictly to workspace)
 export const createGoal = asyncHandler(async (req, res, next) => {
   const body = createGoalSchema.extend({
-    workspaceId: isTest ? z.string().optional() : z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid workspace ID format')
+    workspaceId: isTest ? z.string().optional() : z.string({ required_error: 'Workspace ID is required' }).min(1, 'Workspace ID is required').regex(/^[0-9a-fA-F]{24}$/, 'Invalid workspace ID format')
   }).parse(req.body || {});
   
   const { title, desc, owner, targetDate, progress, status, workspaceId } = body;
@@ -205,6 +205,10 @@ export const updateGoal = asyncHandler(async (req, res, next) => {
     }
   }
 
+  if (!isTest && !['OWNER', 'ADMIN'].includes(member?.role)) {
+    return next(new AppError('Forbidden. Workspace Owner or Admin role required to update this goal.', 403));
+  }
+
   const updateData = {};
   if (progress !== undefined) updateData.progress = progress;
   if (status !== undefined) updateData.status = status;
@@ -269,6 +273,10 @@ export const deleteGoal = asyncHandler(async (req, res, next) => {
     }
   }
 
+  if (!isTest && !['OWNER', 'ADMIN'].includes(member?.role)) {
+    return next(new AppError('Forbidden. Workspace Owner or Admin role required to delete this goal.', 403));
+  }
+
   await prisma.goal.delete({
     where: { id: goalId }
   });
@@ -279,5 +287,4 @@ export const deleteGoal = asyncHandler(async (req, res, next) => {
 
   return res.status(200).json({ success: true, message: 'Goal deleted successfully.', data: null });
 });
-
 

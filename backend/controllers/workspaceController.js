@@ -215,11 +215,13 @@ export const deleteWorkspace = asyncHandler(async (req, res, next) => {
     return next(new AppError('Forbidden. Only the Workspace Owner can delete this workspace.', 403));
   }
 
-  await prisma.workspace.delete({
-    where: { id: workspaceId }
-  });
+  await prisma.$transaction([
+    prisma.goal.deleteMany({ where: { workspaceId } }),
+    prisma.notification.deleteMany({ where: { workspaceId } }),
+    prisma.workspace.delete({ where: { id: workspaceId } })
+  ]);
 
-  logger.info(`[WORKSPACE SERVICE] Deleted workspace ${id} and all cascading tasks via Prisma.`);
-  return res.status(200).json({ success: true, message: 'Workspace and its tasks deleted successfully.', data: null });
+  logger.info(`[WORKSPACE SERVICE] Deleted workspace ${id} and all cascading goals, notifications, tasks via Prisma.`);
+  return res.status(200).json({ success: true, message: 'Workspace and its resources deleted successfully.', data: null });
 });
 

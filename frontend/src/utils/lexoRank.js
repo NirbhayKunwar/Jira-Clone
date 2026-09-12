@@ -38,8 +38,11 @@ export class LexoRank {
 
   static shift(rank, dir) {
     if (!rank) return dir > 0 ? 'm' : 'f';
-    const charCode = rank.charCodeAt(rank.length - 1) + dir;
-    const safeChar = Math.min(Math.max(97, charCode), 122); // Clamp between 'a' and 'z'
-    return rank.slice(0, -1) + String.fromCharCode(safeChar);
+    const lastChar = rank.charCodeAt(rank.length - 1);
+    const nextChar = lastChar + dir;
+    if (nextChar < 97 || nextChar > 122) {
+      return rank + 'm';
+    }
+    return rank.slice(0, -1) + String.fromCharCode(nextChar);
   }
 }

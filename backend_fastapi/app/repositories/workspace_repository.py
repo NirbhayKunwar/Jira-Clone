@@ -31,6 +31,45 @@ class WorkspaceRepository(BaseRepository):
             
         return False
 
+    async def get_user_workspace_role(self, workspace_id: str, user_id: str) -> Optional[str]:
+        """Return the caller's active role in a workspace, including ownership."""
+        if not ObjectId.is_valid(workspace_id) or not ObjectId.is_valid(user_id):
+            return None
+
+        workspace = await self.find_by_id(workspace_id)
+        if not workspace:
+            return None
+
+        if str(workspace.get("owner_id")) == user_id:
+            return "OWNER"
+
+        member = await self.member_collection.find_one({
+            "workspace_id": ObjectId(workspace_id),
+            "user_id": ObjectId(user_id),
+            "status": "ACTIVE"
+        })
+        return member.get("role") if member else None
+
+    async def get_workspace_user_ids(self, workspace_id: str) -> List[ObjectId]:
+        """Return only users who belong to the requested workspace."""
+        if not ObjectId.is_valid(workspace_id):
+            return []
+
+        workspace_object_id = ObjectId(workspace_id)
+        workspace = await self.collection.find_one({"_id": workspace_object_id})
+        if not workspace:
+            return []
+
+        cursor = self.member_collection.find({
+            "workspace_id": workspace_object_id,
+            "status": "ACTIVE"
+        })
+        memberships = await cursor.to_list(length=200)
+        user_ids = {member["user_id"] for member in memberships if member.get("user_id")}
+        if workspace.get("owner_id"):
+            user_ids.add(workspace["owner_id"])
+        return list(user_ids)
+
     async def get_user_workspaces(self, user_id: str) -> List[Dict[str, Any]]:
         if not ObjectId.is_valid(user_id):
             return []

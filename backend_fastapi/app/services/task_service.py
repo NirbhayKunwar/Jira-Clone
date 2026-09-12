@@ -52,9 +52,9 @@ class TaskService:
 
     async def create_task(self, task_data: Dict[str, Any], current_user: Dict[str, Any]) -> Dict[str, Any]:
         workspace_id = task_data["workspaceId"]
-        has_access = await self.workspace_repo.is_user_workspace_member(workspace_id, current_user["id"])
-        if not has_access:
-            raise AppException("Forbidden. You do not belong to this workspace.", status_code=403, code="FORBIDDEN")
+        role = await self.workspace_repo.get_user_workspace_role(workspace_id, current_user["id"])
+        if role not in {"OWNER", "ADMIN"}:
+            raise AppException("Forbidden. Workspace Owner or Admin role required.", status_code=403, code="FORBIDDEN")
 
         assignee_name = task_data.get("assignee")
         assignee_id = task_data.get("assigneeId")
@@ -62,6 +62,8 @@ class TaskService:
         if assignee_name == "You" or (assignee_id and str(assignee_id) == str(current_user["id"])):
             assignee_name = current_user["name"]
             assignee_id = current_user["id"]
+        elif assignee_id and not await self.workspace_repo.is_user_workspace_member(workspace_id, assignee_id):
+            raise AppException("Assignee must be an active workspace member.", status_code=400, code="INVALID_ASSIGNEE")
 
         now = datetime.now(timezone.utc)
         doc = {
@@ -157,9 +159,10 @@ class TaskService:
             raise AppException("Task not found.", status_code=404, code="TASK_NOT_FOUND")
 
         workspace_id = str(task["workspace_id"])
-        has_access = await self.workspace_repo.is_user_workspace_member(workspace_id, current_user["id"])
-        if not has_access:
-            raise AppException("Forbidden. You do not belong to this workspace.", status_code=403, code="FORBIDDEN")
+        is_assignee = task.get("assignee_id") is not None and str(task.get("assignee_id")) == str(current_user["id"])
+        role = await self.workspace_repo.get_user_workspace_role(workspace_id, current_user["id"])
+        if not is_assignee and role not in {"OWNER", "ADMIN"}:
+            raise AppException("Forbidden. Only the assignee, Workspace Owner, or Admin can update this task.", status_code=403, code="FORBIDDEN")
 
         mongo_update = {"updated_at": datetime.now(timezone.utc)}
         if "title" in update_data and update_data["title"] is not None:
@@ -173,6 +176,12 @@ class TaskService:
             mongo_update["priority"] = update_data["priority"]
         if "epic" in update_data and update_data["epic"] is not None:
             mongo_update["epic"] = update_data["epic"]
+        if "assigneeId" in update_data:
+            mongo_update["assignee_id"] = update_data["assigneeId"]
+        elif "assignee_id" in update_data:
+            mongo_update["assignee_id"] = update_data["assignee_id"]
+        if "assignee" in update_data and update_data["assignee"] is not None:
+            mongo_update["assignee"] = update_data["assignee"]
 
         updated = await self.task_repo.update(task_id, mongo_update)
         
@@ -194,15 +203,16 @@ class TaskService:
             "completedAt": updated.get("completed_at").isoformat() if isinstance(updated.get("completed_at"), datetime) else None
         }
 
-    async def delete_task(self, task_id: str, current_user: Dict[str, Any]) -> bool:
+    async def delete_task(self, task_id: str, current_user: Dict[str, Any]) -> str:
         task = await self.task_repo.find_by_id(task_id)
         if not task:
             raise AppException("Task not found.", status_code=404, code="TASK_NOT_FOUND")
 
         workspace_id = str(task["workspace_id"])
-        has_access = await self.workspace_repo.is_user_workspace_member(workspace_id, current_user["id"])
-        if not has_access:
-            raise AppException("Forbidden. You do not belong to this workspace.", status_code=403, code="FORBIDDEN")
+        is_assignee = task.get("assignee_id") is not None and str(task.get("assignee_id")) == str(current_user["id"])
+        role = await self.workspace_repo.get_user_workspace_role(workspace_id, current_user["id"])
+        if not is_assignee and role not in {"OWNER", "ADMIN"}:
+            raise AppException("Forbidden. Only the assignee, Workspace Owner, or Admin can delete this task.", status_code=403, code="FORBIDDEN")
 
-        return await self.task_repo.update(task_id, {"deleted": True, "updated_at": datetime.now(timezone.utc)})
-
+        await self.task_repo.update(task_id, {"deleted": True, "updated_at": datetime.now(timezone.utc)})
+        return workspace_id

@@ -29,7 +29,7 @@ const mockGooglePayload = {
   name: 'John Doe',
   picture: 'https://lh3.googleusercontent.com/a/avatar123',
   iss: 'https://accounts.google.com',
-  aud: '304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com'
+  aud: 'mock-google-client-id.apps.googleusercontent.com'
 };
 
 describe('Google OAuth Service & Controller Integration Unit Tests', () => {
@@ -37,6 +37,7 @@ describe('Google OAuth Service & Controller Integration Unit Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.GOOGLE_CLIENT_ID = 'mock-google-client-id.apps.googleusercontent.com';
     global.fetch = vi.fn();
     auditLogRepository.createAuditLog.mockResolvedValue({});
 

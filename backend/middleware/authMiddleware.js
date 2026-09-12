@@ -46,9 +46,13 @@ export const verifyToken = async (req, res, next) => {
   }
 };
 
-// BOLA Prevention: Verify Workspace Ownership
+// BOLA Prevention: Verify Workspace Access
 export const verifyWorkspaceAccess = async (req, res, next) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized. Session missing.' });
+    }
+
     const { workspaceId } = req.query;
     const bodyWorkspaceId = req.body.workspaceId;
     const paramWorkspaceId = req.params.workspaceId || req.params.id; // workspace routes use req.params.id
@@ -56,7 +60,7 @@ export const verifyWorkspaceAccess = async (req, res, next) => {
     const rawId = workspaceId || bodyWorkspaceId || paramWorkspaceId;
     
     // If we're hitting workspace create, skip access check
-    if (req.method === 'POST' && req.baseUrl === '/api/workspaces') {
+    if (req.method === 'POST' && req.baseUrl === '/api/workspaces' && !paramWorkspaceId) {
       return next();
     }
 
@@ -76,29 +80,41 @@ export const verifyWorkspaceAccess = async (req, res, next) => {
       return next(new AppError('Workspace not found.', 404));
     }
 
-    if (ws.ownerId && ws.ownerId !== req.user.id) {
+    const isOwner = Boolean(ws.ownerId && ws.ownerId === req.user.id);
+    let isAuthorized = isOwner;
+
+    if (!isAuthorized) {
       const member = await prisma.workspaceMember.findFirst({
         where: { workspaceId: rawId, userId: req.user.id, status: 'ACTIVE' }
       });
-      if (!member) {
-        // Also allow if user is owner of team or has active user session in organization
+      if (member) {
+        isAuthorized = true;
+      } else {
         const user = await prisma.user.findUnique({ where: { id: req.user.id } });
-        const isTeamMember = user && (user.teamOwnerId === ws.ownerId || user.rbacRole === 'ADMIN' || user.rbacRole === 'LEADER');
-        if (!isTeamMember) {
-          return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
+        if (user && user.teamOwnerId && ws.ownerId && user.teamOwnerId === ws.ownerId) {
+          isAuthorized = true;
         }
       }
     }
 
+    if (!isAuthorized) {
+      return next(new AppError('Forbidden. You do not have access to this workspace.', 403));
+    }
+
+    req.workspace = ws;
     next();
   } catch (error) {
     next(error);
   }
 };
 
-// BOLA Prevention: Verify Goal Ownership
+// BOLA Prevention: Verify Goal Access
 export const verifyGoalAccess = async (req, res, next) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized. Session missing.' });
+    }
+
     const { id } = req.params;
     if (!id) return next();
 
@@ -114,7 +130,17 @@ export const verifyGoalAccess = async (req, res, next) => {
       return next(new AppError('Goal not found.', 404));
     }
 
-    if (goal.ownerId && goal.ownerId !== req.user.id) {
+    const isOwner = Boolean(goal.ownerId && goal.ownerId === req.user.id);
+    let isAuthorized = isOwner;
+
+    if (!isAuthorized && goal.workspaceId) {
+      const member = await prisma.workspaceMember.findFirst({
+        where: { workspaceId: goal.workspaceId, userId: req.user.id, status: 'ACTIVE' }
+      });
+      if (member) isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
       return next(new AppError('Forbidden. You do not have access to this goal.', 403));
     }
 
@@ -124,9 +150,13 @@ export const verifyGoalAccess = async (req, res, next) => {
   }
 };
 
-// BOLA Prevention: Verify Team Ownership
+// BOLA Prevention: Verify Team Access
 export const verifyTeamAccess = async (req, res, next) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized. Session missing.' });
+    }
+
     const { id } = req.params;
     if (!id) return next();
 
@@ -142,7 +172,17 @@ export const verifyTeamAccess = async (req, res, next) => {
       return next(new AppError('Team not found.', 404));
     }
 
-    if (team.ownerId && team.ownerId !== req.user.id) {
+    const isOwner = Boolean(team.ownerId && team.ownerId === req.user.id);
+    let isAuthorized = isOwner;
+
+    if (!isAuthorized && team.workspaceId) {
+      const member = await prisma.workspaceMember.findFirst({
+        where: { workspaceId: team.workspaceId, userId: req.user.id, status: 'ACTIVE' }
+      });
+      if (member) isAuthorized = true;
+    }
+
+    if (!isAuthorized) {
       return next(new AppError('Forbidden. You do not have access to this team.', 403));
     }
 
@@ -169,6 +209,10 @@ export const requireAdminOrLeader = (req, res, next) => {
 // RBAC Middleware: Require Workspace Membership
 export const requireWorkspaceMember = async (req, res, next) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized. Session missing.' });
+    }
+
     const { workspaceId } = req.query;
     const bodyWorkspaceId = req.body.workspaceId;
     const paramWorkspaceId = req.params.workspaceId || req.params.id;
@@ -187,26 +231,34 @@ export const requireWorkspaceMember = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Workspace not found.' });
     }
 
-    const isOwner = ws.ownerId === req.user.id;
-    const isTeamMember = req.user.teamOwnerId && ws.ownerId === req.user.teamOwnerId;
+    const isOwner = Boolean(ws.ownerId && ws.ownerId === req.user.id);
+    const member = await prisma.workspaceMember.findFirst({
+      where: { workspaceId: rawId, userId: req.user.id, status: 'ACTIVE' }
+    });
+    const isTeamMember = Boolean(req.user.teamOwnerId && ws.ownerId && req.user.teamOwnerId === ws.ownerId);
 
-    if (!isOwner && !isTeamMember) {
+    if (!isOwner && !member && !isTeamMember) {
       return res.status(403).json({
         success: false,
-        message: 'You do not have permission to perform this action.'
+        message: 'Forbidden. You do not have permission to perform this action in this workspace.'
       });
     }
 
     req.workspace = ws;
+    req.workspaceMember = member;
     next();
   } catch (error) {
     next(error);
   }
 };
 
-// RBAC Middleware: Require Task Owner or Admin/Leader
+// RBAC Middleware: Require Task Owner or Task Workspace Admin/Owner
 export const requireTaskOwnerOrAdmin = async (req, res, next) => {
   try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized. Session missing.' });
+    }
+
     const { id } = req.params;
     if (!id) {
       return res.status(400).json({ success: false, message: 'Task ID is required.' });
@@ -225,13 +277,26 @@ export const requireTaskOwnerOrAdmin = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Task not found.' });
     }
 
-    const isAdminOrLeader = req.user.rbacRole === 'ADMIN' || req.user.rbacRole === 'LEADER';
-    const isAssignedToMe = task.assigneeId === req.user.id;
+    let isAuthorized = false;
+    if (task.assigneeId === req.user.id) {
+      isAuthorized = true;
+    } else if (task.workspaceId) {
+      if (task.workspace && task.workspace.ownerId === req.user.id) {
+        isAuthorized = true;
+      } else {
+        const member = await prisma.workspaceMember.findFirst({
+          where: { workspaceId: task.workspaceId, userId: req.user.id, status: 'ACTIVE' }
+        });
+        if (member && (member.role === 'OWNER' || member.role === 'ADMIN')) {
+          isAuthorized = true;
+        }
+      }
+    }
 
-    if (!isAdminOrLeader && !isAssignedToMe) {
+    if (!isAuthorized) {
       return res.status(403).json({
         success: false,
-        message: 'You do not have permission to perform this action.'
+        message: 'Forbidden. You do not have permission to access or modify this task.'
       });
     }
 

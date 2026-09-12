@@ -28,8 +28,8 @@ export const verifyGoogleIdToken = async (credential) => {
   }
 
   // Validate audience (aud)
-  const expectedClientId = process.env.GOOGLE_CLIENT_ID || "304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com";
-  if (payload.aud !== expectedClientId) {
+  const expectedClientId = process.env.GOOGLE_CLIENT_ID || '';
+  if (expectedClientId && payload.aud !== expectedClientId) {
     throw new InvalidTokenError('Invalid token audience.');
   }
 

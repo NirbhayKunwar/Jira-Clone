@@ -28,6 +28,7 @@ export default function ScheduleCalendar({ activeWorkspace }) {
     const loadEvents = async () => {
       try {
         const response = await fetch(`${API_URL}/api/schedule-events?workspaceId=${activeWorkspace.id}`, {
+          credentials: 'include',
           headers: getAuthHeaders(),
           signal: controller.signal
         });
@@ -109,6 +110,7 @@ export default function ScheduleCalendar({ activeWorkspace }) {
     try {
       const response = await fetch(`${API_URL}/api/schedule-events`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders()
@@ -149,6 +151,7 @@ export default function ScheduleCalendar({ activeWorkspace }) {
     try {
       const response = await fetch(`${API_URL}/api/schedule-events/${selectedEvent.id}`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: getAuthHeaders()
       });
 

@@ -7,7 +7,7 @@ from app.repositories.notification_repository import NotificationRepository
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
-@router.get("", response_model=ApiResponse[dict])
+@router.get("", response_model=ApiResponse[list])
 async def get_notifications(
     workspaceId: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_user),
@@ -31,5 +31,5 @@ async def get_notifications(
     return ApiResponse(
         success=True,
         message="Notifications retrieved successfully.",
-        data={"notifications": formatted}
+        data=formatted
     )

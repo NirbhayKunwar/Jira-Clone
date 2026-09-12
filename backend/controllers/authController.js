@@ -12,7 +12,10 @@ import { AppError } from '../utils/errors.js';
 const signUpSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters long'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters long')
+    .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
   invitedBy: z.string().optional()
 });
 
@@ -28,7 +31,10 @@ const sendOtpSchema = z.object({
 const changePasswordSchema = z.object({
   email: z.string().email('Invalid email address'),
   otp: z.string(),
-  newPassword: z.string().min(6, 'Password must be at least 6 characters long')
+  newPassword: z.string()
+    .min(8, 'Password must be at least 8 characters long')
+    .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
 });
 
 const googleSignInSchema = z.object({
@@ -164,12 +170,15 @@ export const getNotifications = async (req, res) => {
       ];
     }
 
-    const notifications = await prisma.notification.findMany({
-      where: whereConditions,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit
-    });
+    const [total, notifications] = await Promise.all([
+      prisma.notification.count({ where: whereConditions }),
+      prisma.notification.findMany({
+        where: whereConditions,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit
+      })
+    ]);
 
     const mapped = notifications.map(n => ({
       id: n.id.toString(),
@@ -191,7 +200,20 @@ export const getNotifications = async (req, res) => {
       workspaceId: n.workspaceId ? n.workspaceId.toString() : null
     }));
 
-    return res.status(200).json({ success: true, data: mapped });
+    const totalPages = Math.ceil(total / limit) || 1;
+    const hasMore = page * limit < total;
+
+    return res.status(200).json({
+      success: true,
+      data: mapped,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+        hasMore
+      }
+    });
   } catch (error) {
     logger.error('Failed to fetch notifications:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch notifications.', data: null });
@@ -266,11 +288,19 @@ export const deleteNotification = async (req, res) => {
 };
 
 const getJwtSecret = () => {
-  return process.env.JWT_SECRET || 'Jira_Clone_my_Project_2026';
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new AppError('FATAL: JWT_SECRET environment variable is not set.', 500);
+  }
+  return secret;
 };
 
 const getJwtRefreshSecret = () => {
-  return process.env.JWT_REFRESH_SECRET || getJwtSecret();
+  const secret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new AppError('FATAL: JWT_REFRESH_SECRET environment variable is not set.', 500);
+  }
+  return secret;
 };
 
 const getEmailConfig = () => {
@@ -393,25 +423,25 @@ const sendTokens = (res, user, statusCode, message) => {
   );
 
   const isProduction = process.env.NODE_ENV === 'production';
+  const isSecure = process.env.COOKIE_SECURE === 'true' || Boolean(process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
 
   res.cookie('jira_token', accessToken, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: isSecure,
+    sameSite: isSecure ? 'none' : 'lax',
     maxAge: 15 * 60 * 1000
   });
 
   res.cookie('jira_refresh_token', refreshToken, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: isSecure,
+    sameSite: isSecure ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
   return res.status(statusCode).json({
     success: true,
     message,
-    token: accessToken,
     user: {
       id: user.id.toString(),
       name: user.name,
@@ -432,7 +462,7 @@ const sendTokens = (res, user, statusCode, message) => {
 export const signUp = async (req, res) => {
   try {
     const body = signUpSchema.parse(req.body);
-    const { name, email, password, invitedBy } = body;
+    const { name, email, password } = body;
     const normalizedEmail = email.toLowerCase();
 
     const userCheck = await prisma.user.findUnique({
@@ -460,20 +490,6 @@ export const signUp = async (req, res) => {
       return res.status(400).json({ success: false, message: 'A user with this email address already exists.', data: null });
     }
 
-    let teamOwnerId = null;
-    if (invitedBy) {
-      if (/^[0-9a-fA-F]{24}$/.test(invitedBy)) {
-        teamOwnerId = invitedBy;
-      } else {
-        const inviter = await prisma.user.findUnique({
-          where: { email: invitedBy.toLowerCase() }
-        });
-        if (inviter) {
-          teamOwnerId = inviter.id;
-        }
-      }
-    }
-
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -482,9 +498,11 @@ export const signUp = async (req, res) => {
         name,
         email: normalizedEmail,
         password: hashedPassword,
-        teamOwnerId,
+        // Workspace membership is granted only by a server-side invitation.
+        // Do not trust a client-supplied inviter identifier as authorization.
+        teamOwnerId: null,
         authProvider: 'LOCAL',
-        rbacRole: teamOwnerId ? 'MEMBER' : 'ADMIN'
+        rbacRole: 'MEMBER'
       }
     });
 
@@ -544,8 +562,15 @@ export const signIn = async (req, res) => {
 
 export const signOut = async (req, res) => {
   try {
-    res.clearCookie('jira_token');
-    res.clearCookie('jira_refresh_token');
+    const isSecure = process.env.COOKIE_SECURE === 'true' || Boolean(process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+    const clearOptions = {
+      httpOnly: true,
+      secure: isSecure,
+      sameSite: isSecure ? 'none' : 'lax',
+      path: '/'
+    };
+    res.clearCookie('jira_token', clearOptions);
+    res.clearCookie('jira_refresh_token', clearOptions);
     return res.status(200).json({
       success: true,
       message: 'Signed out successfully.',
@@ -617,10 +642,7 @@ export const refreshTokens = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: 'Token refreshed successfully.',
-      token: newAccessToken,
-      data: {
-        token: newAccessToken
-      }
+      data: null
     });
   } catch (error) {
     logger.warn('[RTR] Refresh token rotated or invalidated.');
@@ -639,9 +661,17 @@ export const sendOtp = async (req, res) => {
       where: { expiresAt: { lt: new Date() } }
     });
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 1000000).toString();
     const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
     
+    const userCheck = await prisma.user.findUnique({
+      where: { email: normalizedEmail }
+    });
+
+    if (!userCheck) {
+      return res.status(404).json({ success: false, message: 'No account registered with this email address.', data: null });
+    }
+
     await prisma.otpCode.upsert({
       where: { email: normalizedEmail },
       update: {
@@ -654,14 +684,6 @@ export const sendOtp = async (req, res) => {
         expiresAt: new Date(Date.now() + 5 * 60 * 1000)
       }
     });
-
-    const userCheck = await prisma.user.findUnique({
-      where: { email: normalizedEmail }
-    });
-
-    if (!userCheck) {
-      return res.status(404).json({ success: false, message: 'No account registered with this email address.', data: null });
-    }
 
     const { emailUser, emailPass, isMockMode } = getEmailConfig();
 
@@ -1088,54 +1110,32 @@ export const deleteAccount = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User account not found.', data: null });
     }
 
-    // Step 1: Unassign tasks assigned to or created by this user
-    try {
-      await prisma.task.updateMany({
+    // Atomic cleanup of user relations and account record via Prisma transaction
+    await prisma.$transaction([
+      prisma.task.updateMany({
         where: { assigneeId: currentUserId },
         data: { assigneeId: null }
-      });
-    } catch (e) {
-      logger.warn(`Task unassignment warning during user deletion: ${e.message}`);
-    }
-
-    // Step 2: Update workspace ownerId if this user owned any workspaces
-    try {
-      await prisma.workspace.updateMany({
+      }),
+      prisma.workspace.updateMany({
         where: { ownerId: currentUserId },
         data: { ownerId: null }
-      });
-    } catch (e) {
-      logger.warn(`Workspace ownership update warning during user deletion: ${e.message}`);
-    }
-
-    // Step 3: Remove workspace member associations
-    try {
-      await prisma.workspaceMember.deleteMany({
+      }),
+      prisma.workspaceMember.deleteMany({
         where: { userId: currentUserId }
-      });
-    } catch (e) {
-      logger.warn(`Workspace member removal warning during user deletion: ${e.message}`);
-    }
-
-    // Step 4: Clean up user notifications, invitations, and uploaded files/attachments
-    try {
-      await prisma.notification.deleteMany({
+      }),
+      prisma.notification.deleteMany({
         where: { userId: currentUserId }
-      });
-      await prisma.invitation.deleteMany({
-        where: { inviterId: currentUserId }
-      });
-      await prisma.attachment.deleteMany({
+      }),
+      prisma.invitation.deleteMany({
+        where: { invitedById: currentUserId }
+      }),
+      prisma.attachment.deleteMany({
         where: { uploaderId: currentUserId }
-      });
-    } catch (e) {
-      logger.warn(`Notification/invitation/attachment removal warning during user deletion: ${e.message}`);
-    }
-
-    // Step 5: Delete user record from database
-    await prisma.user.delete({
-      where: { id: currentUserId }
-    });
+      }),
+      prisma.user.delete({
+        where: { id: currentUserId }
+      })
+    ]);
 
     logger.info(`[USER SERVICE] Self-account deletion completed for user ${user.email} (${currentUserId})`);
 
@@ -1272,4 +1272,3 @@ export const updateTeamMemberRole = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal Server Error while updating role.', data: null });
   }
 };
-

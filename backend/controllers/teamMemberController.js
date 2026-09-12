@@ -85,6 +85,23 @@ export const getTeam = async (req, res, next) => {
 export const getTeamMembers = async (req, res, next) => {
   try {
     const { teamId } = req.params;
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (!team || team.status === 'ARCHIVED') {
+      return res.status(404).json({ success: false, message: 'Team not found or archived.' });
+    }
+
+    const requester = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: team.workspaceId,
+        userId: req.user.id,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!requester) {
+      return res.status(403).json({ success: false, message: 'Forbidden. You do not have access to this team.' });
+    }
+
     const members = await prisma.teamMember.findMany({
       where: { teamId, status: 'ACTIVE' },
       include: {
@@ -125,10 +142,10 @@ export const addTeamMember = async (req, res, next) => {
       where: { id: workspaceMemberId }
     });
 
-    if (!wsMember || wsMember.status !== 'ACTIVE') {
+    if (!wsMember || wsMember.status !== 'ACTIVE' || wsMember.workspaceId !== team.workspaceId) {
       return res.status(400).json({
         success: false,
-        message: 'Only active Workspace Members can be added to teams.'
+        message: 'Only active Workspace Members belonging to the team workspace can be added.'
       });
     }
 

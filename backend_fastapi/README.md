@@ -1,6 +1,6 @@
 # FastAPI Async & Real-Time Engine
 
-This directory contains the high-throughput Python FastAPI microservice, responsible for asynchronous read-path optimization, fine-grained Redis Hash caching, and real-time WebSocket delta broadcasting (`ws_manager.py`).
+This directory contains the high-throughput Python FastAPI microservice, responsible for asynchronous read-path optimization and real-time WebSocket delta broadcasting (`ws_manager.py`).
 
 ---
 
@@ -26,7 +26,7 @@ This directory contains the high-throughput Python FastAPI microservice, respons
 ## 🛣️ API Endpoints & WebSockets
 
 ### REST Read Engine (`/fastapi/tasks`)
-* `GET /fastapi/tasks?workspaceId=<id>` — Fast-path async query with Redis Hash caching (`workspace:{id}:tasks_hash`).
+* `GET /fastapi/tasks?workspaceId=<id>` — Fast-path async task query via Motor driver.
 
 ### Real-Time WebSocket Gateway (`/ws/{workspaceId}`)
 * `WS /ws/{workspaceId}` — WebSocket endpoint broadcasting JSON micro-deltas (`MOVE_TASK`, `UPDATE_TASK`) to connected workspace clients.

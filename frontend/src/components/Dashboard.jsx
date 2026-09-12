@@ -1063,9 +1063,11 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        const token = localStorage.getItem('jira_token');
-        if (!token) return;
-        const res = await fetch(`${API_URL}/api/notifications`, {
+        const url = activeWorkspace?.id 
+          ? `${API_URL}/api/notifications?workspaceId=${activeWorkspace.id}`
+          : `${API_URL}/api/notifications`;
+        const res = await fetch(url, {
+          credentials: 'include',
           headers: getAuthHeaders()
         });
         if (res.ok) {
@@ -1080,7 +1082,7 @@ export default function Dashboard() {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 10000); // 10s poll
     return () => clearInterval(interval);
-  }, []);
+  }, [activeWorkspace?.id]);
 
   const unreadNotifications = useMemo(() => {
     // Reference showNotifications to trigger re-evaluation when dropdown is toggled

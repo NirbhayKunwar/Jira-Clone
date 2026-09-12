@@ -357,9 +357,17 @@ export const deleteTask = asyncHandler(async (req, res, next) => {
     return next(new AppError('You do not have permission to delete this task.', 403));
   }
 
-  await prisma.task.delete({
-    where: { id }
-  });
+  await prisma.$transaction([
+    prisma.taskComment ? prisma.taskComment.deleteMany({ where: { taskId: id } }) : prisma.task.findMany({ where: { id: 'none' } }),
+    prisma.taskHistory ? prisma.taskHistory.deleteMany({ where: { taskId: id } }) : prisma.task.findMany({ where: { id: 'none' } }),
+    prisma.taskWorklog ? prisma.taskWorklog.deleteMany({ where: { taskId: id } }) : prisma.task.findMany({ where: { id: 'none' } }),
+    prisma.taskWatcher ? prisma.taskWatcher.deleteMany({ where: { taskId: id } }) : prisma.task.findMany({ where: { id: 'none' } }),
+    prisma.taskVote ? prisma.taskVote.deleteMany({ where: { taskId: id } }) : prisma.task.findMany({ where: { id: 'none' } }),
+    prisma.taskRelation ? prisma.taskRelation.deleteMany({ where: { OR: [{ sourceTaskId: id }, { targetTaskId: id }] } }) : prisma.task.findMany({ where: { id: 'none' } }),
+    prisma.attachment ? prisma.attachment.deleteMany({ where: { taskId: id } }) : prisma.task.findMany({ where: { id: 'none' } }),
+    prisma.mention ? prisma.mention.deleteMany({ where: { taskId: id } }) : prisma.task.findMany({ where: { id: 'none' } }),
+    prisma.task.delete({ where: { id } })
+  ]);
 
   logger.info(`[TASK SERVICE] Task ${id} deleted successfully.`);
 

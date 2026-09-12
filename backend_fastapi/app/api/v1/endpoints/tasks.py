@@ -21,7 +21,7 @@ def get_task_service(db = Depends(get_database)) -> TaskService:
         notification_repo=NotificationRepository(db)
     )
 
-@router.get("", response_model=ApiResponse[dict])
+@router.get("", response_model=ApiResponse[list])
 async def get_tasks(
     workspaceId: str = Query(..., description="Workspace ID required"),
     current_user: dict = Depends(get_current_user),
@@ -31,7 +31,7 @@ async def get_tasks(
     return ApiResponse(
         success=True,
         message="Tasks retrieved successfully.",
-        data={"tasks": tasks}
+        data=tasks
     )
 
 @router.post("", response_model=ApiResponse[dict])
@@ -42,8 +42,7 @@ async def create_task(
 ):
     created = await service.create_task(payload.model_dump(), current_user)
     
-    # Real-time WebSocket broadcast
-    await ws_manager.broadcast({
+    await ws_manager.broadcast_to_workspace(payload.workspaceId, {
         "event": "TASK_CREATED",
         "workspaceId": payload.workspaceId,
         "task": created
@@ -63,8 +62,7 @@ async def claim_task(
 ):
     claimed = await service.claim_task(id, current_user)
     
-    # Real-time WebSocket broadcast
-    await ws_manager.broadcast({
+    await ws_manager.broadcast_to_workspace(claimed["workspaceId"], {
         "event": "TASK_CLAIMED",
         "taskId": id,
         "task": claimed
@@ -86,7 +84,7 @@ async def update_task(
 ):
     updated = await service.update_task(id, payload.model_dump(exclude_unset=True), current_user)
 
-    await ws_manager.broadcast({
+    await ws_manager.broadcast_to_workspace(updated["workspaceId"], {
         "event": "TASK_UPDATED",
         "taskId": id,
         "task": updated
@@ -104,9 +102,9 @@ async def delete_task(
     current_user: dict = Depends(get_current_user),
     service: TaskService = Depends(get_task_service)
 ):
-    await service.delete_task(id, current_user)
+    workspace_id = await service.delete_task(id, current_user)
 
-    await ws_manager.broadcast({
+    await ws_manager.broadcast_to_workspace(workspace_id, {
         "event": "TASK_DELETED",
         "taskId": id
     })
@@ -116,4 +114,3 @@ async def delete_task(
         message="Task deleted successfully.",
         data=None
     )
-

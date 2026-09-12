@@ -1,37 +1,46 @@
-from fastapi import APIRouter, Depends, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status, Query
 from app.schemas.common import ApiResponse
 from app.schemas.auth import SignUpSchema, SignInSchema, GoogleSignInSchema, SendOtpSchema, ChangePasswordSchema
 from app.schemas.user import UserOut, UpdateProfileSchema, AddTeamMemberSchema
 from app.core.database import get_database
+from app.core.config import settings
 from app.core.security import create_access_token, create_refresh_token, get_password_hash, verify_password
 from app.core.exceptions import AppException
 from app.dependencies.auth import get_current_user
 from app.repositories.user_repository import UserRepository
+from app.repositories.workspace_repository import WorkspaceRepository
 from app.repositories.audit_repository import AuditRepository
 from app.services.google_auth_service import GoogleAuthService
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+
+import os
 
 def set_auth_cookies(response: Response, user_id: str, email: str, token_version: int = 1):
     payload = {"id": user_id, "email": email, "tokenVersion": token_version}
     access_token = create_access_token(payload)
     refresh_token = create_refresh_token(payload)
     
+    is_secure = os.getenv("COOKIE_SECURE", "").lower() == "true"
+
     response.set_cookie(
         key="jira_token",
         value=access_token,
         httponly=True,
+        secure=is_secure,
         max_age=15 * 60,
-        samesite="lax"
+        samesite="none" if is_secure else "lax",
+        path="/"
     )
     response.set_cookie(
         key="jira_refresh_token",
         value=refresh_token,
         httponly=True,
+        secure=is_secure,
         max_age=7 * 24 * 60 * 60,
-        samesite="lax"
+        samesite="none" if is_secure else "lax",
+        path="/"
     )
-    return access_token
 
 @router.post("/signup", response_model=ApiResponse[dict])
 async def signup(payload: SignUpSchema, response: Response, db = Depends(get_database)):
@@ -52,13 +61,12 @@ async def signup(payload: SignUpSchema, response: Response, db = Depends(get_dat
         "status": "ACTIVE"
     }
     user = await user_repo.create(doc)
-    token = set_auth_cookies(response, user["id"], user["email"])
+    set_auth_cookies(response, user["id"], user["email"])
 
     return ApiResponse(
         success=True,
         message="User registered successfully.",
         data={
-            "token": token,
             "user": {
                 "id": user["id"],
                 "name": user["name"],
@@ -78,13 +86,12 @@ async def signin(payload: SignInSchema, response: Response, db = Depends(get_dat
     if not user or not user.get("password") or not verify_password(payload.password, user["password"]):
         raise AppException("Invalid email or password.", status_code=401, code="INVALID_CREDENTIALS")
 
-    token = set_auth_cookies(response, user["id"], user["email"])
+    set_auth_cookies(response, user["id"], user["email"])
 
     return ApiResponse(
         success=True,
         message="Logged in successfully.",
         data={
-            "token": token,
             "user": {
                 "id": user["id"],
                 "name": user["name"],
@@ -114,13 +121,12 @@ async def google_signin(
         user_agent=request.headers.get("user-agent")
     )
 
-    token = set_auth_cookies(response, user["id"], user["email"])
+    set_auth_cookies(response, user["id"], user["email"])
 
     return ApiResponse(
         success=True,
         message="Logged in successfully with Google.",
         data={
-            "token": token,
             "user": {
                 "id": user["id"],
                 "name": user["name"],
@@ -136,14 +142,27 @@ async def google_signin(
 
 @router.post("/signout", response_model=ApiResponse[dict])
 async def signout(response: Response):
-    response.delete_cookie("jira_token")
-    response.delete_cookie("jira_refresh_token")
+    cookie_options = {"path": "/", "secure": settings.ENVIRONMENT == "production", "samesite": "lax"}
+    response.delete_cookie("jira_token", **cookie_options)
+    response.delete_cookie("jira_refresh_token", **cookie_options)
     return ApiResponse(success=True, message="Signed out successfully.", data=None)
 
 @router.get("/users", response_model=ApiResponse[dict])
-async def get_users(current_user: dict = Depends(get_current_user), db = Depends(get_database)):
+async def get_users(
+    workspaceId: str = Query(..., description="Workspace ID required"),
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_database)
+):
+    workspace_repo = WorkspaceRepository(db)
+    if not await workspace_repo.is_user_workspace_member(workspaceId, current_user["id"]):
+        raise AppException("Forbidden. You do not have access to this workspace.", status_code=403, code="FORBIDDEN")
+
+    user_ids = await workspace_repo.get_workspace_user_ids(workspaceId)
     user_repo = UserRepository(db)
-    users = await user_repo.find_many({"status": {"$ne": "DELETED"}}, limit=200)
+    users = await user_repo.find_many({
+        "_id": {"$in": user_ids},
+        "status": {"$ne": "DELETED"}
+    }, limit=200)
     formatted = [
         {
             "id": u["id"],

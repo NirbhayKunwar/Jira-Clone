@@ -21,10 +21,22 @@ export const FASTAPI_URL = _getFastApiUrl();
 export const WS_URL = _getWsUrl();
 
 export const getAuthHeaders = () => {
-  const token = localStorage.getItem('jira_token');
-  const validToken = token && token !== 'null' && token !== 'undefined' ? token : '';
   return {
-    'Content-Type': 'application/json',
-    ...(validToken ? { 'Authorization': `Bearer ${validToken}` } : {})
+    'Content-Type': 'application/json'
   };
+};
+
+export const getFetchOptions = (options = {}) => {
+  return {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...getAuthHeaders(),
+      ...(options.headers || {})
+    }
+  };
+};
+
+export const apiFetch = (url, options = {}) => {
+  return fetch(url, getFetchOptions(options));
 };

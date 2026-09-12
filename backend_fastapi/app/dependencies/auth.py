@@ -41,6 +41,12 @@ async def get_current_user(
             detail="User account associated with this token no longer exists."
         )
 
+    if user.get("token_version") != payload.get("tokenVersion"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or password changed. Please sign in again."
+        )
+
     if user.get("status") in ["SUSPENDED", "DEACTIVATED", "INACTIVE", "DELETED", "REMOVED"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

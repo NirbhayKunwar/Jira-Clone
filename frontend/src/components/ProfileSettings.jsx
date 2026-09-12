@@ -159,12 +159,11 @@ export default function ProfileSettings() {
     }
 
     try {
-      const token = localStorage.getItem('jira_token');
       const response = await fetch(`${API_URL}/api/auth/profile`, {
         method: 'PUT',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           name,
@@ -186,6 +185,7 @@ export default function ProfileSettings() {
 
       // Update global user state (Zustand authStore)
       if (data?.data?.user) {
+        const parsedLinks = parseOtherLinks(data.data.user.otherLinks);
         updateProfile({
           ...user,
           name: data.data.user.name,
@@ -194,7 +194,7 @@ export default function ProfileSettings() {
           location: data.data.user.location,
           githubUrl: data.data.user.githubUrl,
           linkedinUrl: data.data.user.linkedinUrl,
-          otherLinks: data.data.user.otherLinks,
+          otherLinks: parsedLinks,
           hasConfiguredWorkspace: data.data.user.hasConfiguredWorkspace
         });
       } else {
@@ -268,12 +268,11 @@ export default function ProfileSettings() {
     setDeleteError('');
 
     try {
-      const token = localStorage.getItem('jira_token');
       const response = await fetch(`${API_URL}/api/auth/account`, {
         method: 'DELETE',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Content-Type': 'application/json'
         }
       });
 

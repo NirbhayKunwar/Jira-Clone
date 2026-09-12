@@ -56,35 +56,50 @@ export const useBoardStore = create((set, get) => ({
       }, {}),
     };
 
-    const sourceTaskIds = [...(columns[sourceColId]?.taskIds || [])];
-    const destTaskIds = sourceColId === destColId ? sourceTaskIds : [...(columns[destColId]?.taskIds || [])];
+    let updatedColumns = { ...columns };
 
-    // Remove from source index
-    const sIndex = sourceTaskIds.indexOf(taskId);
-    if (sIndex !== -1) {
-      sourceTaskIds.splice(sIndex, 1);
+    if (sourceColId === destColId) {
+      const taskIds = [...(columns[sourceColId]?.taskIds || [])];
+      const sIndex = taskIds.indexOf(taskId);
+      if (sIndex !== -1) {
+        taskIds.splice(sIndex, 1);
+      }
+      const targetIndex = Math.min(Math.max(0, destIndex), taskIds.length);
+      taskIds.splice(targetIndex, 0, taskId);
+
+      updatedColumns[sourceColId] = {
+        ...columns[sourceColId],
+        taskIds,
+      };
+    } else {
+      const sourceTaskIds = [...(columns[sourceColId]?.taskIds || [])];
+      const destTaskIds = [...(columns[destColId]?.taskIds || [])];
+
+      const sIndex = sourceTaskIds.indexOf(taskId);
+      if (sIndex !== -1) {
+        sourceTaskIds.splice(sIndex, 1);
+      }
+
+      const targetIndex = Math.min(Math.max(0, destIndex), destTaskIds.length);
+      destTaskIds.splice(targetIndex, 0, taskId);
+
+      updatedColumns = {
+        ...columns,
+        [sourceColId]: {
+          ...columns[sourceColId],
+          taskIds: sourceTaskIds,
+        },
+        [destColId]: {
+          ...columns[destColId],
+          taskIds: destTaskIds,
+        },
+      };
     }
-
-    // Insert into destination index
-    const targetIndex = Math.min(Math.max(0, destIndex), destTaskIds.length);
-    destTaskIds.splice(targetIndex, 0, taskId);
 
     const updatedTask = {
       ...tasksById[taskId],
       status: destColId,
       completedAt: destColId === 'done' ? new Date().toISOString() : null,
-    };
-
-    const updatedColumns = {
-      ...columns,
-      [sourceColId]: {
-        ...columns[sourceColId],
-        taskIds: sourceTaskIds,
-      },
-      [destColId]: {
-        ...columns[destColId],
-        taskIds: destTaskIds,
-      },
     };
 
     set({

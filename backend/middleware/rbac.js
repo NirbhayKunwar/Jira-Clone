@@ -39,29 +39,18 @@ export const getOrCreateWorkspaceMember = async (workspaceId, userId) => {
     if (!user) return null;
 
     // 4. Determine role:
-    // If the user is the owner of the workspace, promote to OWNER
+    // If the user is the owner of the workspace, assign OWNER
     let role = 'MEMBER';
     if (workspace.ownerId === userId) {
       role = 'OWNER';
-    } else if (user.rbacRole === 'ADMIN') {
-      role = 'ADMIN';
-    } else if (user.rbacRole === 'LEADER') {
-      role = 'ADMIN'; // Map Team Leaders to Admins in workspace scope
     }
 
     // 5. Verify eligibility:
-    // If user is owner, or user's teamOwnerId matches workspace owner, or user has tasks/sprints in this workspace
-    const isWorkspaceOwner = workspace.ownerId === userId;
-    const isTeamMemberOfOwner = user.teamOwnerId && user.teamOwnerId === workspace.ownerId;
-    
-    // Check if user has tasks in this workspace
-    const taskCount = await prisma.task.count({
-      where: { workspaceId, assigneeId: userId }
-    });
-    const hasTasks = taskCount > 0;
+    const isWorkspaceOwner = Boolean(workspace.ownerId && workspace.ownerId === userId);
+    const isTeamMemberOfOwner = Boolean(user.teamOwnerId && workspace.ownerId && user.teamOwnerId === workspace.ownerId);
 
-    if (isWorkspaceOwner || isTeamMemberOfOwner || hasTasks || user.rbacRole === 'ADMIN') {
-      // Create missing membership record (dynamic self-healing)
+    if (isWorkspaceOwner || isTeamMemberOfOwner) {
+      // Create missing membership record (dynamic self-healing for owner/owner team)
       member = await prisma.workspaceMember.create({
         data: {
           workspaceId,
@@ -287,7 +276,7 @@ export const requirePermission = (permissionName) => {
   };
 };
 
-// Privilege escalation checks helper
+// Privilege escalation checks helper (returns true if actor has lower rank than target)
 export const checkPrivilegeEscalation = (actorRole, targetRole) => {
   const roleHierarchies = {
     OWNER: 4,
@@ -295,5 +284,7 @@ export const checkPrivilegeEscalation = (actorRole, targetRole) => {
     MEMBER: 2,
     GUEST: 1
   };
-  return roleHierarchies[actorRole] <= roleHierarchies[targetRole];
+  const actorRank = roleHierarchies[actorRole] || 0;
+  const targetRank = roleHierarchies[targetRole] || 0;
+  return actorRank < targetRank;
 };

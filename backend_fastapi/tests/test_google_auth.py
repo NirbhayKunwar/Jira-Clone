@@ -11,7 +11,7 @@ async def test_google_signin_non_existing_user_returns_403(async_client: AsyncCl
         "name": "Nonexistent User",
         "picture": "https://example.com/avatar.png",
         "iss": "https://accounts.google.com",
-        "aud": "304604649485-qd4b8f7asabkc2l9n2h3rmd5lfdlbv23.apps.googleusercontent.com"
+        "aud": "mock-google-client-id.apps.googleusercontent.com"
     }
 
     mock_resp = AsyncMock(spec=Response)

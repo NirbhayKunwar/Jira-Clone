@@ -33,22 +33,6 @@ async function runSeedingLogic() {
       // Legacy index already dropped or non-existent
     }
 
-    // Self-healing: promote all existing standalone users (no teamOwnerId) to ADMIN
-    const standaloneMembers = await prisma.user.findMany({
-      where: { rbacRole: 'MEMBER' },
-      select: { id: true, teamOwnerId: true }
-    });
-
-    const toPromote = standaloneMembers.filter(u => u.teamOwnerId === null || u.teamOwnerId === undefined);
-    if (toPromote.length > 0) {
-      const ids = toPromote.map(u => u.id);
-      const updateResult = await prisma.user.updateMany({
-        where: { id: { in: ids } },
-        data: { rbacRole: 'ADMIN' }
-      });
-      console.log(`[DATABASE] Self-healed: Promoted ${updateResult.count} standalone users from MEMBER to ADMIN.`);
-    }
-
     // Seed Permissions
     const permissionsToSeed = [
       { name: 'workspace.manage', description: 'Manage workspace configuration' },

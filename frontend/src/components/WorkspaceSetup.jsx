@@ -78,12 +78,11 @@ export default function WorkspaceSetup() {
     }, 500);
 
     try {
-      const token = localStorage.getItem('jira_token');
       const response = await fetch(`${API_URL}/api/workspaces`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           name: name.trim(),
@@ -120,12 +119,11 @@ export default function WorkspaceSetup() {
           updateProfile(updatedUserObj);
 
           try {
-            const token = localStorage.getItem('jira_token');
             const profileRes = await fetch(`${API_URL}/api/auth/profile`, {
               method: 'PUT',
+              credentials: 'include',
               headers: {
-                'Content-Type': 'application/json',
-                'Authorization': token ? `Bearer ${token}` : ''
+                'Content-Type': 'application/json'
               },
               body: JSON.stringify({
                 email: user.email,

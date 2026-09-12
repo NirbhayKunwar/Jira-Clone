@@ -210,8 +210,7 @@ export const inviteWorkspaceMember = async (req, res, next) => {
           id: updatedInvite.id,
           email: updatedInvite.email,
           workspaceRole: updatedInvite.workspaceRole,
-          expiresAt: updatedInvite.expiresAt,
-          token: updatedInvite.token
+          expiresAt: updatedInvite.expiresAt
         }
       });
     }
@@ -320,8 +319,7 @@ export const inviteWorkspaceMember = async (req, res, next) => {
         id: invitation.id,
         email: invitation.email,
         workspaceRole: invitation.workspaceRole,
-        expiresAt: invitation.expiresAt,
-        token: invitation.token // In a real production build this goes in email URL only
+        expiresAt: invitation.expiresAt
       }
     });
   } catch (error) {
@@ -362,11 +360,20 @@ export const acceptInvitation = async (req, res, next) => {
     }
 
     // Transaction to safely perform changes:
-    // 1. Create WorkspaceMember
-    // 2. Create TeamMember (if teamId specified)
-    // 3. Create ProjectMember (if projectId specified)
-    // 4. Update Invitation status
+    // 1. Re-verify invitation status atomically
+    // 2. Create/Reactivate WorkspaceMember
+    // 3. Create TeamMember (if teamId specified)
+    // 4. Create ProjectMember (if projectId specified)
+    // 5. Update Invitation status
     const result = await prisma.$transaction(async (tx) => {
+      const freshInvite = await tx.invitation.findUnique({
+        where: { id: invitation.id }
+      });
+
+      if (!freshInvite || freshInvite.status !== 'PENDING' || freshInvite.expiresAt < new Date()) {
+        throw new Error('Invitation token is no longer valid or has already been accepted.');
+      }
+
       // Check if user is already a workspace member
       let wsMember = await tx.workspaceMember.findFirst({
         where: {
@@ -403,14 +410,24 @@ export const acceptInvitation = async (req, res, next) => {
       // Add to Team if specified
       let teamMember = null;
       if (invitation.teamId) {
-        teamMember = await tx.teamMember.create({
-          data: {
-            teamId: invitation.teamId,
-            workspaceMemberId: wsMember.id,
-            role: invitation.teamRole || 'FULLSTACK_ENGINEER',
-            status: 'ACTIVE'
-          }
+        const existingTM = await tx.teamMember.findFirst({
+          where: { teamId: invitation.teamId, workspaceMemberId: wsMember.id }
         });
+        if (!existingTM) {
+          teamMember = await tx.teamMember.create({
+            data: {
+              teamId: invitation.teamId,
+              workspaceMemberId: wsMember.id,
+              role: invitation.teamRole || 'FULLSTACK_ENGINEER',
+              status: 'ACTIVE'
+            }
+          });
+        } else {
+          teamMember = await tx.teamMember.update({
+            where: { id: existingTM.id },
+            data: { status: 'ACTIVE', role: invitation.teamRole || existingTM.role }
+          });
+        }
       }
 
       // Add to Project
@@ -750,14 +767,10 @@ export const getWorkspaceAuditLogs = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
     
-    // Find all audit logs associated with the active workspace
+    // Find all audit logs associated strictly with the active workspace
     const auditLogs = await prisma.auditLog.findMany({
       where: {
-        OR: [
-          { resourceId: workspaceId },
-          { resourceType: 'Workspace', resourceId: workspaceId },
-          { resourceType: { in: ['Task', 'Team', 'Project', 'Member', 'Workspace'] } }
-        ]
+        resourceId: workspaceId
       },
       include: {
         actor: { select: { name: true, email: true, role: true } },
@@ -792,10 +805,7 @@ export const getWorkspaceActivity = async (req, res, next) => {
     
     const logs = await prisma.auditLog.findMany({
       where: {
-        OR: [
-          { resourceId: workspaceId },
-          { resourceType: { in: ['Task', 'Team', 'Project', 'Member', 'Workspace'] } }
-        ]
+        resourceId: workspaceId
       },
       include: {
         actor: { select: { name: true, email: true, role: true } },

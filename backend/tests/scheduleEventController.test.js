@@ -8,6 +8,9 @@ vi.mock('../config/prisma.js', () => {
       workspace: {
         findUnique: vi.fn(),
       },
+      workspaceMember: {
+        findFirst: vi.fn(),
+      },
       scheduleEvent: {
         findMany: vi.fn(),
         create: vi.fn(),

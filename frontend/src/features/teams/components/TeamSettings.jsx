@@ -17,9 +17,9 @@ export default function TeamSettings({ team, workspaceId }) {
       // Mock update for details setting
       const res = await fetch(`/api/teams/${team.id}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('jira_token')}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ name: teamName, descText: teamDesc })
       });

@@ -12,7 +12,8 @@ self.onmessage = function (e) {
 
     if (assigneeFilter && task.assigneeId !== assigneeFilter) continue;
     if (epicFilter && task.epic !== epicFilter) continue;
-    if (text && !task.title.toLowerCase().includes(text)) continue;
+    const taskTitle = task.title ? String(task.title).toLowerCase() : '';
+    if (text && !taskTitle.includes(text)) continue;
 
     resultIds.push(task.id);
   }

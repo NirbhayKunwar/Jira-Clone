@@ -36,9 +36,12 @@ async def create_workspace(
     db = Depends(get_database)
 ):
     ws_repo = WorkspaceRepository(db)
-    existing = await ws_repo.find_by_key(payload.key)
+    existing = await db["workspaces"].find_one({
+        "owner_id": ObjectId(current_user["id"]),
+        "key": payload.key.upper()
+    })
     if existing:
-        raise AppException(f"Workspace key '{payload.key.upper()}' is already in use.", status_code=400, code="KEY_EXISTS")
+        raise AppException(f"You already have a workspace with project key '{payload.key.upper()}'. Please choose a different key.", status_code=400, code="KEY_EXISTS")
 
     doc = {
         "name": payload.name,
