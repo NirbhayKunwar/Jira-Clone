@@ -1220,13 +1220,17 @@ export const googleSignIn = async (req, res) => {
 
     logger.error('Google Sign In Error:', error);
     const isDatabaseUnavailable =
-      error?.name === 'PrismaClientInitializationError' || error?.code === 'P1001';
+      error?.name === 'PrismaClientInitializationError' ||
+      error?.name === 'PrismaClientUnknownRequestError' ||
+      error?.name === 'PrismaClientKnownRequestError' ||
+      error?.code === 'P1001' ||
+      (error?.message && (error.message.includes('Server selection timeout') || error.message.includes('fatal alert')));
 
     return res.status(isDatabaseUnavailable ? 503 : 500).json({
       success: false,
       code: isDatabaseUnavailable ? 'SERVICE_UNAVAILABLE' : 'INTERNAL_SERVER_ERROR',
       message: isDatabaseUnavailable
-        ? 'Authentication is temporarily unavailable. Please try again.'
+        ? 'Database connection is temporarily unavailable. Please try again in a moment.'
         : 'Internal Server Error during Google Sign-In.',
       data: null
     });
