@@ -6,11 +6,12 @@ export function getRuntimeDatabaseUrl(databaseUrl = process.env.DATABASE_URL) {
   try {
     const url = new URL(cleanUrl);
     if (cleanUrl.startsWith('mongodb+srv://') || cleanUrl.startsWith('mongodb://')) {
-      if (!url.searchParams.has('ssl') && !url.searchParams.has('tls')) {
-        url.searchParams.set('ssl', 'true');
-      }
-      if (!url.searchParams.has('tlsAllowInvalidCertificates') && !url.searchParams.has('sslverify')) {
-        url.searchParams.set('tlsAllowInvalidCertificates', 'true');
+      url.searchParams.set('ssl', 'true');
+      url.searchParams.set('tls', 'true');
+      url.searchParams.set('tlsAllowInvalidCertificates', 'true');
+      url.searchParams.set('sslverify', 'false');
+      if (!url.searchParams.has('connectTimeoutMS')) {
+        url.searchParams.set('connectTimeoutMS', '15000');
       }
       return url.toString();
     }

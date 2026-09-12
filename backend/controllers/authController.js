@@ -1210,7 +1210,26 @@ export const googleSignIn = async (req, res) => {
       });
     }
 
-    if (error.statusCode || error.code || error.isOperational || error instanceof AppError) {
+    const isDatabaseUnavailable =
+      error?.name?.startsWith('Prisma') ||
+      (error?.code && typeof error.code === 'string' && error.code.startsWith('P')) ||
+      (error?.message && (
+        error.message.includes('prisma') ||
+        error.message.includes('Server selection timeout') ||
+        error.message.includes('fatal alert')
+      ));
+
+    if (isDatabaseUnavailable) {
+      logger.error('Google Sign In Database Error:', error);
+      return res.status(503).json({
+        success: false,
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'Database connection is temporarily unavailable. Please try again in a moment.',
+        data: null
+      });
+    }
+
+    if (error.statusCode || (error.code && error.code !== 'unknown') || error.isOperational || error instanceof AppError) {
       return res.status(error.statusCode || 400).json({
         success: false,
         code: error.code || 'AUTHENTICATION_ERROR',
@@ -1219,19 +1238,10 @@ export const googleSignIn = async (req, res) => {
     }
 
     logger.error('Google Sign In Error:', error);
-    const isDatabaseUnavailable =
-      error?.name === 'PrismaClientInitializationError' ||
-      error?.name === 'PrismaClientUnknownRequestError' ||
-      error?.name === 'PrismaClientKnownRequestError' ||
-      error?.code === 'P1001' ||
-      (error?.message && (error.message.includes('Server selection timeout') || error.message.includes('fatal alert')));
-
-    return res.status(isDatabaseUnavailable ? 503 : 500).json({
+    return res.status(500).json({
       success: false,
-      code: isDatabaseUnavailable ? 'SERVICE_UNAVAILABLE' : 'INTERNAL_SERVER_ERROR',
-      message: isDatabaseUnavailable
-        ? 'Database connection is temporarily unavailable. Please try again in a moment.'
-        : 'Internal Server Error during Google Sign-In.',
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Internal Server Error during Google Sign-In.',
       data: null
     });
   }
