@@ -6,7 +6,11 @@ from app.core.config import settings
 logger = logging.getLogger("jira_fastapi")
 
 def get_database() -> AsyncIOMotorDatabase:
-    client = AsyncIOMotorClient(settings.DATABASE_URL)
+    kwargs = {}
+    if "mongodb+srv" in settings.DATABASE_URL or "ssl=true" in settings.DATABASE_URL.lower() or "tls=true" in settings.DATABASE_URL.lower():
+        kwargs["tls"] = True
+        kwargs["tlsAllowInvalidCertificates"] = True
+    client = AsyncIOMotorClient(settings.DATABASE_URL, **kwargs)
     return client.get_database(settings.DATABASE_NAME)
 
 async def connect_to_mongo():
