@@ -9,7 +9,6 @@ export function getRuntimeDatabaseUrl(databaseUrl = process.env.DATABASE_URL) {
       url.searchParams.set('ssl', 'true');
       url.searchParams.set('tls', 'true');
       url.searchParams.set('tlsAllowInvalidCertificates', 'true');
-      url.searchParams.set('sslverify', 'false');
       if (!url.searchParams.has('connectTimeoutMS')) {
         url.searchParams.set('connectTimeoutMS', '15000');
       }
