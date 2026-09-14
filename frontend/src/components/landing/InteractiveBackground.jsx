@@ -1,16 +1,12 @@
 import React from 'react';
 
 /**
- * Pure Atlassian Crisp Background Component.
- * Provides a clean solid background adhering to official Jira/Atlassian visual language.
+ * InteractiveBackground Component.
+ * Returns null to eliminate all background overlay and container layers.
  */
 export default function InteractiveBackground() {
-  return (
-    <div
-      className="fixed inset-0 pointer-events-none z-0 bg-dominant"
-      aria-hidden="true"
-    />
-  );
+  return null;
 }
+
 
 
