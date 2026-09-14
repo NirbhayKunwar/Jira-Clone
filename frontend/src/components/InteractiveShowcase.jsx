@@ -103,9 +103,7 @@ export default function InteractiveShowcase() {
   const progressPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   return (
-    <section id="product-demo" className="relative py-16 md:py-24 bg-dominant-offset/30 border-y border-border-secondary/60 transition-colors duration-300 overflow-hidden">
-
-
+    <section data-section-id="showcase" id="product-demo" className="relative py-16 md:py-24 bg-dominant-offset/30 border-y border-border-secondary/60 transition-colors duration-300 overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center max-w-3xl mx-auto mb-12">
           <h2 className="font-display font-extrabold text-3xl sm:text-4xl text-text-secondary tracking-tight">

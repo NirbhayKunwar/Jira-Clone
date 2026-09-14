@@ -42,7 +42,7 @@ export default function Testimonials() {
   const current = TESTIMONIALS[currentIndex];
 
   return (
-    <section className="py-20 bg-dominant-offset border-t border-border-secondary overflow-hidden transition-colors duration-300">
+    <section data-section-id="testimonials" id="testimonials" className="py-20 bg-dominant-offset border-t border-border-secondary overflow-hidden transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <span className="text-xs font-bold text-accent bg-accent-light px-3 py-1 rounded-full uppercase tracking-wider">

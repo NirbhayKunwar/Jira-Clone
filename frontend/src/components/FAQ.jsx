@@ -32,7 +32,7 @@ export default function FAQ() {
   };
 
   return (
-    <section className="relative py-20 bg-dominant transition-colors duration-300 overflow-hidden">
+    <section data-section-id="faq" id="faq" className="relative py-20 bg-dominant transition-colors duration-300 overflow-hidden">
 
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">

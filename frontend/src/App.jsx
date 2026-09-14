@@ -36,17 +36,7 @@ function safeLazy(importFn) {
   });
 }
 
-// Landing page sections — grouped in one chunk so a single network request
-// fetches the whole landing page after the first paint.
-const Navbar              = safeLazy(() => import('./components/Navbar'));
-const Hero                = safeLazy(() => import('./components/Hero'));
-const InteractiveShowcase = safeLazy(() => import('./components/InteractiveShowcase'));
-const TeamTabs            = safeLazy(() => import('./components/TeamTabs'));
-const FeaturesGrid        = safeLazy(() => import('./components/FeaturesGrid'));
-const Integrations        = safeLazy(() => import('./components/Integrations'));
-const Testimonials        = safeLazy(() => import('./components/Testimonials'));
-const FAQ                 = safeLazy(() => import('./components/FAQ'));
-const Footer              = safeLazy(() => import('./components/Footer'));
+const LandingPage = safeLazy(() => import('./components/landing/LandingPage'));
 
 // Auth — separate chunk, loaded only on /auth /login /signup
 const Auth = safeLazy(() => import('./components/Auth'));
@@ -137,22 +127,18 @@ function App() {
   return (
     <div className="min-h-screen bg-dominant text-text-secondary selection:bg-accent-light selection:text-accent transition-colors duration-300">
       <Routes>
-        {/* Landing Page — entire section loads as one lazy chunk */}
+        {/* Landing Page — enhanced with interactive workflow background and Lenis smooth scroll */}
         <Route
           path="/"
           element={
             <Suspense fallback={<PageSpinner />}>
-              <>
-                <Navbar theme={theme} setTheme={setTheme} mode={mode} toggleMode={toggleMode} onNavigate={(view) => navigate(view === 'landing' ? '/' : `/${view}`)} />
-                <Hero onGetStarted={(email) => navigate('/auth', { state: { email, isSignUp: true } })} />
-                <InteractiveShowcase />
-                <TeamTabs />
-                <FeaturesGrid />
-                <Integrations />
-                <Testimonials />
-                <FAQ />
-                <Footer onGetStarted={() => navigate('/auth', { state: { isSignUp: true } })} />
-              </>
+              <LandingPage
+                theme={theme}
+                setTheme={setTheme}
+                mode={mode}
+                toggleMode={toggleMode}
+                onNavigate={(view, state) => navigate(view === 'landing' ? '/' : `/${view}`, { state })}
+              />
             </Suspense>
           }
         />

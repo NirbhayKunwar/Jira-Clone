@@ -14,7 +14,7 @@ export default function Hero({ onGetStarted }) {
   };
 
   return (
-    <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 bg-gradient-to-b from-accent-light/20 via-dominant to-dominant overflow-hidden transition-colors duration-300">
+    <section data-section-id="hero" id="hero" className="relative pt-32 pb-20 md:pt-40 md:pb-28 bg-gradient-to-b from-accent-light/20 via-dominant to-dominant overflow-hidden transition-colors duration-300">
       {/* Dynamic Grid Pattern */}
       <div className="absolute inset-0 bg-grid-pattern opacity-60 dark:opacity-45 pointer-events-none -z-20" />
 

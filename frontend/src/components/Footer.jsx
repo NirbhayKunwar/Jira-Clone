@@ -40,10 +40,10 @@ export default function Footer({ onGetStarted }) {
   ];
 
   return (
-    <footer className="bg-dominant-offset text-text-secondary border-t border-border-secondary transition-colors duration-300">
+    <footer data-section-id="footer" id="footer" className="bg-dominant-offset text-text-secondary border-t border-border-secondary transition-colors duration-300">
       
       {/* Bottom Hero Call to Action banner */}
-      <div className="bg-gradient-to-br from-accent to-accent-hover py-16 px-4 sm:px-6 lg:px-8 text-center text-white relative overflow-hidden">
+      <div data-section-id="cta" id="cta" className="bg-gradient-to-br from-accent to-accent-hover py-16 px-4 sm:px-6 lg:px-8 text-center text-white relative overflow-hidden">
 
 
         <div className="max-w-4xl mx-auto relative z-10 space-y-6">

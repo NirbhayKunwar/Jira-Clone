@@ -68,7 +68,7 @@ export default function Integrations() {
     : INTEGRATIONS_DATA.filter(item => item.category === selectedCategory);
 
   return (
-    <section className="relative py-20 bg-dominant transition-colors duration-300 overflow-hidden">
+    <section data-section-id="integrations" id="integrations" className="relative py-20 bg-dominant transition-colors duration-300 overflow-hidden">
 
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
