@@ -194,15 +194,7 @@ body {
    PREMIUM DYNAMIC VISUAL DECORATIONS
    ========================================== */
 
-/* Theme-adaptive Grid Overlay */
-.bg-grid-pattern {
-  background-size: 45px 45px;
-  background-image: 
-    linear-gradient(to right, var(--border-secondary) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--border-secondary) 1px, transparent 1px);
-  mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
-  -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 75%);
-}
+
 
 /* Slow floating ambient background animations */
 @keyframes float-slow {

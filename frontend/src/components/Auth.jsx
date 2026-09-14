@@ -323,7 +323,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
 
   return (
     <div className="min-h-[100dvh] relative flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8 bg-dominant transition-colors duration-300 overflow-y-auto">
-      <div className="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none -z-20" />
+
 
       {/* Floating Header Actions (Back button) */}
       <div className="absolute top-6 left-6 z-20">

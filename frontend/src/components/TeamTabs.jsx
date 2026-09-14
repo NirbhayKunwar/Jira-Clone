@@ -198,8 +198,6 @@ export default function TeamTabs() {
 
           {/* Right Column: Dynamic Code mockup frame */}
           <div className="lg:col-span-7 relative px-4 sm:px-0">
-            {/* Grid pattern layer behind the card for extra depth */}
-            <div className="absolute inset-0 bg-grid-pattern opacity-60 dark:opacity-30 pointer-events-none -z-10 rounded-3xl" />
             <TiltedCard>
               <div className="bg-dominant-offset p-5 sm:p-7 rounded-2xl border border-border-secondary shadow-lg relative">
                 <div className="absolute -top-3 -right-3 bg-accent text-white p-2 rounded-xl shadow-md pointer-events-none hidden sm:block animate-bounce">
