@@ -8,7 +8,6 @@ import Integrations from '../Integrations';
 import Testimonials from '../Testimonials';
 import FAQ from '../FAQ';
 import Footer from '../Footer';
-import InteractiveBackground from './InteractiveBackground';
 import SmoothScrollProvider from '../../providers/SmoothScrollProvider';
 import useSectionProgress from '../../hooks/useSectionProgress';
 
@@ -18,9 +17,6 @@ export default function LandingPage({ theme, setTheme, mode, toggleMode, onNavig
   return (
     <SmoothScrollProvider>
       <div className="relative min-h-screen bg-dominant text-text-secondary overflow-x-hidden">
-        {/* Global Interactive Workflow Background */}
-        <InteractiveBackground activeSection={activeSection} />
-
         {/* Foreground Content Layer */}
         <div className="relative z-10">
           <Navbar
