@@ -235,18 +235,12 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       const currentView = viewRef.current;
       const currentAgreeTerms = agreeTermsRef.current;
 
-      if (currentView === 'signup' && !currentAgreeTerms) {
-        setError('You must accept the Terms of Service and Privacy Policy to create an account.');
-        return;
-      }
- 
       setGoogleLoading(true);
       setError('');
       setSuccess('');
       
-      // On Sign In tab (currentView === 'login'), autoRegister is strictly FALSE so Google Sign-In will NOT auto-signup a new user.
-      // On Sign Up tab (currentView === 'signup'), autoRegister is TRUE.
-      const isAutoRegister = currentView === 'signup';
+      // Google SSO provides verified identity — auto-register new users or sign in existing users seamlessly
+      const isAutoRegister = true;
 
       // Send Google raw credential to backend endpoint for secure verification
       const backendRes = await fetch(`${API_URL}/api/auth/google-signin`, {
