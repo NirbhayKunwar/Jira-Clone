@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, 
-  ShieldCheck, Sun, Moon, Palette, Check, Zap, ChevronDown 
+  ShieldCheck, Sun, Moon, Palette, Check, ChevronDown 
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuthStore } from '../store/authStore';
@@ -454,7 +454,6 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         {/* Left Center: Brand Value Proposition & Features */}
         <div className="my-auto py-6 space-y-6 max-w-lg z-10 hidden sm:block">
           <div className="inline-flex items-center space-x-2 bg-accent-light text-accent px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">
-            <Zap className="w-3.5 h-3.5" />
             <span>Enterprise Agile Platform</span>
           </div>
 

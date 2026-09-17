@@ -1,5 +1,5 @@
 import React from 'react';
-import { Columns, CalendarRange, Workflow, BarChart3, GitFork, ShieldAlert, Zap, ArrowUpRight } from 'lucide-react';
+import { Columns, CalendarRange, Workflow, BarChart3, GitFork, ShieldAlert, ArrowUpRight } from 'lucide-react';
 import SpotlightCard from './animations/SpotlightCard';
 import { useTheme } from '../hooks/useTheme';
 
@@ -107,7 +107,6 @@ export default function FeaturesGrid() {
             
             <div className="space-y-3 max-w-2xl text-center md:text-left z-10">
               <div className="inline-flex items-center space-x-1.5 bg-accent-light text-accent border border-accent/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-                <Zap className="w-3.5 h-3.5 text-jira-yellow fill-current" />
                 <span>Speed Spotlight</span>
               </div>
               <h3 className="font-display font-extrabold text-2xl sm:text-3xl text-text-secondary tracking-tight">
@@ -131,7 +130,6 @@ export default function FeaturesGrid() {
           <div className="mt-16 bg-gradient-to-r from-accent to-accent-hover rounded-2xl p-8 sm:p-10 shadow-lg text-white flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="space-y-2 max-w-2xl text-center md:text-left">
               <div className="inline-flex items-center space-x-1.5 bg-white/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white">
-                <Zap className="w-3.5 h-3.5 fill-current text-jira-yellow" />
                 <span>Speed Spotlight</span>
               </div>
               <h3 className="font-display font-bold text-xl sm:text-2xl">

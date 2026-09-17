@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Check, ShieldCheck, Zap } from 'lucide-react';
+import { Play, Check, ShieldCheck } from 'lucide-react';
 
 
 export default function Hero({ onGetStarted }) {
@@ -22,7 +22,6 @@ export default function Hero({ onGetStarted }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
         {/* Banner Pill */}
         <div className="inline-flex items-center space-x-2 bg-accent-light text-accent px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase mb-6">
-          <Zap className="w-3.5 h-3.5" />
           <span>Introducing Jira 10</span>
         </div>
 
