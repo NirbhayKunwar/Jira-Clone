@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuthStore } from '../store/authStore';
+import AppSplash from './common/AppSplash';
 
 let googleInitialized = false;
 
@@ -320,6 +321,23 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
       return () => clearTimeout(timer);
     }
   }, [view, handleCredentialResponse]);
+
+  if (loading || googleLoading) {
+    return (
+      <AppSplash 
+        message={
+          googleLoading 
+            ? "Verifying Google Account..." 
+            : view === 'signup' 
+            ? "Creating your account..." 
+            : view === 'forgot'
+            ? "Processing security request..."
+            : "Signing in to Jira Clone..."
+        }
+        subtext="Authenticating session and establishing secure connection..."
+      />
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] relative flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8 bg-dominant transition-colors duration-300 overflow-y-auto">
