@@ -368,8 +368,12 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
     <div className="min-h-[100dvh] w-full bg-dominant transition-colors duration-300 flex flex-col lg:flex-row overflow-x-hidden">
       
       {/* LEFT SIDE: Brand Showcase + Logo + Dark/Light Theme Toggle */}
-      <div className="w-full lg:w-1/2 bg-dominant-offset/40 border-b lg:border-b-0 lg:border-r border-border-secondary/40 p-6 sm:p-10 lg:p-12 flex flex-col justify-between relative overflow-hidden flex-shrink-0">
+      <div className="w-full lg:w-1/2 bg-gradient-to-br from-accent/5 via-dominant-offset/20 to-transparent p-6 sm:p-10 lg:p-12 flex flex-col justify-between relative overflow-hidden flex-shrink-0">
         
+        {/* Soft Ambient Background Glows */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-accent-hover/5 rounded-full blur-3xl pointer-events-none" />
+
         {/* Left Top Bar: Brand Logo + Dark/Light Mode Toggle + Home Link */}
         <div className="flex items-center justify-between z-10 w-full mb-8">
           {/* Brand Logo */}
@@ -485,7 +489,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
         </div>
 
         {/* Left Bottom: Security Assurance */}
-        <div className="pt-6 border-t border-border-secondary/20 flex items-center space-x-2 text-[11px] text-text-secondary-muted font-medium z-10 mt-auto">
+        <div className="pt-6 flex items-center space-x-2 text-[11px] text-text-secondary-muted font-medium z-10 mt-auto">
           <ShieldCheck className="w-4 h-4 text-jira-green flex-shrink-0" />
           <span>Atlassian SOC2 & GDPR Enterprise Protection</span>
         </div>
