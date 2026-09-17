@@ -67,7 +67,7 @@ model Workspace {
   description     String?
   sprintDuration  Int?              @default(2) @map("sprint_duration")
   wipLimit        Int?              @default(5) @map("wip_limit")
-  createdAt       DateTime          @default(now()) @map("created_at")
+  createdAt       DateTime?         @default(now()) @map("created_at")
   status          RecordStatus      @default(ACTIVE)
   tasks           Task[]
   scheduleEvents  ScheduleEvent[]
@@ -104,7 +104,7 @@ model User {
   authProvider           AuthProvider      @default(LOCAL) @map("auth_provider")
   rbacRole               RbacRole          @default(MEMBER) @map("rbac_role")
   tokenVersion           Int               @default(1) @map("token_version")
-  createdAt              DateTime          @default(now()) @map("created_at")
+  createdAt              DateTime?         @default(now()) @map("created_at")
   tasks                  Task[]
   notifications          Notification[]
   ownedWorkspaces        Workspace[]       @relation("WorkspaceOwner")
@@ -266,7 +266,7 @@ model Project {
   status      RecordStatus   @default(ACTIVE)
   workspaceId String         @map("workspace_id") @db.ObjectId
   workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdAt   DateTime       @default(now()) @map("created_at")
+  createdAt   DateTime?      @default(now()) @map("created_at")
   projectMembers ProjectMember[]
 
   @@index([workspaceId])
@@ -282,7 +282,7 @@ model ProjectMember {
   workspaceMemberId String          @map("workspace_member_id") @db.ObjectId
   workspaceMember   WorkspaceMember @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
   role              ProjectRole     @default(DEVELOPER)
-  joinedAt          DateTime        @default(now()) @map("joined_at")
+  joinedAt          DateTime?       @default(now()) @map("joined_at")
 
   @@index([projectId])
   @@index([workspaceMemberId])
@@ -298,7 +298,7 @@ model WorkspaceMember {
   user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   role             WorkspaceRole  @default(MEMBER)
   status           RecordStatus   @default(ACTIVE)
-  joinedAt         DateTime       @default(now()) @map("joined_at")
+  joinedAt         DateTime?      @default(now()) @map("joined_at")
   teamMemberships  TeamMember[]
   projectMemberships ProjectMember[]
 
