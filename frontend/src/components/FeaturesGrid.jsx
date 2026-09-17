@@ -1,6 +1,7 @@
 import React from 'react';
 import { Columns, CalendarRange, Workflow, BarChart3, GitFork, ShieldAlert, Zap, ArrowUpRight } from 'lucide-react';
 import SpotlightCard from './animations/SpotlightCard';
+import { useTheme } from '../hooks/useTheme';
 
 const FEATURES = [
   {
@@ -42,6 +43,9 @@ const FEATURES = [
 ];
 
 export default function FeaturesGrid() {
+  const { resolvedMode } = useTheme();
+  const isDark = resolvedMode === 'dark';
+
   return (
     <section data-section-id="capabilities" id="capabilities" className="py-20 bg-dominant-offset border-t border-border-secondary transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -96,32 +100,57 @@ export default function FeaturesGrid() {
         </div>
 
         {/* Feature highlight banner */}
-        <div className="mt-16 bg-card-secondary border border-border-secondary hover:border-accent/40 rounded-2xl p-8 sm:p-10 shadow-lg text-text-secondary flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group transition-all duration-300">
-          {/* Subtle Ambient Glow */}
-          <div className="absolute -right-20 -top-20 w-80 h-80 bg-accent/10 rounded-full blur-3xl pointer-events-none group-hover:bg-accent/15 transition-all" />
-          
-          <div className="space-y-3 max-w-2xl text-center md:text-left z-10">
-            <div className="inline-flex items-center space-x-1.5 bg-accent-light text-accent border border-accent/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-              <Zap className="w-3.5 h-3.5 text-jira-yellow fill-current" />
-              <span>Speed Spotlight</span>
+        {isDark ? (
+          <div className="mt-16 bg-card-secondary border border-border-secondary hover:border-accent/40 rounded-2xl p-8 sm:p-10 shadow-lg text-text-secondary flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden group transition-all duration-300">
+            {/* Subtle Ambient Glow */}
+            <div className="absolute -right-20 -top-20 w-80 h-80 bg-accent/10 rounded-full blur-3xl pointer-events-none group-hover:bg-accent/15 transition-all" />
+            
+            <div className="space-y-3 max-w-2xl text-center md:text-left z-10">
+              <div className="inline-flex items-center space-x-1.5 bg-accent-light text-accent border border-accent/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                <Zap className="w-3.5 h-3.5 text-jira-yellow fill-current" />
+                <span>Speed Spotlight</span>
+              </div>
+              <h3 className="font-display font-extrabold text-2xl sm:text-3xl text-text-secondary tracking-tight">
+                Tired of slow tool load times?
+              </h3>
+              <p className="text-text-secondary-muted text-sm sm:text-base leading-relaxed">
+                Jira 10 loads dashboards 2.4x faster, boards render in under 150ms, and search returns answers instantly. Experience agile velocity at its finest.
+              </p>
             </div>
-            <h3 className="font-display font-extrabold text-2xl sm:text-3xl text-text-secondary tracking-tight">
-              Tired of slow tool load times?
-            </h3>
-            <p className="text-text-secondary-muted text-sm sm:text-base leading-relaxed">
-              Jira 10 loads dashboards 2.4x faster, boards render in under 150ms, and search returns answers instantly. Experience agile velocity at its finest.
-            </p>
+            
+            <div className="flex-shrink-0 z-10">
+              <a 
+                href="#" 
+                className="bg-accent text-white hover:bg-accent-hover px-6 py-3.5 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all border-none inline-block text-center cursor-pointer"
+              >
+                Learn about performance upgrades
+              </a>
+            </div>
           </div>
-          
-          <div className="flex-shrink-0 z-10">
-            <a 
-              href="#" 
-              className="bg-accent text-white hover:bg-accent-hover px-6 py-3.5 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all border-none inline-block text-center cursor-pointer"
-            >
-              Learn about performance upgrades
-            </a>
+        ) : (
+          <div className="mt-16 bg-gradient-to-r from-accent to-accent-hover rounded-2xl p-8 sm:p-10 shadow-lg text-white flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="space-y-2 max-w-2xl text-center md:text-left">
+              <div className="inline-flex items-center space-x-1.5 bg-white/20 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider text-white">
+                <Zap className="w-3.5 h-3.5 fill-current text-jira-yellow" />
+                <span>Speed Spotlight</span>
+              </div>
+              <h3 className="font-display font-bold text-xl sm:text-2xl">
+                Tired of slow tool load times?
+              </h3>
+              <p className="text-white/90 text-sm leading-relaxed">
+                Jira 10 loads dashboards 2.4x faster, boards render in under 150ms, and search returns answers instantly. Experience agile velocity at its finest.
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              <a 
+                href="#" 
+                className="bg-white text-accent hover:bg-[#deebff] px-6 py-3 rounded-lg font-bold text-sm shadow inline-block text-center transition-all cursor-pointer border-none"
+              >
+                Learn about performance upgrades
+              </a>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </section>
   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowUpRight } from 'lucide-react';
+import { useTheme } from '../hooks/useTheme';
 
 const TwitterIcon = ({ className = "w-4.5 h-4.5" }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -20,6 +21,9 @@ const LinkedinIcon = ({ className = "w-4.5 h-4.5" }) => (
 );
 
 export default function Footer({ onGetStarted }) {
+  const { resolvedMode } = useTheme();
+  const isDark = resolvedMode === 'dark';
+
   const footerLinks = [
     {
       title: 'Products',
@@ -43,34 +47,58 @@ export default function Footer({ onGetStarted }) {
     <footer data-section-id="footer" id="footer" className="bg-dominant-offset text-text-secondary border-t border-border-secondary transition-colors duration-300">
       
       {/* Bottom Hero Call to Action banner */}
-      <div data-section-id="cta" id="cta" className="bg-card-secondary border-t border-b border-border-secondary py-16 px-4 sm:px-6 lg:px-8 text-center text-text-secondary relative overflow-hidden transition-colors duration-300">
-        
-        {/* Subtle Ambient Radial Glow */}
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-accent/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="max-w-4xl mx-auto relative z-10 space-y-6">
-          <h2 className="font-display font-extrabold text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight text-text-secondary">
-            Build what's next, <span className="text-accent">together</span>
-          </h2>
-          <p className="text-text-secondary-muted text-base sm:text-lg max-w-xl mx-auto">
-            Get started with Jira Clone today. Free for up to 10 users. No credit card required.
-          </p>
-          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button
-              onClick={onGetStarted}
-              className="w-full sm:w-auto bg-accent text-white hover:bg-accent-hover px-8 py-3.5 rounded-xl font-bold text-base cursor-pointer border-none shadow-md hover:shadow-lg transition-all"
-            >
-              Get started free
-            </button>
-            <a 
-              href="#" 
-              className="w-full sm:w-auto border border-border-secondary/80 hover:border-accent hover:bg-accent-light/10 text-text-secondary px-8 py-3.5 rounded-xl font-semibold text-base transition-all text-center inline-block"
-            >
-              Contact Sales
-            </a>
+      {isDark ? (
+        <div data-section-id="cta" id="cta" className="bg-card-secondary border-t border-b border-border-secondary py-16 px-4 sm:px-6 lg:px-8 text-center text-text-secondary relative overflow-hidden transition-colors duration-300">
+          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-accent/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="max-w-4xl mx-auto relative z-10 space-y-6">
+            <h2 className="font-display font-extrabold text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight text-text-secondary">
+              Build what's next, <span className="text-accent">together</span>
+            </h2>
+            <p className="text-text-secondary-muted text-base sm:text-lg max-w-xl mx-auto">
+              Get started with Jira Clone today. Free for up to 10 users. No credit card required.
+            </p>
+            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                onClick={onGetStarted}
+                className="w-full sm:w-auto bg-accent text-white hover:bg-accent-hover px-8 py-3.5 rounded-xl font-bold text-base cursor-pointer border-none shadow-md hover:shadow-lg transition-all"
+              >
+                Get started free
+              </button>
+              <a 
+                href="#" 
+                className="w-full sm:w-auto border border-border-secondary/80 hover:border-accent hover:bg-accent-light/10 text-text-secondary px-8 py-3.5 rounded-xl font-semibold text-base transition-all text-center inline-block"
+              >
+                Contact Sales
+              </a>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div data-section-id="cta" id="cta" className="bg-gradient-to-br from-accent to-accent-hover py-16 px-4 sm:px-6 lg:px-8 text-center text-white relative overflow-hidden">
+          <div className="max-w-4xl mx-auto relative z-10 space-y-6">
+            <h2 className="font-display font-extrabold text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight">
+              Build what's next, together
+            </h2>
+            <p className="text-white/80 text-base sm:text-lg max-w-xl mx-auto">
+              Get started with Jira Clone today. Free for up to 10 users. No credit card required.
+            </p>
+            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                onClick={onGetStarted}
+                className="w-full sm:w-auto bg-white text-accent hover:bg-[#deebff] px-8 py-3.5 rounded font-bold text-base cursor-pointer border-none shadow-sm"
+              >
+                Get started free
+              </button>
+              <a 
+                href="#" 
+                className="w-full sm:w-auto border border-white/60 hover:border-white hover:bg-white/10 px-8 py-3.5 rounded font-semibold text-base text-center inline-block"
+              >
+                Contact Sales
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Footer Links */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
