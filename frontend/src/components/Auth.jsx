@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { 
+  ArrowLeft, Mail, Lock, User, Eye, EyeOff, ArrowRight, Loader2, AlertCircle, 
+  ShieldCheck, Sun, Moon, Palette, Check, Zap, ChevronDown 
+} from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuthStore } from '../store/authStore';
+import { useTheme } from '../hooks/useTheme';
 import AppSplash from './common/AppSplash';
+
+const THEMES = [
+  { id: 'atlassian', name: 'Atlassian Blue (Default)', colorBg: 'bg-[#0052cc]' },
+  { id: 'emerald', name: 'Emerald Forest', colorBg: 'bg-[#10b981]' },
+  { id: 'cyberpunk', name: 'Cyberpunk Neon', colorBg: 'bg-[#db2777]' },
+  { id: 'sunset', name: 'Sunset Amber', colorBg: 'bg-[#d97706]' }
+];
 
 let googleInitialized = false;
 
@@ -11,6 +22,10 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
   const navigate = useNavigate();
   const location = useLocation();
   const login = useAuthStore((state) => state.login);
+  const { theme, mode, resolvedMode, setTheme, setMode, toggleMode } = useTheme();
+
+  const [showThemePicker, setShowThemePicker] = useState(false);
+  const pickerRef = useRef(null);
 
   const routeState = location.state || {};
   const queryParams = new URLSearchParams(location.search);
@@ -32,6 +47,16 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
     viewRef.current = view;
     agreeTermsRef.current = agreeTerms;
   }, [view, agreeTerms]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setShowThemePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleClose = () => {
     if (onClose) {
@@ -340,129 +365,316 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
   }
 
   return (
-    <div className="min-h-[100dvh] relative flex items-center justify-center py-6 px-4 sm:px-6 lg:px-8 bg-dominant transition-colors duration-300 overflow-y-auto">
+    <div className="min-h-[100dvh] w-full bg-dominant transition-colors duration-300 flex flex-col lg:flex-row overflow-x-hidden">
+      
+      {/* LEFT SIDE: Brand Showcase + Logo + Dark/Light Theme Toggle */}
+      <div className="w-full lg:w-1/2 bg-dominant-offset/40 border-b lg:border-b-0 lg:border-r border-border-secondary/40 p-6 sm:p-10 lg:p-12 flex flex-col justify-between relative overflow-hidden flex-shrink-0">
+        
+        {/* Left Top Bar: Brand Logo + Dark/Light Mode Toggle + Home Link */}
+        <div className="flex items-center justify-between z-10 w-full mb-8">
+          {/* Brand Logo */}
+          <div className="flex items-center space-x-2.5 cursor-pointer group" onClick={handleClose}>
+            <div className="w-9 h-9 flex-shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+                <path d="M11.5 2C11.5 2 11.5 5.5 8 9C4.5 12.5 1 12.5 1 12.5L7.5 19L11.5 23L15 19.5L11.5 2Z" fill="var(--color-accent)" />
+                <path d="M23 12.5C23 12.5 19.5 12.5 16 9C12.5 5.5 12.5 2 12.5 2L16.5 6L20.5 10L23 12.5Z" fill="var(--color-accent-hover)" />
+                <path d="M12.5 22C12.5 22 16 22 19.5 18.5C23 15 23 11.5 23 11.5L19 15L15 19L12.5 22Z" fill="var(--color-accent)" opacity="0.8" />
+              </svg>
+            </div>
+            <span className="font-display font-extrabold text-2xl tracking-tight text-accent flex items-center">
+              Jira <span className="text-text-secondary font-normal ml-1">Clone</span>
+            </span>
+          </div>
 
+          {/* Mode & Theme Controls (Just like Navbar) */}
+          <div className="flex items-center space-x-2">
+            {/* Color Palette Dropdown */}
+            <div className="relative" ref={pickerRef}>
+              <button
+                type="button"
+                onClick={() => setShowThemePicker(!showThemePicker)}
+                className="flex items-center space-x-1 p-2 text-text-secondary-muted hover:text-accent rounded-lg hover:bg-card-secondary cursor-pointer transition-all border border-border-secondary/40"
+                title="Choose Color Palette"
+              >
+                <Palette className="w-4 h-4" />
+                <ChevronDown className="w-3 h-3" />
+              </button>
 
-      {/* Floating Header Actions (Back button) */}
-      <div className="absolute top-6 left-6 z-20">
-        <button
-          onClick={handleClose}
-          className="inline-flex items-center space-x-2 px-4 py-2 rounded-xl border border-border-secondary bg-card-secondary text-sm font-semibold text-text-secondary-muted hover:text-accent hover:border-accent shadow-sm cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Home</span>
-        </button>
+              {showThemePicker && (
+                <div className="absolute right-0 mt-2 w-52 bg-card-secondary border border-border-secondary rounded-xl shadow-xl p-2.5 z-50 animate-[fade-in_150ms_ease-out]">
+                  <div className="text-[10px] font-bold text-text-secondary-muted px-2 py-1 uppercase tracking-wider">
+                    Color Palette
+                  </div>
+                  {THEMES.map((t) => (
+                    <button
+                      type="button"
+                      key={t.id}
+                      onClick={() => {
+                        setTheme(t.id);
+                        setShowThemePicker(false);
+                      }}
+                      className={`w-full flex items-center space-x-2.5 p-2 rounded-lg text-xs font-semibold hover:bg-dominant-offset cursor-pointer text-left transition-all border-none bg-transparent ${
+                        theme === t.id ? 'text-accent bg-accent-light' : 'text-text-secondary'
+                      }`}
+                    >
+                      <span className={`w-3.5 h-3.5 rounded-full ${t.colorBg} block border border-white/20`} />
+                      <span>{t.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Dark / Light Mode Toggle Button */}
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="p-2 text-text-secondary-muted hover:text-accent rounded-lg hover:bg-card-secondary cursor-pointer transition-all border border-border-secondary/40"
+              title={resolvedMode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {resolvedMode === 'dark' ? <Sun className="w-4.5 h-4.5 text-amber-400" /> : <Moon className="w-4.5 h-4.5 text-accent" />}
+            </button>
+
+            {/* Home Link Button */}
+            <button
+              type="button"
+              onClick={handleClose}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-border-secondary/40 bg-card-secondary text-xs font-semibold text-text-secondary-muted hover:text-accent hover:border-accent shadow-xs cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Left Center: Brand Value Proposition & Features */}
+        <div className="my-auto py-6 space-y-6 max-w-lg z-10 hidden sm:block">
+          <div className="inline-flex items-center space-x-2 bg-accent-light text-accent px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase">
+            <Zap className="w-3.5 h-3.5" />
+            <span>Enterprise Agile Platform</span>
+          </div>
+
+          <h1 className="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl text-text-secondary tracking-tight leading-tight">
+            Move fast, stay aligned, and build better <span className="text-accent">together</span>.
+          </h1>
+
+          <p className="text-sm sm:text-base text-text-secondary-muted leading-relaxed">
+            The #1 software development tool used by agile teams to plan sprints, track issues across release lifecycles, and ship world-class software.
+          </p>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center space-x-3 text-xs sm:text-sm text-text-secondary font-medium">
+              <div className="w-5 h-5 rounded-full bg-jira-green/10 text-jira-green flex items-center justify-center flex-shrink-0">
+                <Check className="w-3.5 h-3.5" />
+              </div>
+              <span>Agile Kanban & Scrum Boards for sprint planning</span>
+            </div>
+            <div className="flex items-center space-x-3 text-xs sm:text-sm text-text-secondary font-medium">
+              <div className="w-5 h-5 rounded-full bg-jira-green/10 text-jira-green flex items-center justify-center flex-shrink-0">
+                <Check className="w-3.5 h-3.5" />
+              </div>
+              <span>Google SSO & RBAC Workspace Member Roles</span>
+            </div>
+            <div className="flex items-center space-x-3 text-xs sm:text-sm text-text-secondary font-medium">
+              <div className="w-5 h-5 rounded-full bg-jira-green/10 text-jira-green flex items-center justify-center flex-shrink-0">
+                <Check className="w-3.5 h-3.5" />
+              </div>
+              <span>Real-time sprint roadmaps & security audit logs</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Left Bottom: Security Assurance */}
+        <div className="pt-6 border-t border-border-secondary/20 flex items-center space-x-2 text-[11px] text-text-secondary-muted font-medium z-10 mt-auto">
+          <ShieldCheck className="w-4 h-4 text-jira-green flex-shrink-0" />
+          <span>Atlassian SOC2 & GDPR Enterprise Protection</span>
+        </div>
       </div>
 
-      {/* Auth Main Card */}
-      <div className="w-full max-w-md z-10 transition-all duration-300 transform scale-100 opacity-100 my-auto py-8">
-        <div className="bg-card-secondary p-8 rounded-2xl border border-border-secondary/60 shadow-xl relative overflow-hidden">
-          
-          {/* Top Decorative accent border */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent via-accent-hover to-accent" />
-          
-          {/* Brand Logo */}
-          <div className="flex justify-center mb-6 mt-2">
-            <div className="flex items-center space-x-2 cursor-pointer" onClick={handleClose}>
-              <div className="w-8 h-8 flex-shrink-0">
-                <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-                  <path d="M11.5 2C11.5 2 11.5 5.5 8 9C4.5 12.5 1 12.5 1 12.5L7.5 19L11.5 23L15 19.5L11.5 2Z" fill="var(--color-accent)" />
-                  <path d="M23 12.5C23 12.5 19.5 12.5 16 9C12.5 5.5 12.5 2 12.5 2L16.5 6L20.5 10L23 12.5Z" fill="var(--color-accent-hover)" />
-                  <path d="M12.5 22C12.5 22 16 22 19.5 18.5C23 15 23 11.5 23 11.5L19 15L15 19L12.5 22Z" fill="var(--color-accent)" opacity="0.8" />
-                </svg>
+      {/* RIGHT SIDE: Login / Signup / Forgot Password Form Card */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-10 lg:p-12 my-auto">
+        <div className="w-full max-w-md">
+          <div className="bg-card-secondary p-8 rounded-2xl border border-border-secondary/60 shadow-xl relative overflow-hidden">
+            
+            {/* Top Decorative accent border */}
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent via-accent-hover to-accent" />
+
+            <div className="text-center mb-6">
+              <h2 className="font-display font-extrabold text-2xl text-text-secondary">
+                {view === 'login' ? 'Sign in to your account' : view === 'signup' ? 'Create your free account' : 'Reset your password'}
+              </h2>
+              <p className="text-xs text-text-secondary-muted mt-2">
+                {view === 'login' 
+                  ? 'Welcome back! Please enter your details.' 
+                  : view === 'signup' 
+                  ? 'Start planning and building with your team in minutes.'
+                  : forgotStep === 1 
+                  ? 'Enter your email address to receive a 6-digit OTP code.' 
+                  : 'Enter the verification OTP and configure your new password.'}
+              </p>
+            </div>
+
+            {/* Error and Success Banners */}
+            {error && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>{error}</span>
               </div>
-              <span className="font-display font-extrabold text-xl tracking-tight text-accent">
-                Jira <span className="text-text-secondary font-normal">Clone</span>
-              </span>
-            </div>
-          </div>
+            )}
 
-          <div className="text-center mb-6">
-            <h2 className="font-display font-extrabold text-2xl text-text-secondary">
-              {view === 'login' ? 'Sign in to your account' : view === 'signup' ? 'Create your free account' : 'Reset your password'}
-            </h2>
-            <p className="text-xs text-text-secondary-muted mt-2">
-              {view === 'login' 
-                ? 'Welcome back! Please enter your details.' 
-                : view === 'signup' 
-                ? 'Start planning and building with your team in minutes.'
-                : forgotStep === 1 
-                ? 'Enter your email address to receive a 6-digit OTP code.' 
-                : 'Enter the verification OTP and configure your new password.'}
-            </p>
-          </div>
+            {success && (
+              <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-xs text-green-600 dark:text-green-400 flex items-start space-x-2">
+                <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>{success}</span>
+              </div>
+            )}
 
-          {/* Error and Success Banners */}
-          {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-600 dark:text-red-400 flex items-start space-x-2">
-              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {success && (
-            <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-xs text-green-600 dark:text-green-400 flex items-start space-x-2">
-              <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>{success}</span>
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={view === 'forgot' ? handleForgotPasswordSubmit : handleFormSubmit} className="space-y-4">
-            {view === 'forgot' ? (
-              forgotStep === 1 ? (
-                <div>
-                  <label htmlFor="forgot-email" className="block text-xs font-semibold text-text-secondary mb-1.5">Email Address</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
-                      <Mail className="w-4 h-4" />
+            {/* Form */}
+            <form onSubmit={view === 'forgot' ? handleForgotPasswordSubmit : handleFormSubmit} className="space-y-4">
+              {view === 'forgot' ? (
+                forgotStep === 1 ? (
+                  <div>
+                    <label htmlFor="forgot-email" className="block text-xs font-semibold text-text-secondary mb-1.5">Email Address</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        id="forgot-email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@company.com"
+                        disabled={loading}
+                        className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
+                      />
                     </div>
-                    <input
-                      id="forgot-email"
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@company.com"
-                      disabled={loading}
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
-                    />
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+
+                    <div>
+                      <label htmlFor="otp-code" className="block text-xs font-semibold text-text-secondary mb-1.5">Verification Code (OTP)</label>
+                      <input
+                        id="otp-code"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        required
+                        maxLength="6"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                        placeholder="Enter 6-digit code"
+                        disabled={loading}
+                        className="block w-full px-3 py-2.5 text-center text-sm font-mono tracking-widest font-bold rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="new-password" className="block text-xs font-semibold text-text-secondary mb-1.5">New Password</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                        <input
+                          id="new-password"
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Configure new password"
+                          disabled={loading}
+                          className="block w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary-muted hover:text-text-secondary transition-colors cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
               ) : (
-                <div className="space-y-4">
+                <>
+                  {view === 'signup' && (
+                    <div>
+                      <label htmlFor="name" className="block text-xs font-semibold text-text-secondary mb-1.5">Full Name</label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
+                          <User className="w-4 h-4" />
+                        </div>
+                        <input
+                          id="name"
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="John Doe"
+                          autoComplete="name"
+                          disabled={loading || googleLoading}
+                          className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div>
-                    <label htmlFor="otp-code" className="block text-xs font-semibold text-text-secondary mb-1.5">Verification Code (OTP)</label>
-                    <input
-                      id="otp-code"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      required
-                      maxLength="6"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                      placeholder="Enter 6-digit code"
-                      disabled={loading}
-                      className="block w-full px-3 py-2.5 text-center text-sm font-mono tracking-widest font-bold rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
-                    />
+                    <label htmlFor="email" className="block text-xs font-semibold text-text-secondary mb-1.5">Email Address</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        id="email"
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@company.com"
+                        autoComplete="username"
+                        disabled={loading || googleLoading}
+                        className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
+                      />
+                    </div>
                   </div>
 
                   <div>
-                    <label htmlFor="new-password" className="block text-xs font-semibold text-text-secondary mb-1.5">New Password</label>
+                    <div className="flex justify-between items-center mb-1.5">
+                      <label htmlFor="password" className="block text-xs font-semibold text-text-secondary">Password</label>
+                      {view === 'login' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setView('forgot');
+                            setForgotStep(1);
+                            setOtpCode('');
+                            setNewPassword('');
+                            setError('');
+                            setSuccess('');
+                          }}
+                          className="text-[11px] font-semibold text-accent hover:underline hover:text-accent-hover transition-colors border-none bg-transparent cursor-pointer"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
                         <Lock className="w-4 h-4" />
                       </div>
                       <input
-                        id="new-password"
+                        id="password"
                         type={showPassword ? 'text' : 'password'}
                         required
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="Configure new password"
-                        disabled={loading}
+                        value={password}
+                        onChange={handlePasswordChange}
+                        placeholder="••••••••"
+                        autoComplete={view === 'login' ? 'current-password' : 'new-password'}
+                        disabled={loading || googleLoading}
                         className="block w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
                       />
                       <button
@@ -473,261 +685,166 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
                         {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                       </button>
                     </div>
-                  </div>
-                </div>
-              )
-            ) : (
-              <>
-                {view === 'signup' && (
-                  <div>
-                    <label htmlFor="name" className="block text-xs font-semibold text-text-secondary mb-1.5">Full Name</label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
-                        <User className="w-4 h-4" />
+
+                    {/* Password strength indicator for signup */}
+                    {view === 'signup' && password && (
+                      <div className="mt-2 space-y-1.5">
+                        <div className="flex space-x-1 h-1">
+                          {[1, 2, 3, 4].map((bar) => (
+                            <div
+                              key={bar}
+                              className={`h-full flex-grow rounded-full transition-all duration-300 ${
+                                bar <= passwordStrength
+                                  ? passwordStrength === 1
+                                    ? 'bg-red-500'
+                                    : passwordStrength === 2
+                                    ? 'bg-amber-500'
+                                    : passwordStrength === 3
+                                    ? 'bg-yellow-500'
+                                    : 'bg-green-500'
+                                  : 'bg-border-secondary'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <div className="flex justify-between text-[9px] text-text-secondary-muted">
+                          <span>Password Strength</span>
+                          <span className="font-semibold uppercase">
+                            {passwordStrength === 1 && 'Weak'}
+                            {passwordStrength === 2 && 'Fair'}
+                            {passwordStrength === 3 && 'Good'}
+                            {passwordStrength === 4 && 'Strong'}
+                          </span>
+                        </div>
                       </div>
-                      <input
-                        id="name"
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="John Doe"
-                        autoComplete="name"
-                        disabled={loading || googleLoading}
-                        className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <label htmlFor="email" className="block text-xs font-semibold text-text-secondary mb-1.5">Email Address</label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
-                      <Mail className="w-4 h-4" />
-                    </div>
-                    <input
-                      id="email"
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@company.com"
-                      autoComplete="username"
-                      disabled={loading || googleLoading}
-                      className="block w-full pl-10 pr-3 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <label htmlFor="password" className="block text-xs font-semibold text-text-secondary">Password</label>
-                    {view === 'login' && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setView('forgot');
-                          setForgotStep(1);
-                          setOtpCode('');
-                          setNewPassword('');
-                          setError('');
-                          setSuccess('');
-                        }}
-                        className="text-[11px] font-semibold text-accent hover:underline hover:text-accent-hover transition-colors border-none bg-transparent cursor-pointer"
-                      >
-                        Forgot password?
-                      </button>
                     )}
                   </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-secondary-muted">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      required
-                      value={password}
-                      onChange={handlePasswordChange}
-                      placeholder="••••••••"
-                      autoComplete={view === 'login' ? 'current-password' : 'new-password'}
-                      disabled={loading || googleLoading}
-                      className="block w-full pl-10 pr-10 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all min-h-[44px]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-secondary-muted hover:text-text-secondary transition-colors cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
-                    </button>
-                  </div>
 
-                  {/* Password strength indicator for signup */}
-                  {view === 'signup' && password && (
-                    <div className="mt-2 space-y-1.5">
-                      <div className="flex space-x-1 h-1">
-                        {[1, 2, 3, 4].map((bar) => (
-                          <div
-                            key={bar}
-                            className={`h-full flex-grow rounded-full transition-all duration-300 ${
-                              bar <= passwordStrength
-                                ? passwordStrength === 1
-                                  ? 'bg-red-500'
-                                  : passwordStrength === 2
-                                  ? 'bg-amber-500'
-                                  : passwordStrength === 3
-                                  ? 'bg-yellow-500'
-                                  : 'bg-green-500'
-                                : 'bg-border-secondary'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <div className="flex justify-between text-[9px] text-text-secondary-muted">
-                        <span>Password Strength</span>
-                        <span className="font-semibold uppercase">
-                          {passwordStrength === 1 && 'Weak'}
-                          {passwordStrength === 2 && 'Fair'}
-                          {passwordStrength === 3 && 'Good'}
-                          {passwordStrength === 4 && 'Strong'}
-                        </span>
+                  {view === 'signup' ? (
+                    <div className="flex items-start">
+                      <input
+                        id="terms"
+                        type="checkbox"
+                        required
+                        checked={agreeTerms}
+                        onChange={(e) => setAgreeTerms(e.target.checked)}
+                        className="h-4 w-4 mt-0.5 rounded border-border-secondary text-accent focus:ring-accent accent-accent bg-dominant cursor-pointer"
+                      />
+                      <label htmlFor="terms" className="ml-2 block text-xs text-text-secondary-muted leading-relaxed cursor-pointer select-none">
+                        I agree to the <a href="#" onClick={(e) => e.preventDefault()} className="text-accent hover:underline font-semibold">Terms of Service</a> and <a href="#" onClick={(e) => e.preventDefault()} className="text-accent hover:underline font-semibold">Privacy Policy</a>.
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <input
+                          id="remember-me"
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-border-secondary text-accent focus:ring-accent accent-accent bg-dominant cursor-pointer"
+                        />
+                        <label htmlFor="remember-me" className="ml-2 block text-xs text-text-secondary-muted cursor-pointer select-none">
+                          Keep me signed in
+                        </label>
                       </div>
                     </div>
                   )}
+                </>
+              )}
+
+              {view === 'forgot' ? (
+                <div className="space-y-4 pt-2">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent shadow-sm disabled:opacity-50 disabled:pointer-events-none cursor-pointer min-h-[44px]"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4.5 h-4.5 mr-2 animate-spin" />
+                        <span>Sending OTP...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{forgotStep === 1 ? 'Send Verification OTP' : 'Update Password'}</span>
+                        <ArrowRight className="w-4 h-4 ml-1.5" />
+                      </>
+                    )}
+                  </button>
+
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setView('login');
+                        setForgotStep(1);
+                        setOtpCode('');
+                        setNewPassword('');
+                        setError('');
+                        setSuccess('');
+                        setAgreeTerms(false);
+                      }}
+                      className="text-xs font-bold text-accent hover:text-accent-hover hover:underline focus:outline-none cursor-pointer border-none bg-transparent"
+                    >
+                      Back to Sign In
+                    </button>
+                  </div>
                 </div>
-
-                {view === 'signup' ? (
-                  <div className="flex items-start">
-                    <input
-                      id="terms"
-                      type="checkbox"
-                      required
-                      checked={agreeTerms}
-                      onChange={(e) => setAgreeTerms(e.target.checked)}
-                      className="h-4 w-4 mt-0.5 rounded border-border-secondary text-accent focus:ring-accent accent-accent bg-dominant cursor-pointer"
-                    />
-                    <label htmlFor="terms" className="ml-2 block text-xs text-text-secondary-muted leading-relaxed cursor-pointer select-none">
-                      I agree to the <a href="#" onClick={(e) => e.preventDefault()} className="text-accent hover:underline font-semibold">Terms of Service</a> and <a href="#" onClick={(e) => e.preventDefault()} className="text-accent hover:underline font-semibold">Privacy Policy</a>.
-                    </label>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <input
-                        id="remember-me"
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-border-secondary text-accent focus:ring-accent accent-accent bg-dominant cursor-pointer"
-                      />
-                      <label htmlFor="remember-me" className="ml-2 block text-xs text-text-secondary-muted cursor-pointer select-none">
-                        Keep me signed in
-                      </label>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {view === 'forgot' ? (
-              <div className="space-y-4 pt-2">
+              ) : (
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || googleLoading}
                   className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent shadow-sm disabled:opacity-50 disabled:pointer-events-none cursor-pointer min-h-[44px]"
                 >
                   {loading ? (
                     <>
                       <Loader2 className="w-4.5 h-4.5 mr-2 animate-spin" />
-                      <span>Sending OTP...</span>
+                      <span>Processing...</span>
                     </>
                   ) : (
                     <>
-                      <span>{forgotStep === 1 ? 'Send Verification OTP' : 'Update Password'}</span>
+                      <span>{view === 'login' ? 'Sign In' : 'Get Started'}</span>
                       <ArrowRight className="w-4 h-4 ml-1.5" />
                     </>
                   )}
                 </button>
+              )}
+            </form>
 
-                <div className="text-center pt-1">
+            {view !== 'forgot' && (
+              <>
+                {/* Divider */}
+                <div className="my-6 flex items-center justify-between">
+                  <span className="w-full border-b border-border-secondary/50" />
+                  <span className="text-[10px] text-text-secondary-muted px-3 uppercase tracking-wider font-semibold whitespace-nowrap">or continue with</span>
+                  <span className="w-full border-b border-border-secondary/50" />
+                </div>
+
+                {/* Social Logins */}
+                <div className="w-full flex justify-center">
+                  <div id="google-signin-btn" className="w-full min-h-[44px] flex justify-center" />
+                </div>
+
+                {/* Toggle Login/Signup */}
+                <div className="mt-6 text-center text-xs">
+                  <span className="text-text-secondary-muted">
+                    {view === 'login' ? "Don't have an account?" : "Already have an Atlassian account?"}
+                  </span>{' '}
                   <button
-                    type="button"
                     onClick={() => {
-                      setView('login');
-                      setForgotStep(1);
-                      setOtpCode('');
-                      setNewPassword('');
                       setError('');
                       setSuccess('');
                       setAgreeTerms(false);
+                      setView(view === 'login' ? 'signup' : 'login');
                     }}
-                    className="text-xs font-bold text-accent hover:text-accent-hover hover:underline focus:outline-none cursor-pointer border-none bg-transparent"
+                    className="font-bold text-accent hover:text-accent-hover focus:outline-none cursor-pointer"
                   >
-                    Back to Sign In
+                    {view === 'login' ? 'Sign up free' : 'Log in here'}
                   </button>
                 </div>
-              </div>
-            ) : (
-              <button
-                type="submit"
-                disabled={loading || googleLoading}
-                className="w-full flex items-center justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent shadow-sm disabled:opacity-50 disabled:pointer-events-none cursor-pointer min-h-[44px]"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4.5 h-4.5 mr-2 animate-spin" />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>{view === 'login' ? 'Sign In' : 'Get Started'}</span>
-                    <ArrowRight className="w-4 h-4 ml-1.5" />
-                  </>
-                )}
-              </button>
+              </>
             )}
-          </form>
 
-          {view !== 'forgot' && (
-            <>
-              {/* Divider */}
-              <div className="my-6 flex items-center justify-between">
-                <span className="w-full border-b border-border-secondary/50" />
-                <span className="text-[10px] text-text-secondary-muted px-3 uppercase tracking-wider font-semibold whitespace-nowrap">or continue with</span>
-                <span className="w-full border-b border-border-secondary/50" />
-              </div>
-
-              {/* Social Logins */}
-              <div className="w-full flex justify-center">
-                <div id="google-signin-btn" className="w-full min-h-[44px] flex justify-center" />
-              </div>
-
-              {/* Toggle Login/Signup */}
-              <div className="mt-6 text-center text-xs">
-                <span className="text-text-secondary-muted">
-                  {view === 'login' ? "Don't have an account?" : "Already have an Atlassian account?"}
-                </span>{' '}
-                <button
-                  onClick={() => {
-                    setError('');
-                    setSuccess('');
-                    setAgreeTerms(false);
-                    setView(view === 'login' ? 'signup' : 'login');
-                  }}
-                  className="font-bold text-accent hover:text-accent-hover focus:outline-none cursor-pointer"
-                >
-                  {view === 'login' ? 'Sign up free' : 'Log in here'}
-                </button>
-              </div>
-            </>
-          )}
-
-        </div>
-
-        {/* Bottom Security Assurance */}
-        <div className="mt-4 flex items-center justify-center space-x-2 text-[10px] text-text-secondary-muted font-semibold tracking-wide uppercase">
-          <ShieldCheck className="w-4 h-4 text-jira-green" />
-          <span>Atlassian Identity Protection Secure Authentication</span>
+          </div>
         </div>
       </div>
     </div>
