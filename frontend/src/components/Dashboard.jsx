@@ -5,7 +5,8 @@ import {
   Trash2, X, AlertTriangle, CheckCircle2, ChevronRight,
   Filter, UserCheck, Calendar, Activity, Info, User, Palette, ChevronDown,
   Target, Rocket, UserCircle, Clock, LayoutDashboard, List,
-  Settings, Menu, Copy, Check, Bell, Monitor
+  Settings, Menu, Copy, Check, Bell, Monitor,
+  Shield, FileText, Timer, ThumbsUp, ThumbsDown, Folder, CheckSquare
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../hooks/useTheme';
@@ -167,7 +168,7 @@ const Card = memo(function Card({ task, onDragStart, onDelete, onTouchStart, isD
         
         {/* Priority */}
         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${getPriorityStyle(task.priority)}`}>
-          {task.priority === 'High' ? '🔴' : task.priority === 'Medium' ? '🟡' : '🔵'} {task.priority}
+          {task.priority}
         </span>
 
         {/* Assignee & Actions */}
@@ -1949,7 +1950,7 @@ export default function Dashboard() {
                 {/* Kanban Boards */}
                 <div className="space-y-1">
                   <div className="px-3 text-[10px] font-bold text-text-secondary-muted/80 uppercase tracking-wider flex items-center space-x-1.5 select-none">
-                    <span>📋</span>
+                    <Kanban className="w-3.5 h-3.5 text-accent" />
                     <span>Kanban Board</span>
                   </div>
                   <div className="space-y-0.5">
@@ -1987,7 +1988,7 @@ export default function Dashboard() {
                 {/* Scrum Boards */}
                 <div className="space-y-1">
                   <div className="px-3 text-[10px] font-bold text-text-secondary-muted/80 uppercase tracking-wider flex items-center space-x-1.5 select-none">
-                    <span>⏱️</span>
+                    <Timer className="w-3.5 h-3.5 text-accent" />
                     <span>Scrum Board</span>
                   </div>
                   <div className="space-y-0.5">
@@ -2226,8 +2227,8 @@ export default function Dashboard() {
                       ) : (
                         notifications.map((notif) => (
                           <div key={notif.id} className="p-2 rounded-lg bg-dominant/30 border border-border-secondary/20 hover:border-accent/20 transition-all text-[10px] leading-relaxed flex items-start space-x-2">
-                            <span className="mt-0.5 select-none text-[12px]">
-                              {notif.type === 'task' ? '📋' : notif.type === 'member' ? '👥' : notif.type === 'team' ? '🛡️' : notif.type === 'goal' ? '🎯' : notif.type === 'calendar' ? '📅' : '🔔'}
+                            <span className="mt-0.5 select-none text-text-secondary-muted">
+                              {notif.type === 'task' ? <CheckSquare className="w-3.5 h-3.5 text-accent" /> : notif.type === 'member' ? <Users className="w-3.5 h-3.5 text-accent" /> : notif.type === 'team' ? <Shield className="w-3.5 h-3.5 text-accent" /> : notif.type === 'goal' ? <Target className="w-3.5 h-3.5 text-accent" /> : notif.type === 'calendar' ? <Calendar className="w-3.5 h-3.5 text-accent" /> : <Bell className="w-3.5 h-3.5 text-accent" />}
                             </span>
                             <div className="flex-1 min-w-0">
                               <p className="text-text-secondary font-medium whitespace-pre-wrap">{notif.text || notif.message || 'Activity notification content unavailable'}</p>
@@ -2501,8 +2502,8 @@ export default function Dashboard() {
                       ) : (
                         notifications.map((notif) => (
                           <div key={notif.id} className="p-2 rounded-lg bg-dominant/30 border border-border-secondary/20 hover:border-accent/20 transition-all text-[10px] leading-relaxed flex items-start space-x-2">
-                            <span className="mt-0.5 select-none text-[12px]">
-                              {notif.type === 'task' ? '📋' : notif.type === 'member' ? '👥' : notif.type === 'team' ? '🛡️' : notif.type === 'goal' ? '🎯' : notif.type === 'calendar' ? '📅' : '🔔'}
+                            <span className="mt-0.5 select-none text-text-secondary-muted">
+                              {notif.type === 'task' ? <CheckSquare className="w-3.5 h-3.5 text-accent" /> : notif.type === 'member' ? <Users className="w-3.5 h-3.5 text-accent" /> : notif.type === 'team' ? <Shield className="w-3.5 h-3.5 text-accent" /> : notif.type === 'goal' ? <Target className="w-3.5 h-3.5 text-accent" /> : notif.type === 'calendar' ? <Calendar className="w-3.5 h-3.5 text-accent" /> : <Bell className="w-3.5 h-3.5 text-accent" />}
                             </span>
                             <div className="flex-1 min-w-0">
                               <p className="text-text-secondary font-medium whitespace-pre-wrap">{notif.text || notif.message || 'Activity notification content unavailable'}</p>
@@ -2684,9 +2685,9 @@ export default function Dashboard() {
                     className="text-xs py-1 pl-2 pr-6 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-1 focus:ring-accent cursor-pointer"
                   >
                     <option value="All">All Priorities</option>
-                    <option value="High">🔴 High</option>
-                    <option value="Medium">🟡 Medium</option>
-                    <option value="Low">🔵 Low</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
                   </select>
                 </div>
                 {/* Board View scope selector - shown only on 'foryou' tab */}
@@ -2790,7 +2791,7 @@ export default function Dashboard() {
                       : 'bg-card-secondary border-border-secondary text-text-secondary-muted hover:text-text-secondary'
                   }`}
                 >
-                  {p === 'High' ? '🔴' : p === 'Medium' ? '🟡' : '🔵'} {p}
+                  {p}
                 </button>
               ))}
             </div>
@@ -2824,9 +2825,9 @@ export default function Dashboard() {
                     className="w-full text-xs p-2.5 rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none min-h-[44px] cursor-pointer"
                   >
                     <option value="All">All Priorities</option>
-                    <option value="High">🔴 High</option>
-                    <option value="Medium">🟡 Medium</option>
-                    <option value="Low">🔵 Low</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
                   </select>
                 </div>
 
@@ -2930,7 +2931,7 @@ export default function Dashboard() {
                 
                 {workspaces.length === 0 ? (
                   <div className="py-12 flex flex-col items-center justify-center text-center space-y-2">
-                    <span className="text-2xl">📁</span>
+                    <Folder className="w-8 h-8 text-accent mx-auto" />
                     <h4 className="text-xs font-bold text-text-secondary">No spaces found</h4>
                     <p className="text-[11px] text-text-secondary-muted">Any recommended spaces will appear here</p>
                   </div>
@@ -3044,7 +3045,7 @@ export default function Dashboard() {
                                     onClick={() => onSwitchWorkspace(ws)}
                                     className="flex items-center space-x-2 font-bold text-xs text-text-secondary hover:text-accent cursor-pointer transition-colors"
                                   >
-                                    <span className="text-[11px] opacity-80">📁</span>
+                                    <Folder className="w-3.5 h-3.5 text-accent flex-shrink-0" />
                                     <span>{ws.name}</span>
                                   </div>
                                   <div className="text-[9px] text-text-secondary-muted pl-5">
@@ -3157,11 +3158,11 @@ export default function Dashboard() {
                 <span>Were these recommendations useful?</span>
                 <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                   <button className="flex items-center space-x-1.5 hover:text-accent bg-transparent border-none cursor-pointer">
-                    <span>👍</span>
+                    <ThumbsUp className="w-3.5 h-3.5" />
                     <span>Yes</span>
                   </button>
                   <button className="flex items-center space-x-1.5 hover:text-accent bg-transparent border-none cursor-pointer">
-                    <span>👎</span>
+                    <ThumbsDown className="w-3.5 h-3.5" />
                     <span>No</span>
                   </button>
                   <span className="hidden sm:inline text-border-secondary/60">|</span>
@@ -3556,7 +3557,7 @@ export default function Dashboard() {
               {/* Goals Cards List */}
               {goalsList.length === 0 ? (
                 <div className="bg-card-secondary rounded-xl border border-border-secondary/60 p-12 text-center space-y-2">
-                  <span className="text-3xl">🎯</span>
+                  <Target className="w-8 h-8 text-accent mx-auto" />
                   <h4 className="text-sm font-bold text-text-secondary">No goals defined</h4>
                   <p className="text-xs text-text-secondary-muted">Create a goal objective above to outline your alignment paths.</p>
                 </div>
@@ -4015,7 +4016,7 @@ export default function Dashboard() {
               {/* Teams List */}
               {teamsList.length === 0 ? (
                 <div className="bg-card-secondary rounded-xl border border-border-secondary/60 p-12 text-center space-y-4">
-                  <span className="text-3xl">👥</span>
+                  <Users className="w-8 h-8 text-accent mx-auto" />
                   <div>
                     <h4 className="text-sm font-bold text-text-secondary">No teams created yet</h4>
                     <p className="text-xs text-text-secondary-muted mt-1 max-w-sm mx-auto">Create custom teams to group members, outline department scopes, and track workloads in a centralized view.</p>
@@ -4198,7 +4199,7 @@ export default function Dashboard() {
               {/* Projects List */}
               {workspaces.length === 0 ? (
                 <div className="bg-card-secondary rounded-xl border border-border-secondary/60 p-12 text-center space-y-4">
-                  <span className="text-3xl">🚀</span>
+                  <Rocket className="w-8 h-8 text-accent mx-auto" />
                   <div>
                     <h4 className="text-sm font-bold text-text-secondary">No projects found</h4>
                     <p className="text-xs text-text-secondary-muted mt-1 max-w-sm mx-auto">Get started by setting up a project workspace using Kanban or Scrum templates.</p>
@@ -4272,7 +4273,7 @@ export default function Dashboard() {
                                 <span className={`inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                                   isScrum ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'
                                 }`}>
-                                  <span>{isScrum ? '⏱️' : '📋'}</span>
+                                  {isScrum ? <Timer className="w-3 h-3" /> : <Kanban className="w-3 h-3" />}
                                   <span>{ws.template_type}</span>
                                 </span>
                               </td>
@@ -4592,9 +4593,9 @@ export default function Dashboard() {
                     onChange={(e) => setNewPriority(e.target.value)}
                     className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary bg-dominant text-text-secondary focus:outline-none focus:ring-2 focus:ring-accent cursor-pointer"
                   >
-                    <option value="High">🔴 High</option>
-                    <option value="Medium">🟡 Medium</option>
-                    <option value="Low">🔵 Low</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
                   </select>
                 </div>
 
@@ -4883,7 +4884,7 @@ export default function Dashboard() {
           <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
             toast.type === 'error' ? 'bg-red-500/15 text-red-500' : 'bg-emerald-500/15 text-emerald-500'
           }`}>
-            {toast.type === 'error' ? '⚠️' : '✓'}
+            {toast.type === 'error' ? <AlertTriangle className="w-3.5 h-3.5" /> : <Check className="w-3.5 h-3.5" />}
           </div>
           <span className="leading-normal text-text-secondary">{toast.message}</span>
           <button 

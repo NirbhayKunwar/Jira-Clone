@@ -55,7 +55,7 @@ export default function MembersTable({ workspaceId }) {
         </div>
       ) : members.length === 0 ? (
         <div className="bg-card-secondary border border-border-secondary/60 rounded-xl p-12 text-center space-y-4">
-          <span className="text-3xl">👥</span>
+          <Users className="w-8 h-8 text-accent mx-auto" />
           <div>
             <h4 className="text-sm font-bold text-text-secondary">No members found</h4>
             <p className="text-xs text-text-secondary-muted mt-1 max-w-sm mx-auto">Try refining your search queries or filter conditions.</p>
