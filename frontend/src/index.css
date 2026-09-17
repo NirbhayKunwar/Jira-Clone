@@ -322,3 +322,18 @@ body {
   -webkit-box-shadow: 0 0 0px 1000px var(--bg-secondary-card) inset;
   transition: background-color 5000s ease-in-out 0s;
 }
+
+/* Google Sign-In Container Override - Remove White Outer Border & Box */
+#google-signin-btn,
+#google-signin-btn > div,
+#google-signin-btn iframe,
+.dark #google-signin-btn,
+.dark #google-signin-btn > div,
+.dark #google-signin-btn iframe {
+  background-color: transparent !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 4px;
+  box-shadow: none !important;
+}
+
