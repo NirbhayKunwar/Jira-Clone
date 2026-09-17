@@ -265,7 +265,7 @@ model Project {
   description String?
   status      RecordStatus   @default(ACTIVE)
   workspaceId String         @map("workspace_id") @db.ObjectId
-  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdAt   DateTime?      @default(now()) @map("created_at")
   projectMembers ProjectMember[]
 
@@ -276,13 +276,13 @@ model Project {
 }
 
 model ProjectMember {
-  id                String          @id @default(auto()) @map("_id") @db.ObjectId
-  projectId         String          @map("project_id") @db.ObjectId
-  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  workspaceMemberId String          @map("workspace_member_id") @db.ObjectId
-  workspaceMember   WorkspaceMember @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
-  role              ProjectRole     @default(DEVELOPER)
-  joinedAt          DateTime?       @default(now()) @map("joined_at")
+  id                String           @id @default(auto()) @map("_id") @db.ObjectId
+  projectId         String           @map("project_id") @db.ObjectId
+  project           Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspaceMemberId String           @map("workspace_member_id") @db.ObjectId
+  workspaceMember   WorkspaceMember? @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
+  role              ProjectRole      @default(DEVELOPER)
+  joinedAt          DateTime?        @default(now()) @map("joined_at")
 
   @@index([projectId])
   @@index([workspaceMemberId])
@@ -293,9 +293,9 @@ model ProjectMember {
 model WorkspaceMember {
   id               String         @id @default(auto()) @map("_id") @db.ObjectId
   workspaceId      String         @map("workspace_id") @db.ObjectId
-  workspace        Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace        Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   userId           String         @map("user_id") @db.ObjectId
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   role             WorkspaceRole  @default(MEMBER)
   status           RecordStatus   @default(ACTIVE)
   joinedAt         DateTime?      @default(now()) @map("joined_at")
@@ -309,14 +309,14 @@ model WorkspaceMember {
 }
 
 model TeamMember {
-  id                String          @id @default(auto()) @map("_id") @db.ObjectId
-  teamId            String          @map("team_id") @db.ObjectId
-  team              Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  workspaceMemberId String          @map("workspace_member_id") @db.ObjectId
-  workspaceMember   WorkspaceMember @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
-  role              TeamRole        @default(FULLSTACK_ENGINEER)
-  status            RecordStatus    @default(ACTIVE)
-  joinedAt          DateTime        @default(now()) @map("joined_at")
+  id                String           @id @default(auto()) @map("_id") @db.ObjectId
+  teamId            String           @map("team_id") @db.ObjectId
+  team              Team?            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  workspaceMemberId String           @map("workspace_member_id") @db.ObjectId
+  workspaceMember   WorkspaceMember? @relation(fields: [workspaceMemberId], references: [id], onDelete: Cascade)
+  role              TeamRole         @default(FULLSTACK_ENGINEER)
+  status            RecordStatus     @default(ACTIVE)
+  joinedAt          DateTime?        @default(now()) @map("joined_at")
 
   @@index([teamId])
   @@index([workspaceMemberId])
@@ -328,7 +328,7 @@ model Invitation {
   id            String        @id @default(auto()) @map("_id") @db.ObjectId
   email         String
   workspaceId   String        @map("workspace_id") @db.ObjectId
-  workspace     Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace     Workspace?    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workspaceRole WorkspaceRole @default(MEMBER)
   teamId        String?       @map("team_id") @db.ObjectId
   teamRole      TeamRole?
@@ -338,8 +338,8 @@ model Invitation {
   status        String        @default("PENDING") // PENDING, ACCEPTED, DECLINED, EXPIRED, REVOKED
   expiresAt     DateTime      @map("expires_at")
   invitedById   String        @map("invited_by_id") @db.ObjectId
-  invitedBy     User          @relation(fields: [invitedById], references: [id], onDelete: Cascade)
-  createdAt     DateTime      @default(now()) @map("created_at")
+  invitedBy     User?         @relation(fields: [invitedById], references: [id], onDelete: Cascade)
+  createdAt     DateTime?     @default(now()) @map("created_at")
 
   @@index([workspaceId])
   @@index([email])
