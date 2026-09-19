@@ -486,12 +486,6 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
             </div>
           </div>
         </div>
-
-        {/* Left Bottom: Security Assurance */}
-        <div className="pt-6 flex items-center space-x-2 text-[11px] text-text-secondary-muted font-medium z-10 mt-auto">
-          <ShieldCheck className="w-4 h-4 text-jira-green flex-shrink-0" />
-          <span>Atlassian SOC2 & GDPR Enterprise Protection</span>
-        </div>
       </div>
 
       {/* RIGHT SIDE: Login / Signup / Forgot Password Form Card */}
