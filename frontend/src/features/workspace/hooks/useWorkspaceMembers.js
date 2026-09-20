@@ -182,3 +182,26 @@ export const useWorkspaceProjects = (workspaceId) => {
     enabled: !!workspaceId
   });
 };
+
+export const useRemoveProjectMember = (workspaceId) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ projectId, memberId }) => {
+      const res = await fetch(`${API_URL}/api/workspaces/${workspaceId}/projects/${projectId}/members/${memberId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to remove member from project');
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaceMembers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['memberProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['projects', workspaceId] });
+    }
+  });
+};

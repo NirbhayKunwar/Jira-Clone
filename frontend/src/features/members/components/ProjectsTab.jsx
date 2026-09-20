@@ -1,10 +1,9 @@
 import React from 'react';
 import { Rocket, Trash2 } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { getAuthHeaders, API_URL } from '../../../config/api';
+import { useRemoveProjectMember } from '../../workspace/hooks/useWorkspaceMembers';
 
 export default function ProjectsTab({ projects, workspaceId }) {
-  const queryClient = useQueryClient();
+  const removeMutation = useRemoveProjectMember(workspaceId);
 
   const handleRemoveFromProject = async (pm) => {
     const projName = pm.project?.name || 'Project';
@@ -13,15 +12,7 @@ export default function ProjectsTab({ projects, workspaceId }) {
     }
 
     try {
-      const res = await fetch(`${API_URL}/api/workspaces/${workspaceId}/projects/${pm.projectId}/members/${pm.id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to remove from project');
-
-      queryClient.invalidateQueries(['workspaceMembers', workspaceId]);
-      queryClient.invalidateQueries(['memberProfile']);
+      await removeMutation.mutateAsync({ projectId: pm.projectId, memberId: pm.id });
     } catch (err) {
       alert(err.message);
     }
@@ -52,8 +43,10 @@ export default function ProjectsTab({ projects, workspaceId }) {
                 {workspaceId && (
                   <button
                     onClick={() => handleRemoveFromProject(pm)}
-                    className="p-1 rounded text-text-secondary-muted hover:text-red-500 hover:bg-red-500/10 transition-colors border-none bg-transparent cursor-pointer"
+                    disabled={removeMutation.isPending}
+                    className="p-1 rounded text-text-secondary-muted hover:text-red-500 hover:bg-red-500/10 transition-colors border-none bg-transparent cursor-pointer disabled:opacity-50"
                     title="Remove from this project"
+                    aria-label={`Remove from project ${pm.project?.name || ''}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>

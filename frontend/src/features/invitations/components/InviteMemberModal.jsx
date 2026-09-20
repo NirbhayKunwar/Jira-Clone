@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Send, AlertTriangle } from 'lucide-react';
 import { useUiStore } from '../../../store/uiStore';
 import { useInviteMember, useWorkspaceProjects } from '../../workspace/hooks/useWorkspaceMembers';
@@ -22,6 +22,16 @@ export default function InviteMemberModal({ workspaceId }) {
   const [inviteToken, setInviteToken] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setInviteModal(false);
+    };
+    if (isInviteModalOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isInviteModalOpen, setInviteModal]);
 
   if (!isInviteModalOpen) return null;
 
@@ -61,19 +71,30 @@ export default function InviteMemberModal({ workspaceId }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/65 z-55 flex items-center justify-center p-4 backdrop-blur-xs animate-[fade-in_150ms_ease-out]">
-      <div className="bg-card-secondary border border-border-secondary rounded-2xl w-full max-w-lg shadow-2xl p-6 relative flex flex-col max-h-[90vh]">
+    <div 
+      className="fixed inset-0 bg-slate-950/65 z-55 flex items-center justify-center p-4 backdrop-blur-xs animate-[fade-in_150ms_ease-out]"
+      onClick={() => setInviteModal(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="invite-modal-title"
+    >
+      <div 
+        className="bg-card-secondary border border-border-secondary rounded-2xl w-full max-w-lg shadow-2xl p-6 relative flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-border-secondary/35">
           <div>
-            <h4 className="text-base font-bold text-text-secondary flex items-center gap-2">
+            <h4 id="invite-modal-title" className="text-base font-bold text-text-secondary flex items-center gap-2">
               <span>Invite Member to Workspace</span>
             </h4>
             <p className="text-[11px] text-text-secondary-muted mt-0.5">Send a secure registration or onboarding link to a colleague.</p>
           </div>
           <button
+            type="button"
             onClick={() => setInviteModal(false)}
+            aria-label="Close modal"
             className="p-1 rounded-lg hover:bg-dominant-offset text-text-secondary-muted hover:text-text-secondary transition-colors cursor-pointer border-none bg-transparent"
           >
             <X className="w-5 h-5" />

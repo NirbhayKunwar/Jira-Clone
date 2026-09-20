@@ -308,6 +308,16 @@ const KanbanColumn = memo(function KanbanColumn({
 function CreateEpicModal({ isOpen, onClose, onCreate }) {
   const [epicName, setEpicName] = useState('');
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
@@ -320,7 +330,13 @@ function CreateEpicModal({ isOpen, onClose, onCreate }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-[fade-in_150ms_ease-out]">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-[fade-in_150ms_ease-out]"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="create-epic-modal-title"
+    >
       <div 
         className="bg-card-secondary border border-border-secondary/80 rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-[scale-up_150ms_ease-out]"
         onClick={(e) => e.stopPropagation()}
@@ -330,11 +346,12 @@ function CreateEpicModal({ isOpen, onClose, onCreate }) {
             <div className="w-8 h-8 rounded-lg bg-accent/15 border border-accent/30 flex items-center justify-center text-accent">
               <Plus className="w-4 h-4" />
             </div>
-            <h3 className="text-base font-bold text-text-secondary">Create New Epic</h3>
+            <h3 id="create-epic-modal-title" className="text-base font-bold text-text-secondary">Create New Epic</h3>
           </div>
           <button 
             type="button"
             onClick={onClose}
+            aria-label="Close modal"
             className="text-text-secondary-muted hover:text-text-secondary p-1 rounded-lg transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
