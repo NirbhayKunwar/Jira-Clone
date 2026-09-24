@@ -119,12 +119,7 @@ export default function Auth({ initialView = 'login', onClose, onSuccess, initia
           throw new Error(data.message || 'Failed to send OTP verification code.');
         }
 
-        if (data.otp) {
-          setSuccess(`OTP Code: ${data.otp} (Auto-filled due to email transport fallback)`);
-          setOtpCode(data.otp);
-        } else {
-          setSuccess('OTP verification code has been sent to your email.');
-        }
+        setSuccess(data.message || 'OTP verification code has been sent.');
         setForgotStep(2);
       } else {
         if (!otpCode) {
