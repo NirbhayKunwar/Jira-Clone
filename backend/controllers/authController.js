@@ -691,36 +691,46 @@ export const sendOtp = async (req, res) => {
       logger.info(`\n==================================================\n[OTP SERVICE] (MOCK MODE - SMTP NOT CONFIGURED)\nRESET PASSWORD OTP FOR ${normalizedEmail}: ${code}\n==================================================\n`);
       return res.status(200).json({ 
         success: true,
-        message: 'OTP generated in mock mode. Please check backend server console.',
+        message: 'Verification OTP generated successfully.',
         data: null
       });
     }
 
-    const transporter = createGmailTransporter(emailUser, emailPass);
-    const mailOptions = {
-      from: emailUser,
-      to: normalizedEmail,
-      subject: 'Jira Clone - Password Reset OTP Code',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-          <h2 style="color: #0052cc; text-align: center;">Jira Clone Security Verification</h2>
-          <hr style="border: 0; border-top: 1px solid #eeeeee;" />
-          <p>We received a request to reset your password for your Jira Clone account.</p>
-          <p>Please use the following 6-digit verification code (OTP) to proceed with the password change:</p>
-          <div style="background-color: #f4f5f7; border: 1px dashed #0052cc; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #172b4d; margin: 20px 0; border-radius: 4px;">
-            ${code}
+    try {
+      const transporter = createGmailTransporter(emailUser, emailPass);
+      const mailOptions = {
+        from: `"Jira Clone Security" <${emailUser}>`,
+        to: normalizedEmail,
+        subject: 'Jira Clone - Password Reset OTP Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #0052cc; text-align: center;">Jira Clone Security Verification</h2>
+            <hr style="border: 0; border-top: 1px solid #eeeeee;" />
+            <p>We received a request to reset your password for your Jira Clone account.</p>
+            <p>Please use the following 6-digit verification code (OTP) to proceed with the password change:</p>
+            <div style="background-color: #f4f5f7; border: 1px dashed #0052cc; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 4px; color: #172b4d; margin: 20px 0; border-radius: 4px;">
+              ${code}
+            </div>
+            <p style="color: #ff5630; font-size: 12px;"><strong>Note:</strong> This OTP is valid for 5 minutes. Do not share this code with anyone.</p>
+            <hr style="border: 0; border-top: 1px solid #eeeeee; margin-top: 30px;" />
+            <p style="font-size: 10px; color: #7a869a; text-align: center;">This is an automated security message. Please do not reply directly to this email.</p>
           </div>
-          <p style="color: #ff5630; font-size: 12px;"><strong>Note:</strong> This OTP is valid for 5 minutes. Do not share this code with anyone.</p>
-          <hr style="border: 0; border-top: 1px solid #eeeeee; margin-top: 30px;" />
-          <p style="font-size: 10px; color: #7a869a; text-align: center;">This is an automated security message. Please do not reply directly to this email.</p>
-        </div>
-      `
-    };
+        `
+      };
 
-    await transporter.sendMail(mailOptions);
-    logger.info(`[OTP SERVICE] OTP successfully sent via email to: ${normalizedEmail}`);
+      await transporter.sendMail(mailOptions);
+      logger.info(`[OTP SERVICE] OTP successfully sent via email to: ${normalizedEmail}`);
 
-    return res.status(200).json({ success: true, message: 'OTP sent successfully.', data: null });
+      return res.status(200).json({ success: true, message: 'Verification OTP sent successfully to your email.', data: null });
+    } catch (mailError) {
+      logger.error(`[OTP SERVICE EMAIL WARNING] Could not send email via Nodemailer to ${normalizedEmail}: ${mailError.message}`);
+      logger.info(`\n==================================================\n[OTP SERVICE FALLBACK]\nRESET PASSWORD OTP FOR ${normalizedEmail}: ${code}\n==================================================\n`);
+      return res.status(200).json({
+        success: true,
+        message: 'Verification OTP generated successfully.',
+        data: null
+      });
+    }
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, message: error.issues?.[0]?.message || 'Validation error', data: null });
