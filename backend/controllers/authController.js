@@ -692,7 +692,8 @@ export const sendOtp = async (req, res) => {
       return res.status(200).json({ 
         success: true,
         message: 'Verification OTP generated successfully.',
-        data: null
+        otp: code,
+        data: { mock: true, otp: code }
       });
     }
 
@@ -728,7 +729,8 @@ export const sendOtp = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: 'Verification OTP generated successfully.',
-        data: null
+        otp: code,
+        data: { fallback: true, otp: code }
       });
     }
   } catch (error) {

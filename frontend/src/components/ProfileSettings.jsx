@@ -114,7 +114,12 @@ export default function ProfileSettings() {
 
       setOtpSent(true);
       setOtpCountdown(60);
-      setPasswordSuccess('Verification code sent! Please check your email inbox.');
+      if (data.otp) {
+        setOtpValue(data.otp);
+        setPasswordSuccess(`OTP Code: ${data.otp} (Auto-filled due to email transport fallback)`);
+      } else {
+        setPasswordSuccess('Verification code sent! Please check your email inbox.');
+      }
 
       const interval = setInterval(() => {
         setOtpCountdown(prev => {
