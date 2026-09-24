@@ -17,7 +17,7 @@ export default function MembersTable({ workspaceId }) {
     workspaceMembersFilter.status
   );
 
-  const canInvite = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER';
+  const canInvite = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || !user?.teamOwnerId;
 
   return (
     <div className="space-y-5 animate-[fade-in_200ms_ease-out]">

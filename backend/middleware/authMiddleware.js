@@ -197,10 +197,13 @@ export const requireAdminOrLeader = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ success: false, message: 'Unauthorized. No user information.' });
   }
-  if (!req.user.rbacRole) {
+  if (!req.user.rbacRole && req.user.teamOwnerId !== null && req.user.teamOwnerId !== undefined) {
     return res.status(401).json({ success: false, message: 'Missing role information.' });
   }
-  if (req.user.rbacRole !== 'ADMIN' && req.user.rbacRole !== 'LEADER') {
+  const isOrgOwner = req.user.teamOwnerId === null || req.user.teamOwnerId === undefined;
+  const isAdminOrLeader = req.user.rbacRole === 'ADMIN' || req.user.rbacRole === 'LEADER';
+
+  if (!isAdminOrLeader && !isOrgOwner) {
     return res.status(403).json({ success: false, message: 'You do not have permission to perform this action.' });
   }
   next();

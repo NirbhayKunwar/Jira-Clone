@@ -502,7 +502,7 @@ export const signUp = async (req, res) => {
         // Do not trust a client-supplied inviter identifier as authorization.
         teamOwnerId: null,
         authProvider: 'LOCAL',
-        rbacRole: 'MEMBER'
+        rbacRole: 'ADMIN'
       }
     });
 

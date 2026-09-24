@@ -43,6 +43,7 @@ export const createGoogleUser = async ({ email, name, googleId, avatarUrl = null
       googleId,
       avatarUrl: avatarUrl || null,
       authProvider: 'GOOGLE',
+      rbacRole: 'ADMIN',
       status: 'ACTIVE'
     }
   });

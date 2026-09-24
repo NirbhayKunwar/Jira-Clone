@@ -55,7 +55,7 @@ const isAssignedToUser = (task, currentUser) => {
 // Kanban Card Item
 const Card = memo(function Card({ task, onDragStart, onDelete, onTouchStart, isDragging, isPreview, onClaim, isClaiming }) {
   const { user } = useAuthStore();
-  const canDeleteOrEdit = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || isAssignedToUser(task, user);
+  const canDeleteOrEdit = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || !user?.teamOwnerId || isAssignedToUser(task, user);
 
   const touchStartPos = useRef({ x: 0, y: 0 });
   const touchTimeout = useRef(null);
@@ -594,7 +594,7 @@ export default function Dashboard() {
       if (touchTargetColumnId) {
         const task = tasks.find(t => t.id === touchDragTaskId);
         if (task) {
-          const isAdminOrLeader = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER';
+          const isAdminOrLeader = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || !user?.teamOwnerId;
           const isAssignedToMe = isAssignedToUser(task, user);
 
           if (!isAdminOrLeader && !isAssignedToMe) {
@@ -1284,7 +1284,7 @@ export default function Dashboard() {
     if (taskId) {
       const task = tasks.find(t => t.id === taskId);
       if (task) {
-        const isAdminOrLeader = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER';
+        const isAdminOrLeader = user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || !user?.teamOwnerId;
         const isAssignedToMe = isAssignedToUser(task, user);
 
         if (!isAdminOrLeader && !isAssignedToMe) {
@@ -4375,7 +4375,7 @@ export default function Dashboard() {
                   <span className="text-xs font-bold text-accent bg-accent-light px-2.5 py-1 rounded-full uppercase tracking-wider">
                     {teamMembers.length} Active Members
                   </span>
-                  {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER') && (
+                  {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || !user?.teamOwnerId) && (
                     <button
                       onClick={() => setShowAddMemberModal(true)}
                       className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
