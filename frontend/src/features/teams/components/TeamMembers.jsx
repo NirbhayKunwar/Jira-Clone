@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCheck, Trash2, Plus, ShieldAlert } from 'lucide-react';
+import { UserCheck, Trash2, Plus} from 'lucide-react';
 import { useAuthStore } from '../../../store/authStore';
 import { useUiStore } from '../../../store/uiStore';
 import { useWorkspaceMembers } from '../../workspace/hooks/useWorkspaceMembers';
@@ -21,8 +21,11 @@ export default function TeamMembers({ team, workspaceId }) {
   const [selectedRole, setSelectedRole] = useState('FULLSTACK_ENGINEER');
 
   const isLeader = team.teamLeadId === currentUser?.id;
-  const isAdmin = currentUser?.rbacRole === 'ADMIN' || currentUser?.rbacRole === 'LEADER' || !currentUser?.teamOwnerId;
-  const canManage = isAdmin || isLeader;
+  const isWorkspaceAdmin =
+    currentUser?.workspaceRole === 'OWNER' ||
+    currentUser?.workspaceRole === 'ADMIN';
+
+  const canManage = isWorkspaceAdmin || isLeader;
 
   // Filter out users who are already in the team
   const existingTeamMemberUserIds = team?.teamMembers?.map(m => m.workspaceMember?.user?.id) || [];

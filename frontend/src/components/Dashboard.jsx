@@ -5,15 +5,15 @@ import {
   Trash2, X, AlertTriangle, CheckCircle2, ChevronRight,
   Filter, UserCheck, Calendar, Activity, Info, User, Palette, ChevronDown,
   Target, Rocket, UserCircle, Clock, LayoutDashboard, List,
-  Settings, Menu, Copy, Check, Bell, Monitor,
-  Shield, FileText, Timer, ThumbsUp, ThumbsDown, Folder, CheckSquare
+  Settings, Menu, Check, Bell, Monitor,
+  Shield, Timer, ThumbsUp, ThumbsDown, Folder, CheckSquare
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useTheme } from '../hooks/useTheme';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useTasks, useCreateTask, useUpdateTaskStatus, useDeleteTask, useClaimTask } from '../hooks/useTasks';
-import { useUsers, useAddUser, useRemoveUser } from '../hooks/useUsers';
+import { useUsers, useRemoveUser } from '../hooks/useUsers';
 import { API_URL, getAuthHeaders } from '../config/api';
 import { getApiData, getApiList } from '../config/apiResponse';
 import { useUiStore } from '../store/uiStore';
@@ -517,9 +517,6 @@ export default function Dashboard() {
   const [newEpic, setNewEpic] = useState('General');
   const [newAssignee, setNewAssignee] = useState('You');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [addedMemberCreds, setAddedMemberCreds] = useState(null);
-  const [copiedCreds, setCopiedCreds] = useState(false);
 
   // Touch Drag-and-Drop States
   const [touchDragTaskId, setTouchDragTaskId] = useState(null);
@@ -546,7 +543,6 @@ export default function Dashboard() {
   const updateTaskStatusMutation = useUpdateTaskStatus(activeWorkspace?.id);
   const deleteTaskMutation = useDeleteTask(activeWorkspace?.id);
   const claimTaskMutation = useClaimTask(activeWorkspace?.id);
-  const addUserMutation = useAddUser();
   const removeUserMutation = useRemoveUser();
 
   useEffect(() => {
@@ -719,21 +715,20 @@ export default function Dashboard() {
         setNewEpic('');
         setNewAssignee('You');
         setShowCreateModal(false);
-        setShowAddMemberModal(false);
         setIsSidebarOpen(false);
       }
     };
-    if (showCreateModal || showAddMemberModal || isSidebarOpen) {
+    if (showCreateModal || isSidebarOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showCreateModal, showAddMemberModal, isSidebarOpen, defaultStatus]);
+  }, [showCreateModal, isSidebarOpen, defaultStatus]);
 
   // Lock body scroll when modals or mobile menu sidebar are open
   useEffect(() => {
-    if (showCreateModal || showAddMemberModal || isSidebarOpen) {
+    if (showCreateModal || isSidebarOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -741,7 +736,7 @@ export default function Dashboard() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [showCreateModal, showAddMemberModal, isSidebarOpen]);
+  }, [showCreateModal, isSidebarOpen]);
 
   const isScrum = activeWorkspace?.template_type === 'scrum';
 
@@ -970,13 +965,6 @@ export default function Dashboard() {
 
   // Form States cleared (moved to top of functional component)
 
-  // Add Member Modal States
-  const [memberName, setMemberName] = useState('');
-  const [memberEmail, setMemberEmail] = useState('');
-  const [memberRole, setMemberRole] = useState('Full Stack Engineer');
-  const [memberDept, setMemberDept] = useState('Core Engineering');
-  const [memberLocation, setMemberLocation] = useState('San Francisco, CA');
-
   // Theme & Profile Picker support
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -990,13 +978,12 @@ export default function Dashboard() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   const createModalRef = useRef(null);
-  const addMemberModalRef = useRef(null);
   const sidebarRef = useRef(null);
 
   // Local storage save removed - now persisting dynamically to PostgreSQL database
 
   useEffect(() => {
-    const activeModal = showCreateModal ? createModalRef.current : showAddMemberModal ? addMemberModalRef.current : null;
+    const activeModal = showCreateModal ? createModalRef.current : null;
     const isMobileSidebar = isSidebarOpen && window.innerWidth < 1280;
     const container = activeModal || (isMobileSidebar ? sidebarRef.current : null);
     if (!container) return;
@@ -1033,7 +1020,7 @@ export default function Dashboard() {
 
     container.addEventListener('keydown', trapFocus);
     return () => container.removeEventListener('keydown', trapFocus);
-  }, [showCreateModal, showAddMemberModal, isSidebarOpen]);
+  }, [showCreateModal, isSidebarOpen]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -1362,50 +1349,6 @@ export default function Dashboard() {
       }
     });
   }, []);
-
-  // Add Team Member
-  const handleAddMember = async (e) => {
-    e.preventDefault();
-    if (!memberName.trim() || !memberEmail.trim()) {
-      alert('Name and Email are required.');
-      return;
-    }
-
-    const newMemberData = {
-      name: memberName,
-      email: memberEmail,
-      role: memberRole,
-      dept: memberDept,
-      location: memberLocation
-    };
-
-    addUserMutation.mutate(newMemberData, {
-      onSuccess: (data) => {
-        setAddedMemberCreds({
-          ...data.invite,
-          email: data.user.email,
-          name: data.user.name
-        });
-        setMemberName('');
-        setMemberEmail('');
-        setMemberRole('Full Stack Engineer');
-        setMemberDept('Core Engineering');
-        setMemberLocation('San Francisco, CA');
-      },
-      onError: (err) => {
-        alert(err.message || 'Failed to add team member.');
-      }
-    });
-  };
-
-  const handleCopyCredentials = () => {
-    if (!addedMemberCreds) return;
-    const pwdText = addedMemberCreds.temporaryPassword || '(Use your existing account password)';
-    const text = `Jira Clone Team Member Invite\n============================\nName: ${addedMemberCreds.name}\nEmail: ${addedMemberCreds.email}\nPassword: ${pwdText}\nInvitation Link: ${addedMemberCreds.inviteUrl || '(Check your profile settings)'}`;
-    navigator.clipboard.writeText(text);
-    setCopiedCreds(true);
-    setTimeout(() => setCopiedCreds(false), 2000);
-  };
 
   // Remove Team Member
   const handleRemoveMember = async (memberId, memberName) => {
@@ -3973,7 +3916,7 @@ export default function Dashboard() {
                       <label className="text-[10px] font-bold text-text-secondary-muted uppercase">Select Team Members</label>
                       <button
                         type="button"
-                        onClick={() => setShowAddMemberModal(true)}
+                        onClick={() => setActiveTab('workspace-members')}
                         className="text-[10px] font-semibold text-accent hover:underline bg-transparent border-none cursor-pointer"
                       >
                         + Add new member to organization
@@ -4377,7 +4320,7 @@ export default function Dashboard() {
                   </span>
                   {(user?.rbacRole === 'ADMIN' || user?.rbacRole === 'LEADER' || !user?.teamOwnerId) && (
                     <button
-                      onClick={() => setShowAddMemberModal(true)}
+                      onClick={() => setActiveTab('teams')}
                       className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-bold shadow-sm cursor-pointer border-none"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -4653,212 +4596,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 4. Add Team Member Dialog Modal */}
-      {showAddMemberModal && (
-        <div ref={addMemberModalRef} role="dialog" aria-modal="true" aria-labelledby="member-modal-title" className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 overflow-y-auto z-50 animate-[fade-in_150ms_ease-out]">
-          <div className="w-full max-w-lg bg-card-secondary rounded-2xl shadow-xl border border-border-secondary/60 overflow-hidden relative my-auto">
-            {/* Accent border */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent to-accent-hover" />
-            
-            {/* Header */}
-            <div className="px-6 py-5 border-b border-border-secondary/40 flex justify-between items-center mt-1.5">
-              <h3 id="member-modal-title" className="font-display font-extrabold text-lg text-text-secondary">
-                {addedMemberCreds ? 'Invitation Ready' : 'Add a New Team Member'}
-              </h3>
-              <button 
-                onClick={() => {
-                  setShowAddMemberModal(false);
-                  setAddedMemberCreds(null);
-                }}
-                className="text-text-secondary-muted hover:text-text-secondary p-1 rounded-lg hover:bg-dominant-offset cursor-pointer border-none bg-transparent"
-                aria-label="Close add member dialog"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {addedMemberCreds ? (
-              <div className="p-6 space-y-5 text-center">
-                <div className="flex flex-col items-center justify-center space-y-2">
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center animate-bounce">
-                    <CheckCircle2 className="w-8 h-8" />
-                  </div>
-                  <h4 className="font-display font-extrabold text-base text-text-secondary">
-                    {addedMemberCreds.isSignup ? 'Invitation Ready!' : 'Team Member Added!'}
-                  </h4>
-                  <p className="text-xs text-text-secondary-muted max-w-sm">
-                    {addedMemberCreds.isSignup ? (
-                      <>An invitation link has been prepared for <strong>{addedMemberCreds.name}</strong> to sign up.</>
-                    ) : (
-                      <><strong>{addedMemberCreds.name}</strong> was successfully registered in the system.</>
-                    )}
-                  </p>
-                </div>
-
-                {addedMemberCreds.mock ? (
-                  <div className="p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-left space-y-1">
-                    <h5 className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">Mock Mode Active</h5>
-                    <p className="text-[10px] text-text-secondary-muted leading-relaxed">
-                      {addedMemberCreds.isSignup 
-                        ? 'SMTP credentials are not configured. The signup invitation link was not emailed, but you can copy and share the signup link below directly.'
-                        : 'SMTP credentials are not configured. The invitation email was not sent, but you can copy and share the credentials below directly with your teammate.'
-                      }
-                    </p>
-                  </div>
-                ) : (
-                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-left space-y-1">
-                    <h5 className="text-[10px] font-bold text-emerald-500 uppercase tracking-wide">Email Dispatched</h5>
-                    <p className="text-[10px] text-text-secondary-muted leading-relaxed">
-                      {addedMemberCreds.isSignup 
-                        ? 'A signup invitation email has been sent successfully to the user\'s email address.'
-                        : 'A premium HTML invitation email has been sent successfully to the user\'s email address.'
-                      }
-                    </p>
-                  </div>
-                )}
-
-                <div className="p-4 bg-dominant border border-border-secondary/60 rounded-xl text-left space-y-3.5">
-                  <div>
-                    <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">Email Username</span>
-                    <span className="text-xs font-mono font-bold text-text-secondary select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block">{addedMemberCreds.email}</span>
-                  </div>
-                  <div>
-                    <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">
-                      {addedMemberCreds.isSignup ? 'Password' : addedMemberCreds.temporaryPassword ? 'Temporary Password' : 'Password'}
-                    </span>
-                    <span className={`text-xs font-bold select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block ${addedMemberCreds.temporaryPassword ? 'text-red-400 font-mono' : 'text-emerald-500 font-sans'}`}>
-                      {addedMemberCreds.isSignup ? 'Configure your own password during registration' : addedMemberCreds.temporaryPassword || 'Use existing account password'}
-                    </span>
-                  </div>
-                  {addedMemberCreds.inviteUrl && (
-                    <div>
-                      <span className="block text-[10px] font-bold text-text-secondary-muted uppercase tracking-wider mb-1">Direct Invite Link</span>
-                      <span className="text-xs font-mono text-text-secondary truncate select-all bg-card-secondary px-2.5 py-1.5 rounded border border-border-secondary/30 block" title={addedMemberCreds.inviteUrl}>{addedMemberCreds.inviteUrl}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-4 border-t border-border-secondary/40 flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={handleCopyCredentials}
-                    className="px-4 py-2 border border-border-secondary text-text-secondary-muted hover:text-text-secondary hover:bg-dominant-offset rounded-lg text-xs font-semibold cursor-pointer bg-transparent flex items-center space-x-1.5"
-                  >
-                    {copiedCreds ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy Credentials</span>
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowAddMemberModal(false);
-                      setAddedMemberCreds(null);
-                    }}
-                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer border-none"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleAddMember} className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="member-name" className="block text-xs font-semibold text-text-secondary mb-1.5">Full Name</label>
-                    <input
-                      id="member-name"
-                      type="text"
-                      data-autofocus
-                      required
-                      placeholder="e.g. Jane Doe"
-                      value={memberName}
-                      onChange={(e) => setMemberName(e.target.value)}
-                      className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="member-email" className="block text-xs font-semibold text-text-secondary mb-1.5">Email Address</label>
-                    <input
-                      id="member-email"
-                      type="email"
-                      required
-                      placeholder="e.g. jane@example.com"
-                      value={memberEmail}
-                      onChange={(e) => setMemberEmail(e.target.value)}
-                      className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="member-role" className="block text-xs font-semibold text-text-secondary mb-1.5">Role / Job Title</label>
-                  <input
-                    id="member-role"
-                    type="text"
-                    placeholder="e.g. Frontend Engineer, Product Manager"
-                    value={memberRole}
-                    onChange={(e) => setMemberRole(e.target.value)}
-                    className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="member-dept" className="block text-xs font-semibold text-text-secondary mb-1.5">Department</label>
-                    <input
-                      id="member-dept"
-                      type="text"
-                      placeholder="e.g. Core Engineering, Design"
-                      value={memberDept}
-                      onChange={(e) => setMemberDept(e.target.value)}
-                      className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="member-location" className="block text-xs font-semibold text-text-secondary mb-1.5">Location</label>
-                    <input
-                      id="member-location"
-                      type="text"
-                      placeholder="e.g. Boston, MA"
-                      value={memberLocation}
-                      onChange={(e) => setMemberLocation(e.target.value)}
-                      className="block w-full px-3.5 py-2.5 text-sm rounded-lg border border-border-secondary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent bg-dominant text-text-secondary transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="pt-4 border-t border-border-secondary/40 flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddMemberModal(false)}
-                    className="px-4 py-2 border border-border-secondary text-text-secondary-muted hover:text-text-secondary hover:bg-dominant-offset rounded-lg text-xs font-semibold cursor-pointer bg-transparent"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-accent hover:bg-accent-hover text-white rounded-lg text-xs font-bold shadow-sm cursor-pointer border-none"
-                  >
-                    Add Member
-                  </button>
-                </div>
-
-              </form>
-            )}
-          </div>
-        </div>
-      )}
       {/* Mobile Floating Action Button (FAB) for Create Task */}
       {activeTab === 'board' && (
         <button

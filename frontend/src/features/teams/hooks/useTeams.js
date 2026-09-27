@@ -55,25 +55,62 @@ export const useTeamMembers = (teamId) => {
 
 export const useAddTeamMember = (teamId, workspaceId) => {
   const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async ({ workspaceMemberId, role }) => {
+      if (!teamId) {
+        throw new Error('Team ID is required');
+      }
+
+      if (!workspaceMemberId) {
+        throw new Error('Workspace member ID is required');
+      }
+
       const res = await fetch(`${API_URL}/api/teams/${teamId}/members`, {
         method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ workspaceMemberId, role })
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          workspaceMemberId,
+          role
+        })
       });
+
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.message || 'Failed to add member to team');
+        throw new Error(
+          data?.message ||
+          data?.error ||
+          `Failed to add member to team (${res.status})`
+        );
       }
-      return res.json();
+
+      return data;
     },
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-members', teamId] });
-      queryClient.invalidateQueries({ queryKey: ['team-details', teamId] });
-      queryClient.invalidateQueries({ queryKey: ['teams', workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ['audit-log', workspaceId] });
-      queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ['team-members', teamId]
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['team-details', teamId]
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['teams', workspaceId]
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['audit-log', workspaceId]
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ['workspace-members', workspaceId]
+      });
     }
   });
 };

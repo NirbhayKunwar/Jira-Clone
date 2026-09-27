@@ -1,290 +1,359 @@
 import prisma from '../config/prisma.js';
-import { AppError } from './errorHandler.js';
 
-// Helper to validate MongoDB ObjectId
-export const isValidObjectId = (id) => {
-  return typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);
+/**
+ * Validate an ID.
+ *
+ * Your current project uses Mongo-style ObjectId validation in several
+ * places even though the newer team architecture uses Prisma relations.
+ *
+ * Keep this compatible with your existing IDs.
+ */
+export const isValidObjectId = (value) => {
+  if (typeof value !== 'string') return false;
+
+  return /^[0-9a-fA-F]{24}$/.test(value);
 };
 
-// Dynamic WorkspaceMember bootstrap/self-heal helper
-export const getOrCreateWorkspaceMember = async (workspaceId, userId) => {
-  if (!isValidObjectId(workspaceId) || !isValidObjectId(userId)) {
-    return null;
-  }
-
+/**
+ * Require the authenticated user to be an ACTIVE member
+ * of the workspace that owns the requested team.
+ *
+ * Expected route:
+ *   /api/teams/:teamId/...
+ *
+ * This middleware stores the workspace membership on:
+ *
+ *   req.workspaceMember
+ *
+ * and the team on:
+ *
+ *   req.team
+ */
+export const requireTeamWorkspaceMember = async (req, res, next) => {
   try {
-    // 1. Try to find the active WorkspaceMember
-    let member = await prisma.workspaceMember.findFirst({
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'Authentication is required.'
+      });
+    }
+
+    const { teamId } = req.params;
+
+    if (!teamId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        message: 'teamId is required.'
+      });
+    }
+
+    const team = await prisma.team.findUnique({
       where: {
-        workspaceId,
-        userId,
+        id: teamId
+      }
+    });
+
+    if (!team || team.status === 'ARCHIVED') {
+      return res.status(404).json({
+        success: false,
+        error: 'Not Found',
+        message: 'Team not found or archived.'
+      });
+    }
+
+    const workspaceMember = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: team.workspaceId,
+        userId: req.user.id,
         status: 'ACTIVE'
       }
     });
 
-    if (member) return member;
-
-    // 2. If missing, retrieve workspace details
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: workspaceId }
-    });
-
-    if (!workspace) return null;
-
-    // 3. Retrieve user details
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    });
-
-    if (!user) return null;
-
-    // 4. Determine role:
-    // If the user is the owner of the workspace, assign OWNER
-    let role = 'MEMBER';
-    if (workspace.ownerId === userId) {
-      role = 'OWNER';
-    }
-
-    // 5. Verify eligibility:
-    const isWorkspaceOwner = Boolean(workspace.ownerId && workspace.ownerId === userId);
-    const isTeamMemberOfOwner = Boolean(user.teamOwnerId && workspace.ownerId && user.teamOwnerId === workspace.ownerId);
-
-    if (isWorkspaceOwner || isTeamMemberOfOwner) {
-      // Create missing membership record (dynamic self-healing for owner/owner team)
-      member = await prisma.workspaceMember.create({
-        data: {
-          workspaceId,
-          userId,
-          role,
-          status: 'ACTIVE'
-        }
+    if (!workspaceMember) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'You are not an active member of this workspace.'
       });
-      console.log(`[RBAC SELF-HEAL] Bootstrapped missing WorkspaceMember for user ${user.email} in workspace "${workspace.name}" as ${role}`);
-      return member;
     }
 
-    return null;
-  } catch (err) {
-    console.error('[RBAC SELF-HEAL ERROR] Failed to bootstrap workspace member:', err);
-    return null;
+    req.team = team;
+    req.workspaceMember = workspaceMember;
+
+    next();
+  } catch (error) {
+    next(error);
   }
 };
 
-export const requireWorkspaceRole = (allowedRoles) => {
-  return async (req, res, next) => {
-    try {
-      const workspaceId = req.params.workspaceId || req.query.workspaceId || req.body.workspaceId;
-      if (!workspaceId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Bad Request',
-          reason: 'Workspace ID is required for role validation.'
-        });
-      }
 
-      if (!isValidObjectId(workspaceId)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Bad Request',
-          reason: 'Invalid Workspace ID format (must be 24-character hex string).'
-        });
-      }
-
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({
-          success: false,
-          error: 'Unauthorized',
-          reason: 'Authentication token missing or invalid.'
-        });
-      }
-
-      // Self-heal/get WorkspaceMember
-      const member = await getOrCreateWorkspaceMember(workspaceId, req.user.id);
-
-      if (!member) {
-        return res.status(403).json({
-          success: false,
-          error: 'Forbidden',
-          reason: 'User is not an active WorkspaceMember of this workspace.',
-          workspaceId
-        });
-      }
-
-      if (!allowedRoles.includes(member.role)) {
-        return res.status(403).json({
-          success: false,
-          error: 'Forbidden',
-          reason: `Workspace role [${allowedRoles.join(', ')}] required. Current role: ${member.role}`,
-          workspaceId
-        });
-      }
-
-      req.workspaceMember = member;
-      next();
-    } catch (error) {
-      next(error);
-    }
-  };
-};
-
-export const requireTeamRole = (allowedRoles) => {
-  return async (req, res, next) => {
-    try {
-      const teamId = req.params.teamId || req.query.teamId || req.body.teamId;
-      if (!teamId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Bad Request',
-          reason: 'Team ID is required for role validation.'
-        });
-      }
-
-      if (!isValidObjectId(teamId)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Bad Request',
-          reason: 'Invalid Team ID format (must be 24-character hex string).'
-        });
-      }
-
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({
-          success: false,
-          error: 'Unauthorized',
-          reason: 'Authentication token missing or invalid.'
-        });
-      }
-
-      // Find the team member record
-      const teamMember = await prisma.teamMember.findFirst({
-        where: {
-          teamId,
-          workspaceMember: {
-            userId: req.user.id,
-            status: 'ACTIVE'
-          },
-          status: 'ACTIVE'
-        },
-        include: {
-          workspaceMember: true
-        }
+/**
+ * Require permission to manage members of a team.
+ *
+ * Rules:
+ *
+ * Workspace OWNER
+ *   -> can manage every team
+ *
+ * Workspace ADMIN
+ *   -> can manage every team
+ *
+ * Workspace MEMBER
+ *   -> can manage only if they are TEAM_LEAD of that team
+ *
+ * Everyone else
+ *   -> denied
+ *
+ * IMPORTANT:
+ * The workspace role is checked from WorkspaceMember.
+ * The team role is checked from TeamMember.
+ *
+ * We do NOT use:
+ *   req.user.rbacRole
+ *   req.user.teamOwnerId
+ *
+ * as the primary authorization source.
+ */
+export const requireWorkspaceAdminOrTeamLead = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'Authentication is required.'
       });
-
-      if (!teamMember) {
-        return res.status(403).json({
-          success: false,
-          error: 'Forbidden',
-          reason: 'User is not an active member of this team.',
-          teamId
-        });
-      }
-
-      if (!allowedRoles.includes(teamMember.role)) {
-        return res.status(403).json({
-          success: false,
-          error: 'Forbidden',
-          reason: `Team role [${allowedRoles.join(', ')}] required. Current role: ${teamMember.role}`,
-          teamId
-        });
-      }
-
-      req.teamMember = teamMember;
-      next();
-    } catch (error) {
-      next(error);
     }
-  };
+
+    const { teamId } = req.params;
+
+    if (!teamId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        message: 'teamId is required.'
+      });
+    }
+
+    /**
+     * Get the team.
+     */
+    const team = await prisma.team.findUnique({
+      where: {
+        id: teamId
+      }
+    });
+
+    if (!team || team.status === 'ARCHIVED') {
+      return res.status(404).json({
+        success: false,
+        error: 'Not Found',
+        message: 'Team not found or archived.'
+      });
+    }
+
+    /**
+     * Get workspace membership.
+     */
+    const workspaceMember = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: team.workspaceId,
+        userId: req.user.id,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!workspaceMember) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'You are not an active member of this workspace.'
+      });
+    }
+
+    /**
+     * OWNER and ADMIN can manage all teams in workspace.
+     */
+    if (
+      workspaceMember.role === 'OWNER' ||
+      workspaceMember.role === 'ADMIN'
+    ) {
+      req.team = team;
+      req.workspaceMember = workspaceMember;
+
+      return next();
+    }
+
+    /**
+     * For normal workspace members, check whether
+     * they are the Team Lead of this specific team.
+     */
+    const teamMember = await prisma.teamMember.findFirst({
+      where: {
+        teamId,
+        workspaceMemberId: workspaceMember.id,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!teamMember) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'You do not have permission to manage this team.'
+      });
+    }
+
+    if (teamMember.role !== 'TEAM_LEAD') {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'Only a Team Lead, Workspace Admin, or Workspace Owner can manage team members.'
+      });
+    }
+
+    req.team = team;
+    req.workspaceMember = workspaceMember;
+    req.teamMember = teamMember;
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 };
 
-export const requirePermission = (permissionName) => {
-  return async (req, res, next) => {
-    try {
-      const workspaceId = req.params.workspaceId || req.query.workspaceId || req.body.workspaceId;
-      const teamId = req.params.teamId || req.query.teamId || req.body.teamId;
 
-      if (!req.user || !req.user.id) {
-        return res.status(401).json({
-          success: false,
-          error: 'Unauthorized',
-          reason: 'Authentication token missing or invalid.'
-        });
-      }
-
-      let isAuthorized = false;
-
-      // 1. Check Workspace Permission
-      if (workspaceId && isValidObjectId(workspaceId)) {
-        const workspaceMember = await getOrCreateWorkspaceMember(workspaceId, req.user.id);
-
-        if (workspaceMember) {
-          // Check if this workspace role has the requested permission
-          const workspacePermission = await prisma.workspaceRolePermission.findFirst({
-            where: {
-              role: workspaceMember.role,
-              permission: { name: permissionName }
-            }
-          });
-
-          if (workspacePermission) {
-            isAuthorized = true;
-            req.workspaceMember = workspaceMember;
-          }
-        }
-      }
-
-      // 2. Check Team Permission (fallback/addition)
-      if (!isAuthorized && teamId && isValidObjectId(teamId)) {
-        const teamMember = await prisma.teamMember.findFirst({
-          where: {
-            teamId,
-            workspaceMember: {
-              userId: req.user.id,
-              status: 'ACTIVE'
-            },
-            status: 'ACTIVE'
-          }
-        });
-
-        if (teamMember) {
-          const teamPermission = await prisma.teamRolePermission.findFirst({
-            where: {
-              role: teamMember.role,
-              permission: { name: permissionName }
-            }
-          });
-
-          if (teamPermission) {
-            isAuthorized = true;
-            req.teamMember = teamMember;
-          }
-        }
-      }
-
-      if (!isAuthorized) {
-        return res.status(403).json({
-          success: false,
-          error: 'Forbidden',
-          reason: `Missing required permission: ${permissionName}`,
-          missingPermission: permissionName
-        });
-      }
-
-      next();
-    } catch (error) {
-      next(error);
+/**
+ * Require an active workspace member.
+ *
+ * Useful for GET operations where normal members
+ * are allowed to view team information.
+ */
+export const requireWorkspaceMember = async (req, res, next) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'Authentication is required.'
+      });
     }
-  };
+
+    const { teamId } = req.params;
+
+    if (!teamId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        message: 'teamId is required.'
+      });
+    }
+
+    const team = await prisma.team.findUnique({
+      where: {
+        id: teamId
+      }
+    });
+
+    if (!team || team.status === 'ARCHIVED') {
+      return res.status(404).json({
+        success: false,
+        error: 'Not Found',
+        message: 'Team not found or archived.'
+      });
+    }
+
+    const workspaceMember = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId: team.workspaceId,
+        userId: req.user.id,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!workspaceMember) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'You are not a member of this workspace.'
+      });
+    }
+
+    req.team = team;
+    req.workspaceMember = workspaceMember;
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 };
 
-// Privilege escalation checks helper (returns true if actor has lower rank than target)
-export const checkPrivilegeEscalation = (actorRole, targetRole) => {
-  const roleHierarchies = {
-    OWNER: 4,
-    ADMIN: 3,
-    MEMBER: 2,
-    GUEST: 1
-  };
-  const actorRank = roleHierarchies[actorRole] || 0;
-  const targetRank = roleHierarchies[targetRole] || 0;
-  return actorRank < targetRank;
+
+/**
+ * Optional helper for workspace-level management.
+ *
+ * This can be used on routes such as:
+ *
+ *   /api/workspaces/:workspaceId/...
+ *
+ * OWNER and ADMIN are allowed.
+ */
+export const requireWorkspaceAdmin = async (req, res, next) => {
+  try {
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'Authentication is required.'
+      });
+    }
+
+    const { workspaceId } = req.params;
+
+    if (!workspaceId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        message: 'workspaceId is required.'
+      });
+    }
+
+    const workspaceMember = await prisma.workspaceMember.findFirst({
+      where: {
+        workspaceId,
+        userId: req.user.id,
+        status: 'ACTIVE'
+      }
+    });
+
+    if (!workspaceMember) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'You are not an active member of this workspace.'
+      });
+    }
+
+    if (
+      workspaceMember.role !== 'OWNER' &&
+      workspaceMember.role !== 'ADMIN'
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: 'Forbidden',
+        message: 'Only Workspace Owners and Admins can perform this action.'
+      });
+    }
+
+    req.workspaceMember = workspaceMember;
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 };
