@@ -936,7 +936,6 @@ export const getUsers = async (req, res) => {
   }
 };
 
-import prisma from '../config/prisma.js';
 
 /**
  * Validate an ID.

@@ -1,4 +1,5 @@
 import express from 'express';
+
 import {
   getWorkspaceMembers,
   inviteWorkspaceMember,
@@ -16,33 +17,173 @@ import {
   addProjectMember,
   removeProjectMember
 } from '../controllers/workspaceMemberController.js';
+
 import { verifyToken } from '../middleware/authMiddleware.js';
-import { requireWorkspaceRole } from '../middleware/rbac.js';
+
+import {
+  requireWorkspaceMember,
+  requireWorkspaceAdmin
+} from '../middleware/rbacCustom.js';
+
 import { apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router({ mergeParams: true });
 
 router.use(apiLimiter);
 
-// Accept invitation (only require authentication)
-router.post('/invitations/accept', verifyToken, acceptInvitation);
+// ============================================================
+// INVITATIONS
+// ============================================================
 
-// Workspace specific endpoints
-router.get('/:workspaceId/members', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspaceMembers);
-router.patch('/:workspaceId/members/:memberId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), updateWorkspaceMember);
-router.delete('/:workspaceId/members/:memberId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), removeWorkspaceMember);
-router.post('/:workspaceId/members/:memberId/transfer-tasks', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), transferMemberTasks);
+// Accept invitation
+// Only authentication is required because the invitation
+// itself determines whether the user can join the workspace.
+router.post(
+  '/invitations/accept',
+  verifyToken,
+  acceptInvitation
+);
 
-router.get('/:workspaceId/invitations', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), getWorkspaceInvitations);
-router.post('/:workspaceId/invitations', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), inviteWorkspaceMember);
-router.delete('/:workspaceId/invitations/:inviteId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), revokeInvitation);
-router.post('/:workspaceId/invitations/:inviteId/resend', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), resendInvitation);
+// ============================================================
+// WORKSPACE MEMBERS
+// ============================================================
 
-router.get('/:workspaceId/audit-logs', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER']), getWorkspaceAuditLogs);
-router.get('/:workspaceId/activity', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspaceActivity);
-router.get('/:workspaceId/permissions', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspacePermissions);
-router.get('/:workspaceId/projects', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN', 'MEMBER', 'GUEST']), getWorkspaceProjects);
-router.post('/:workspaceId/projects/:projectId/members', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), addProjectMember);
-router.delete('/:workspaceId/projects/:projectId/members/:projectMemberId', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), removeProjectMember);
+// View workspace members
+// OWNER / ADMIN / MEMBER / GUEST
+router.get(
+  '/:workspaceId/members',
+  verifyToken,
+  requireWorkspaceMember,
+  getWorkspaceMembers
+);
+
+// Update workspace member
+// OWNER / ADMIN only
+router.patch(
+  '/:workspaceId/members/:memberId',
+  verifyToken,
+  requireWorkspaceAdmin,
+  updateWorkspaceMember
+);
+
+// Remove workspace member
+// OWNER / ADMIN only
+router.delete(
+  '/:workspaceId/members/:memberId',
+  verifyToken,
+  requireWorkspaceAdmin,
+  removeWorkspaceMember
+);
+
+// Transfer tasks from a workspace member
+// OWNER / ADMIN only
+router.post(
+  '/:workspaceId/members/:memberId/transfer-tasks',
+  verifyToken,
+  requireWorkspaceAdmin,
+  transferMemberTasks
+);
+
+// ============================================================
+// WORKSPACE INVITATIONS
+// ============================================================
+
+// Get workspace invitations
+// OWNER / ADMIN only
+router.get(
+  '/:workspaceId/invitations',
+  verifyToken,
+  requireWorkspaceAdmin,
+  getWorkspaceInvitations
+);
+
+// Create workspace invitation
+// OWNER / ADMIN only
+router.post(
+  '/:workspaceId/invitations',
+  verifyToken,
+  requireWorkspaceAdmin,
+  inviteWorkspaceMember
+);
+
+// Revoke workspace invitation
+// OWNER / ADMIN only
+router.delete(
+  '/:workspaceId/invitations/:inviteId',
+  verifyToken,
+  requireWorkspaceAdmin,
+  revokeInvitation
+);
+
+// Resend workspace invitation
+// OWNER / ADMIN only
+router.post(
+  '/:workspaceId/invitations/:inviteId/resend',
+  verifyToken,
+  requireWorkspaceAdmin,
+  resendInvitation
+);
+
+// ============================================================
+// WORKSPACE AUDIT / ACTIVITY
+// ============================================================
+
+// Workspace audit logs
+// Active workspace members
+router.get(
+  '/:workspaceId/audit-logs',
+  verifyToken,
+  requireWorkspaceMember,
+  getWorkspaceAuditLogs
+);
+
+// Workspace activity
+// Active workspace members
+router.get(
+  '/:workspaceId/activity',
+  verifyToken,
+  requireWorkspaceMember,
+  getWorkspaceActivity
+);
+
+// Workspace permissions
+// Active workspace members
+router.get(
+  '/:workspaceId/permissions',
+  verifyToken,
+  requireWorkspaceMember,
+  getWorkspacePermissions
+);
+
+// ============================================================
+// WORKSPACE PROJECTS
+// ============================================================
+
+// View workspace projects
+// Active workspace members
+router.get(
+  '/:workspaceId/projects',
+  verifyToken,
+  requireWorkspaceMember,
+  getWorkspaceProjects
+);
+
+// Add project member
+// OWNER / ADMIN only
+router.post(
+  '/:workspaceId/projects/:projectId/members',
+  verifyToken,
+  requireWorkspaceAdmin,
+  addProjectMember
+);
+
+// Remove project member
+// OWNER / ADMIN only
+router.delete(
+  '/:workspaceId/projects/:projectId/members/:projectMemberId',
+  verifyToken,
+  requireWorkspaceAdmin,
+  removeProjectMember
+);
 
 export default router;

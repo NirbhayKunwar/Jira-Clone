@@ -1,7 +1,7 @@
 import express from 'express';
 import { getGoals, createGoal, updateGoal, deleteGoal } from '../controllers/goalController.js';
 import { verifyToken, verifyGoalAccess } from '../middleware/authMiddleware.js';
-import { requireWorkspaceRole } from '../middleware/rbac.js';
+
 import { apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
@@ -9,7 +9,7 @@ const router = express.Router();
 router.use(apiLimiter);
 
 router.get('/', verifyToken, getGoals);
-router.post('/', verifyToken, requireWorkspaceRole(['OWNER', 'ADMIN']), createGoal);
+router.post('/', verifyToken, createGoal);
 router.put('/:id', verifyToken, verifyGoalAccess, updateGoal);
 router.delete('/:id', verifyToken, verifyGoalAccess, deleteGoal);
 

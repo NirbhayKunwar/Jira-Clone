@@ -1,5 +1,5 @@
 import express from 'express';
-import { signUp, signIn, signOut, refreshTokens, sendOtp, changePassword, updateProfile, getUsers, addTeamMember, deleteUser, deleteAccount, googleSignIn, getNotifications, deleteNotification, updateTeamMemberRole } from '../controllers/authController.js';
+import { signUp, signIn, signOut, refreshTokens, sendOtp, changePassword, updateProfile, getUsers, deleteUser, deleteAccount, googleSignIn, getNotifications, deleteNotification, updateTeamMemberRole } from '../controllers/authController.js';
 import { verifyToken, requireAdminOrLeader } from '../middleware/authMiddleware.js';
 import { authLimiter, otpLimiter, apiLimiter } from '../middleware/rateLimiter.js';
 
@@ -22,7 +22,7 @@ router.delete('/account', verifyToken, apiLimiter, deleteAccount);
 
 // Registered Users Endpoints (Secured)
 router.get('/users', verifyToken, apiLimiter, getUsers);
-router.post('/users', verifyToken, requireAdminOrLeader, apiLimiter, addTeamMember);
+
 router.delete('/users/:id', verifyToken, requireAdminOrLeader, apiLimiter, deleteUser);
 router.put('/users/:id/role', verifyToken, requireAdminOrLeader, apiLimiter, updateTeamMemberRole);
 
