@@ -53,25 +53,50 @@ const getClientDetails = (req) => {
 export const getWorkspaceMembers = async (req, res, next) => {
   try {
     const { workspaceId } = req.params;
-    if (!workspaceId || workspaceId === 'undefined' || workspaceId === 'null' || !isValidObjectId(workspaceId)) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          members: [],
-          nextCursor: null,
-          total: 0
-        }
+
+    // Validate workspace ID
+    if (
+      !workspaceId ||
+      workspaceId === 'undefined' ||
+      workspaceId === 'null' ||
+      !isValidObjectId(workspaceId)
+    ) {
+      return res.status(400).json({
+        success: false,
+        error: 'Bad Request',
+        message: 'Invalid workspace ID.'
       });
     }
-    const { search = '', role, status = 'ACTIVE', limit = 10, cursor } = req.query;
 
-    const parsedLimit = parseInt(limit, 10);
-    const searchFilter = search
+    const {
+      search = '',
+      role,
+      status = 'ACTIVE',
+      limit = 10,
+      cursor
+    } = req.query;
+
+    const parsedLimit = Math.min(
+      Math.max(parseInt(limit, 10) || 10, 1),
+      100
+    );
+
+    const searchFilter = search.trim()
       ? {
           user: {
             OR: [
-              { name: { contains: search } },
-              { email: { contains: search } }
+              {
+                name: {
+                  contains: search.trim(),
+                  mode: 'insensitive'
+                }
+              },
+              {
+                email: {
+                  contains: search.trim(),
+                  mode: 'insensitive'
+                }
+              }
             ]
           }
         }
@@ -87,8 +112,10 @@ export const getWorkspaceMembers = async (req, res, next) => {
         ...roleFilter,
         ...statusFilter
       },
-      take: parsedLimit + 1, // Fetch limit + 1 to check if there is a next page
-      orderBy: { id: 'asc' },
+      take: parsedLimit + 1,
+      orderBy: {
+        id: 'asc'
+      },
       include: {
         user: {
           select: {
@@ -101,33 +128,44 @@ export const getWorkspaceMembers = async (req, res, next) => {
           }
         },
         teamMemberships: {
-          where: { status: 'ACTIVE' },
-          include: { team: true }
+          where: {
+            status: 'ACTIVE'
+          },
+          include: {
+            team: true
+          }
         },
         projectMemberships: {
-          include: { project: true }
+          include: {
+            project: true
+          }
         }
       }
     };
 
+    // Cursor pagination
     if (cursor) {
-      queryOptions.cursor = { id: cursor };
-      queryOptions.skip = 1; // Skip the cursor itself
+      queryOptions.cursor = {
+        id: cursor
+      };
+      queryOptions.skip = 1;
     }
 
     const members = await prisma.workspaceMember.findMany(queryOptions);
 
     let nextCursor = null;
+
     if (members.length > parsedLimit) {
-      const nextItem = members.pop(); // Remove the extra item
+      const nextItem = members.pop();
       nextCursor = nextItem.id;
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      data: {
-        members,
-        nextCursor
+      data: members,
+      pagination: {
+        nextCursor,
+        total: members.length
       }
     });
   } catch (error) {
