@@ -73,6 +73,7 @@ export const useAddTeamMember = (teamId, workspaceId) => {
       queryClient.invalidateQueries({ queryKey: ['team-details', teamId] });
       queryClient.invalidateQueries({ queryKey: ['teams', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['audit-log', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
     }
   });
 };
@@ -96,6 +97,7 @@ export const useUpdateTeamMember = (teamId, workspaceId) => {
       queryClient.invalidateQueries({ queryKey: ['team-members', teamId] });
       queryClient.invalidateQueries({ queryKey: ['team-details', teamId] });
       queryClient.invalidateQueries({ queryKey: ['audit-log', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
     }
   });
 };
@@ -119,6 +121,7 @@ export const useRemoveTeamMember = (teamId, workspaceId) => {
       queryClient.invalidateQueries({ queryKey: ['team-details', teamId] });
       queryClient.invalidateQueries({ queryKey: ['teams', workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['audit-log', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspace-members', workspaceId] });
     }
   });
 };

@@ -872,11 +872,11 @@ export const getUsers = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized.', data: null });
     }
 
+    // Determine the teamOwnerId (workspace owner) if not directly available
     let teamOwnerId = req.user ? req.user.teamOwnerId : null;
     if (teamOwnerId === undefined) {
       teamOwnerId = null;
     }
-
     if (teamOwnerId === null && prisma.user && typeof prisma.user.findUnique === 'function') {
       const user = await prisma.user.findUnique({
         where: { id: userId },
@@ -889,16 +889,31 @@ export const getUsers = async (req, res) => {
 
     const targetOwnerId = teamOwnerId || userId;
 
+    // Find workspace IDs where the requester is an active member
+    const requesterWorkspaceMembers = await prisma.workspaceMember.findMany({
+      where: { userId, status: 'ACTIVE' },
+      select: { workspaceId: true }
+    });
+    const workspaceIds = requesterWorkspaceMembers.map(wm => wm.workspaceId);
+
     const users = await prisma.user.findMany({
       where: {
         OR: [
           { id: targetOwnerId },
-          { teamOwnerId: targetOwnerId }
+          { teamOwnerId: targetOwnerId },
+          {
+            workspaceMembers: {
+              some: {
+                workspaceId: { in: workspaceIds },
+                status: 'ACTIVE'
+              }
+            }
+          }
         ]
       },
       orderBy: { id: 'asc' }
     });
-    
+
     const mappedUsers = users.map(u => ({
       id: u.id.toString(),
       name: u.name,
@@ -939,6 +954,30 @@ export const addTeamMember = async (req, res) => {
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail }
     });
+
+    // Helper to ensure WorkspaceMember exists for the given user and requester's workspace
+    const ensureWorkspaceMember = async (targetUserId) => {
+      // Find a workspace where the requester is owner (simplify to first workspace owned by requester)
+      const workspace = await prisma.workspace.findFirst({
+        where: { ownerId: userId },
+        select: { id: true }
+      });
+      if (!workspace) return null;
+      const existingWM = await prisma.workspaceMember.findFirst({
+        where: { workspaceId: workspace.id, userId: targetUserId, status: 'ACTIVE' }
+      });
+      if (existingWM) return existingWM.id;
+      const wsMember = await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId: targetUserId,
+          role: 'MEMBER',
+          status: 'ACTIVE'
+        }
+      });
+      return wsMember.id;
+    };
+
     if (existingUser) {
       const updatedMember = await prisma.user.update({
         where: { id: existingUser.id },
@@ -949,6 +988,9 @@ export const addTeamMember = async (req, res) => {
           location: location || existingUser.location || ''
         }
       });
+
+      // Ensure workspace membership
+      const wsMemberId = await ensureWorkspaceMember(updatedMember.id);
 
       let inviteResult;
       try {
@@ -982,7 +1024,8 @@ export const addTeamMember = async (req, res) => {
             githubUrl: updatedMember.githubUrl || '',
             linkedinUrl: updatedMember.linkedinUrl || '',
             websiteUrl: updatedMember.websiteUrl || ''
-          }
+          },
+          workspaceMemberId: wsMemberId || undefined
         }
       });
     }
@@ -1007,6 +1050,9 @@ export const addTeamMember = async (req, res) => {
         authProvider: 'LOCAL'
       }
     });
+
+    // Ensure workspace membership for the newly created user
+    const wsMemberId = await ensureWorkspaceMember(newMember.id);
 
     let inviteResult;
     try {
@@ -1045,7 +1091,8 @@ export const addTeamMember = async (req, res) => {
           githubUrl: newMember.githubUrl || '',
           linkedinUrl: newMember.linkedinUrl || '',
           websiteUrl: newMember.websiteUrl || ''
-        }
+        },
+        workspaceMemberId: wsMemberId || undefined
       }
     });
   } catch (error) {

@@ -20,7 +20,7 @@ export default function MemberRow({ member, workspaceId, allMembers = [] }) {
   const isMe = member.user.id === currentUser?.id;
 
   // Determine current logged-in user's role in this active workspace
-  const myWorkspaceMember = allMembers.find(m => m.user?.id === currentUser?.id || m.userId === currentUser?.id);
+  const myWorkspaceMember = allMembers.find(m => m.user?.id === currentUser?.id);
   const myWorkspaceRole = myWorkspaceMember?.role || currentUser?.rbacRole || 'MEMBER';
 
   const canManageRole = !isMe && (myWorkspaceRole === 'OWNER' || (myWorkspaceRole === 'ADMIN' && member.role !== 'OWNER'));

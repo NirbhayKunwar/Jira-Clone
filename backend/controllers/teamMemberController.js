@@ -63,14 +63,11 @@ export const getTeam = async (req, res, next) => {
       }
     });
 
-    const isWsAdmin = wsMember && (wsMember.role === 'OWNER' || wsMember.role === 'ADMIN');
-    const isTeamMember = team.teamMembers.some(m => m.workspaceMember?.userId === req.user.id);
-
-    if (!isWsAdmin && !isTeamMember) {
+    if (!wsMember) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden',
-        reason: 'Only Team Members, Workspace Admins, or Workspace Owners can view team details.',
+        reason: 'Only active Workspace Members can view team details.',
         teamId
       });
     }

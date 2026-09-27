@@ -15,7 +15,8 @@ const createTeamSchema = z.object({
 
 const updateTeamSchema = z.object({
   name: z.string().min(1).optional(),
-  desc: z.string().optional()
+  desc: z.string().optional(),
+  members: z.array(z.string()).optional()
 });
 
 const verifyWorkspaceAccess = async (workspaceId, userId) => {
@@ -206,19 +207,28 @@ export const createTeam = asyncHandler(async (req, res, next) => {
     if (Array.isArray(selectedMembers) && selectedMembers.length > 0 && tx.teamMember) {
       for (const targetUserId of selectedMembers) {
         if (!targetUserId || targetUserId === userId) continue;
-        const targetWM = await tx.workspaceMember.findFirst({
+        let targetWM = await tx.workspaceMember.findFirst({
           where: { workspaceId, userId: String(targetUserId), status: 'ACTIVE' }
         });
-        if (targetWM) {
-          await tx.teamMember.create({
+        if (!targetWM) {
+          // Create WorkspaceMember if it does not exist
+          targetWM = await tx.workspaceMember.create({
             data: {
-              teamId: teamRecord.id,
-              workspaceMemberId: targetWM.id,
-              role: 'FULLSTACK_ENGINEER',
+              workspaceId,
+              userId: String(targetUserId),
+              role: 'MEMBER',
               status: 'ACTIVE'
             }
           });
         }
+        await tx.teamMember.create({
+          data: {
+            teamId: teamRecord.id,
+            workspaceMemberId: targetWM.id,
+            role: 'FULLSTACK_ENGINEER',
+            status: 'ACTIVE'
+          }
+        });
       }
     }
 
@@ -271,12 +281,8 @@ export const updateTeam = asyncHandler(async (req, res, next) => {
   const isLead = teamCheck.teamLeadId === req.user.id;
   const isAdmin = member && (member.role === 'OWNER' || member.role === 'ADMIN');
 
-  if (!isAdmin && !isLead && !isTest) {
+  if (!isAdmin && !isLead) {
     return next(new AppError('Forbidden. Workspace Admin or Team Lead status required.', 403));
-  } else if (!isAdmin && !isLead && isTest) {
-    if (teamCheck.ownerId && teamCheck.ownerId !== req.user.id) {
-      return next(new AppError('Forbidden. You do not have access to this team.', 403));
-    }
   }
 
   if (name !== undefined && name.trim() !== teamCheck.name && teamCheck.workspaceId) {
@@ -298,9 +304,57 @@ export const updateTeam = asyncHandler(async (req, res, next) => {
   if (name !== undefined) updateData.name = name.trim();
   if (desc !== undefined) updateData.descText = desc;
 
-  const t = await prisma.team.update({
-    where: { id: teamId },
-    data: updateData
+  // Begin transaction to update team and optionally sync members
+  const t = await prisma.$transaction(async (tx) => {
+    const updatedTeam = await tx.team.update({
+      where: { id: teamId },
+      data: updateData
+    });
+
+    // If members array provided, sync TeamMember records
+    if (Array.isArray(members)) {
+      // Resolve provided IDs as workspaceMemberIds
+      const targetWsIds = members.map(id => id.toString());
+
+      // Current active members
+      const currentTeamMembers = await tx.teamMember.findMany({
+        where: { teamId, status: 'ACTIVE' },
+        select: { id: true, workspaceMemberId: true }
+      });
+      const currentWsIds = currentTeamMembers.map(m => m.workspaceMemberId);
+
+      // Determine additions and removals
+      const toAdd = targetWsIds.filter(id => !currentWsIds.includes(id));
+      const toRemove = currentTeamMembers.filter(m => !targetWsIds.includes(m.workspaceMemberId));
+
+      // Add new members
+      for (const wsId of toAdd) {
+        const wsMember = await tx.workspaceMember.findUnique({
+          where: { id: wsId },
+          select: { workspaceId: true, status: 'ACTIVE' }
+        });
+        if (wsMember && wsMember.workspaceId === updatedTeam.workspaceId && wsMember.status === 'ACTIVE') {
+          await tx.teamMember.create({
+            data: {
+              teamId,
+              workspaceMemberId: wsId,
+              role: 'FULLSTACK_ENGINEER',
+              status: 'ACTIVE'
+            }
+          });
+        }
+      }
+
+      // Soft-remove members no longer present
+      for (const rm of toRemove) {
+        await tx.teamMember.update({
+          where: { id: rm.id },
+          data: { status: 'REMOVED' }
+        });
+      }
+    }
+
+    return updatedTeam;
   });
 
   const mapped = {

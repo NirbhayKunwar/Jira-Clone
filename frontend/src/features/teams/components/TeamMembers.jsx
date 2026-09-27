@@ -25,8 +25,8 @@ export default function TeamMembers({ team, workspaceId }) {
   const canManage = isAdmin || isLeader;
 
   // Filter out users who are already in the team
-  const existingTeamMemberUserIds = team?.teamMembers?.map(m => m.workspaceMember?.userId) || [];
-  const addableWsMembers = (Array.isArray(wsMembers) ? wsMembers : []).filter(m => m && !existingTeamMemberUserIds.includes(m.userId));
+  const existingTeamMemberUserIds = team?.teamMembers?.map(m => m.workspaceMember?.user?.id) || [];
+  const addableWsMembers = (Array.isArray(wsMembers) ? wsMembers : []).filter(m => m && !existingTeamMemberUserIds.includes(m.user?.id));
 
   const handleAddMember = async (e) => {
     e.preventDefault();
@@ -139,7 +139,7 @@ export default function TeamMembers({ team, workspaceId }) {
             </thead>
             <tbody className="divide-y divide-border-secondary/35">
               {team.teamMembers?.map((m) => {
-                const isMe = m.workspaceMember?.userId === currentUser?.id;
+                const isMe = m.workspaceMember?.user?.id === currentUser?.id;
                 const isLead = m.role === 'TEAM_LEAD';
                 const initials = m.workspaceMember?.user?.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'TM';
 

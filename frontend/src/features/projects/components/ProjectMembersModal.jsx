@@ -42,7 +42,7 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
   const availableMembers = rawWsMembersList.filter(wm => {
     if (!wm) return false;
     const wmId = String(wm.id || '');
-    const userId = String(wm.userId || wm.user?.id || '');
+    const userId = String(wm.user?.id || '');
     return !assignedMemberIds.has(wmId) && !assignedMemberIds.has(userId);
   });
 
@@ -258,7 +258,7 @@ export default function ProjectMembersModal({ isOpen, onClose, project, workspac
                 >
                   <option value="">Select workspace member...</option>
                   {availableMembers.map(wm => {
-                    const optionId = wm.id || wm.workspaceMemberId || wm.userId || wm.user?.id;
+                    const optionId = wm.id || wm.workspaceMemberId || wm.user?.id;
                     const name = wm.user?.name || wm.name || 'Member';
                     const email = wm.user?.email || wm.email || '';
                     return (
