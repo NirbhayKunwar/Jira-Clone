@@ -66,123 +66,230 @@ export const verifyGoogleIdToken = async (credential) => {
   };
 };
 
-export const handleGoogleLogin = async ({ credential, ipAddress, userAgent, autoRegister = false }) => {
+export const handleGoogleLogin = async ({
+  credential,
+  ipAddress,
+  userAgent,
+  autoRegister = false
+}) => {
   let googleUser;
+
   try {
     googleUser = await verifyGoogleIdToken(credential);
   } catch (err) {
-    await auditLogRepository.createAuditLog({
-      action: 'GoogleLoginFailed',
-      resourceType: 'User',
-      newValue: err.message || 'Invalid Google ID token',
-      ipAddress,
-      userAgent
-    });
+    // Audit logging must NEVER replace the original authentication error.
+    try {
+      await auditLogRepository.createAuditLog({
+        action: 'GoogleLoginFailed',
+        resourceType: 'User',
+        newValue: err?.message || 'Invalid Google ID token',
+        ipAddress,
+        userAgent
+      });
+    } catch (auditError) {
+      logger.error(
+        '[GOOGLE AUTH] Failed to write failed-login audit log:',
+        auditError
+      );
+    }
+
     throw err;
   }
 
   const { sub, email, picture, name } = googleUser;
 
-  // Search DB for existing user
-  let user = await userRepository.findByEmail(email);
+  let user;
 
-  // Auto-register user if requested or throw AccountNotFoundError if not found
+  try {
+    user = await userRepository.findByEmail(email);
+  } catch (error) {
+    logger.error('[GOOGLE AUTH] Failed to find user by email:', error);
+    throw error;
+  }
+
+  // Auto-register user if requested
   if (!user) {
     if (autoRegister) {
-      user = await userRepository.createGoogleUser({
-        email,
-        name,
-        googleId: sub,
-        avatarUrl: picture
-      });
-      await auditLogRepository.createAuditLog({
-        actorId: user.id,
-        targetUserId: user.id,
-        action: 'GoogleAccountCreated',
-        resourceType: 'User',
-        newValue: 'Created new user account via Google OAuth',
-        ipAddress,
-        userAgent
-      });
-      logger.info(`[GOOGLE AUTH] Auto-created user account for ${email} via Google SSO`);
+      try {
+        user = await userRepository.createGoogleUser({
+          email,
+          name,
+          googleId: sub,
+          avatarUrl: picture
+        });
+      } catch (error) {
+        logger.error('[GOOGLE AUTH] Failed to create Google user:', error);
+        throw error;
+      }
+
+      try {
+        await auditLogRepository.createAuditLog({
+          actorId: user.id,
+          targetUserId: user.id,
+          action: 'GoogleAccountCreated',
+          resourceType: 'User',
+          newValue: 'Created new user account via Google OAuth',
+          ipAddress,
+          userAgent
+        });
+      } catch (auditError) {
+        logger.error(
+          '[GOOGLE AUTH] Failed to write account-created audit log:',
+          auditError
+        );
+      }
+
+      logger.info(
+        `[GOOGLE AUTH] Auto-created user account for ${email} via Google SSO`
+      );
+
       return user;
     }
 
-    await auditLogRepository.createAuditLog({
-      action: 'GoogleLoginFailed',
-      resourceType: 'User',
-      newValue: `Account not found for email: ${email}`,
-      ipAddress,
-      userAgent
-    });
+    try {
+      await auditLogRepository.createAuditLog({
+        action: 'GoogleLoginFailed',
+        resourceType: 'User',
+        newValue: `Account not found for email: ${email}`,
+        ipAddress,
+        userAgent
+      });
+    } catch (auditError) {
+      logger.error(
+        '[GOOGLE AUTH] Failed to write account-not-found audit log:',
+        auditError
+      );
+    }
+
     throw new AccountNotFoundError();
   }
 
-  // Rule 4: Reject inactive, suspended, or deleted users
+  // Reject suspended users
   if (user.status === 'SUSPENDED') {
-    await auditLogRepository.createAuditLog({
-      actorId: user.id,
-      targetUserId: user.id,
-      action: 'GoogleLoginFailed',
-      resourceType: 'User',
-      newValue: 'Account is suspended',
-      ipAddress,
-      userAgent
-    });
+    try {
+      await auditLogRepository.createAuditLog({
+        actorId: user.id,
+        targetUserId: user.id,
+        action: 'GoogleLoginFailed',
+        resourceType: 'User',
+        newValue: 'Account is suspended',
+        ipAddress,
+        userAgent
+      });
+    } catch (auditError) {
+      logger.error('[GOOGLE AUTH] Failed to write audit log:', auditError);
+    }
+
     throw new AccountSuspendedError();
   }
 
-  if (user.status === 'DEACTIVATED' || user.status === 'INACTIVE') {
-    await auditLogRepository.createAuditLog({
-      actorId: user.id,
-      targetUserId: user.id,
-      action: 'GoogleLoginFailed',
-      resourceType: 'User',
-      newValue: 'Account is inactive',
-      ipAddress,
-      userAgent
-    });
+  // Reject inactive users
+  if (
+    user.status === 'DEACTIVATED' ||
+    user.status === 'INACTIVE'
+  ) {
+    try {
+      await auditLogRepository.createAuditLog({
+        actorId: user.id,
+        targetUserId: user.id,
+        action: 'GoogleLoginFailed',
+        resourceType: 'User',
+        newValue: 'Account is inactive',
+        ipAddress,
+        userAgent
+      });
+    } catch (auditError) {
+      logger.error('[GOOGLE AUTH] Failed to write audit log:', auditError);
+    }
+
     throw new AccountInactiveError();
   }
 
-  if (user.status === 'REMOVED' || user.status === 'DELETED') {
-    await auditLogRepository.createAuditLog({
-      actorId: user.id,
-      targetUserId: user.id,
-      action: 'GoogleLoginFailed',
-      resourceType: 'User',
-      newValue: 'Account is deleted',
-      ipAddress,
-      userAgent
-    });
+  // Reject deleted users
+  if (
+    user.status === 'REMOVED' ||
+    user.status === 'DELETED'
+  ) {
+    try {
+      await auditLogRepository.createAuditLog({
+        actorId: user.id,
+        targetUserId: user.id,
+        action: 'GoogleLoginFailed',
+        resourceType: 'User',
+        newValue: 'Account is deleted',
+        ipAddress,
+        userAgent
+      });
+    } catch (auditError) {
+      logger.error('[GOOGLE AUTH] Failed to write audit log:', auditError);
+    }
+
     throw new AccountDeletedError();
   }
 
-  // Rule 5 & 6: Link Google account if not previously linked
+  // Link Google account if necessary
   let updatedUser = user;
-  if (!user.googleId || user.googleId !== sub || user.authProvider !== 'GOOGLE') {
-    updatedUser = await userRepository.linkGoogleAccount(user.id, sub, user.avatarUrl ? null : picture);
-    await auditLogRepository.createAuditLog({
-      actorId: user.id,
-      targetUserId: user.id,
-      action: 'GoogleAccountLinked',
-      resourceType: 'User',
-      oldValue: user.authProvider,
-      newValue: 'GOOGLE',
-      ipAddress,
-      userAgent
-    });
-    logger.info(`[GOOGLE AUTH] Linked Google account for user ${user.email} (sub: ${sub})`);
+
+  if (
+    !user.googleId ||
+    user.googleId !== sub ||
+    user.authProvider !== 'GOOGLE'
+  ) {
+    try {
+      updatedUser = await userRepository.linkGoogleAccount(
+        user.id,
+        sub,
+        user.avatarUrl ? null : picture
+      );
+    } catch (error) {
+      logger.error(
+        '[GOOGLE AUTH] Failed to link Google account:',
+        error
+      );
+      throw error;
+    }
+
+    try {
+      await auditLogRepository.createAuditLog({
+        actorId: user.id,
+        targetUserId: user.id,
+        action: 'GoogleAccountLinked',
+        resourceType: 'User',
+        oldValue: user.authProvider,
+        newValue: 'GOOGLE',
+        ipAddress,
+        userAgent
+      });
+    } catch (auditError) {
+      logger.error(
+        '[GOOGLE AUTH] Failed to write account-linked audit log:',
+        auditError
+      );
+    }
+
+    logger.info(
+      `[GOOGLE AUTH] Linked Google account for user ${user.email} (sub: ${sub})`
+    );
   } else {
-    await auditLogRepository.createAuditLog({
-      actorId: user.id,
-      targetUserId: user.id,
-      action: 'GoogleLoginSuccess',
-      resourceType: 'User',
-      ipAddress,
-      userAgent
-    });
-    logger.info(`[GOOGLE AUTH] Google login success for user ${user.email}`);
+    try {
+      await auditLogRepository.createAuditLog({
+        actorId: user.id,
+        targetUserId: user.id,
+        action: 'GoogleLoginSuccess',
+        resourceType: 'User',
+        ipAddress,
+        userAgent
+      });
+    } catch (auditError) {
+      logger.error(
+        '[GOOGLE AUTH] Failed to write login-success audit log:',
+        auditError
+      );
+    }
+
+    logger.info(
+      `[GOOGLE AUTH] Google login success for user ${user.email}`
+    );
   }
 
   return updatedUser;
