@@ -304,13 +304,9 @@ export const requireWorkspaceAdminOrTeamLead = async (
  *
  * Useful for read-only team operations.
  */
-export const requireWorkspaceMember = async (
-  req,
-  res,
-  next
-) => {
-  try {
 
+export const requireWorkspaceMember = async (req, res, next) => {
+  try {
     if (!req.user?.id) {
       return res.status(401).json({
         success: false,
@@ -319,71 +315,55 @@ export const requireWorkspaceMember = async (
       });
     }
 
-    const { teamId } = req.params;
+    const { workspaceId } = req.params;
 
-    if (!teamId) {
+    if (
+      !workspaceId ||
+      workspaceId === 'undefined' ||
+      workspaceId === 'null'
+    ) {
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
-        message: 'Team ID is required.'
+        message: 'Workspace ID is required.'
       });
     }
 
-    if (!isValidObjectId(teamId)) {
+    if (!isValidObjectId(workspaceId)) {
       return res.status(400).json({
         success: false,
         error: 'Bad Request',
-        message: 'Invalid team ID format.'
+        message: 'Invalid workspace ID format.'
       });
     }
 
-    const team = await prisma.team.findUnique({
+    const workspaceMember = await prisma.workspaceMember.findFirst({
       where: {
-        id: teamId
+        workspaceId,
+        userId: req.user.id,
+        status: 'ACTIVE'
+      },
+      include: {
+        workspace: true
       }
     });
-
-    if (!team || team.status === 'ARCHIVED') {
-      return res.status(404).json({
-        success: false,
-        error: 'Not Found',
-        message: 'Team not found or archived.'
-      });
-    }
-
-    const workspaceMember =
-      await prisma.workspaceMember.findFirst({
-        where: {
-          userId: req.user.id,
-          workspaceId: team.workspaceId,
-          status: 'ACTIVE'
-        }
-      });
 
     if (!workspaceMember) {
       return res.status(403).json({
         success: false,
         error: 'Forbidden',
-        message:
-          'You are not an active member of this workspace.'
+        message: 'You are not an active member of this workspace.'
       });
     }
 
-    req.team = team;
     req.workspaceMember = workspaceMember;
+    req.workspace = workspaceMember.workspace;
 
     next();
-
   } catch (error) {
-    console.error(
-      '[RBAC] requireWorkspaceMember error:',
-      error
-    );
-
     next(error);
   }
 };
-
 
 /**
  * ============================================================
